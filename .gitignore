@@ -12,8 +12,9 @@ env/
 .mypy_cache/
 .ipynb_checkpoints/
 
-# Local Claude Code config (hooks, memory, settings)
-.claude/
+# Claude Code: track the shared verify gate + settings.json (Stop hook);
+# ignore only machine-local overrides.
+.claude/settings.local.json
 
 # OS/editor
 .DS_Store
