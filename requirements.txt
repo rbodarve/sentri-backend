@@ -9,6 +9,12 @@ llama-index-embeddings-huggingface>=0.3,<0.6
 # Optional alternative backend (RAG_EMBED_PROVIDER=ollama); uncomment if used:
 # llama-index-embeddings-ollama>=0.3,<0.6
 
+# Step 6 rerank stage (default eval/ask path): CPU cross-encoder via
+# SentenceTransformerRerank with RAG_RERANK_MODEL=BAAI/bge-reranker-base.
+# Pulled transitively by the embeddings package, but declared here because the
+# rerank config depends on it directly.
+sentence-transformers>=3,<6
+
 # Step 8 generation backend: local LLM via Ollama (default granite4.1:3b).
 # Requires a running Ollama server with the model pulled (`ollama pull granite4.1:3b`).
 llama-index-llms-ollama>=0.3,<0.7
