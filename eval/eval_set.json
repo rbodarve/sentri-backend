@@ -1,0 +1,342 @@
+[
+  {
+    "query": "What is the contract name of contract 24CC0265?",
+    "contract_id": "24CC0265",
+    "intent": "contract_name",
+    "anchors": [
+      "Contract Name"
+    ],
+    "expected_ids": [
+      "aca154d9-0c4e-4709-bdb1-61bf7d5184ab",
+      "0294f87c-0f7d-47bd-9abf-60a3a3030811",
+      "efd39c0d-1148-43eb-8cb3-0ab8f53e0e85",
+      "7ba93cd7-fca6-47ae-90c8-81ba3795cb2c",
+      "8580da99-3efc-4de6-931c-f122f45df9a9",
+      "7de7a167-e8fd-4e6e-965c-12d785c613f5",
+      "1e43c0ad-e031-408e-bb40-0ab0c0bf65d1",
+      "76947761-5489-4fc7-b9d1-04e38e67fa3b"
+    ]
+  },
+  {
+    "query": "Which contractor was awarded contract 24CC0265?",
+    "contract_id": "24CC0265",
+    "intent": "winning_bidder",
+    "anchors": [
+      "AMETHYST HORIZON"
+    ],
+    "expected_ids": [
+      "1aed3a4e-e6c0-428d-99e1-1d166d10f6c2",
+      "57ac06eb-ffaa-4488-b846-c952fcc1c865",
+      "e2634ddf-c588-4903-a632-e485e0fcea7a",
+      "2a5e18ca-0cb2-4e3d-9e31-06278ccbfd13",
+      "9df67afc-10fb-4e27-aad4-b86826e75e4f",
+      "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+      "3d012ada-d835-44a3-964f-6038f198dd92",
+      "0dcea5d7-961d-40de-82b9-493e31c57e1f",
+      "d803861e-551e-424e-b9a2-02a8f1429c14",
+      "f691dec3-569c-49c8-a004-59deb6fac775",
+      "0170f067-eb64-4cdf-95f3-a3c0f3e5d917"
+    ]
+  },
+  {
+    "query": "What is the total contract amount for 24CC0265?",
+    "contract_id": "24CC0265",
+    "intent": "amount",
+    "anchors": [
+      "69,479,428"
+    ],
+    "expected_ids": [
+      "405c437c-5c7b-47eb-b4ae-14a15ca894fb",
+      "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+      "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+      "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+      "d803861e-551e-424e-b9a2-02a8f1429c14",
+      "0170f067-eb64-4cdf-95f3-a3c0f3e5d917"
+    ]
+  },
+  {
+    "query": "Who is the District Engineer for contract 24CC0265?",
+    "contract_id": "24CC0265",
+    "intent": "district_engineer",
+    "anchors": [
+      "ALCANTARA"
+    ],
+    "expected_ids": [
+      "52403a0a-936d-45ab-b50f-d6d753c39af5",
+      "43edf4e7-da9c-46b3-ade5-5dbf80a66cc2",
+      "85883c00-8580-444c-a1be-a0e17f55cb40",
+      "7752316d-3074-4f82-9aa6-47f9fddf801d",
+      "eafdc914-7f2c-4e1d-a879-0b3c34d483fe"
+    ]
+  },
+  {
+    "query": "What is the contract name of contract 24AJ0052?",
+    "contract_id": "24AJ0052",
+    "intent": "contract_name",
+    "anchors": [
+      "Contract Name"
+    ],
+    "expected_ids": [
+      "ed430f74-f5b9-4c39-adfe-ae5263953ef2",
+      "a0ac9565-9736-4290-9d96-7b0e33904fd5",
+      "31d00aab-4884-4788-b4e9-4e68f8d2ea94",
+      "8fc754b6-c51d-4fbf-8dc0-c0d8b89f61a2",
+      "5a5e1fd8-7eb4-4d0c-b96a-0b3eca5985d4"
+    ]
+  },
+  {
+    "query": "Which contractor was awarded contract 24AJ0052?",
+    "contract_id": "24AJ0052",
+    "intent": "winning_bidder",
+    "anchors": [
+      "JHI Construction"
+    ],
+    "expected_ids": [
+      "0ed58e9a-079f-45ab-91d5-51253dbfb637",
+      "6f5ba71d-d11a-4585-9430-46c3f67be5bd",
+      "0a3dfc37-ed46-4989-a798-1089d56efa8e",
+      "73290ec7-5f37-4d47-a8d5-6fa2cc952648",
+      "b578eab0-54c2-4f8f-9231-56bcdd0c6e1e",
+      "16ce10ff-5cf0-4893-8338-a5d0df14338d"
+    ]
+  },
+  {
+    "query": "What is the contract amount for 24AJ0052?",
+    "contract_id": "24AJ0052",
+    "intent": "amount",
+    "anchors": [
+      "NINETEEN MILLION"
+    ],
+    "expected_ids": [
+      "be883897-178d-40cb-bb18-0b2cb11067fa",
+      "cd26a08b-e09b-4c24-b108-b0cb5911a125",
+      "ef255f31-9e38-4dba-9bd6-ca377bb3347b"
+    ]
+  },
+  {
+    "query": "Who is the OIC District Engineer for contract 24AJ0052?",
+    "contract_id": "24AJ0052",
+    "intent": "district_engineer",
+    "anchors": [
+      "GONZALES"
+    ],
+    "expected_ids": [
+      "cbbdce3b-2172-4f92-bbf5-2d02e203aa22",
+      "9335ae61-3387-4715-9499-0251f9f496f9",
+      "0b987293-f353-4c4a-9ae8-059695f459cf",
+      "191a644b-f45c-47a1-b0b1-92b855c5f385",
+      "970f4bf8-54f0-4b00-91ae-f0c13105eaa2"
+    ]
+  },
+  {
+    "query": "What is the contract name of contract 24BG0272?",
+    "contract_id": "24BG0272",
+    "intent": "contract_name",
+    "anchors": [
+      "Contract Name"
+    ],
+    "expected_ids": [
+      "1add8b0b-98d5-4a34-86c1-dca97efcdb7c",
+      "1c304b25-8201-4f32-90ab-164cfcae698e",
+      "12720441-9367-4970-b84d-0bda851e08cc",
+      "a98651c5-9dcd-44f5-ab8f-abb979ca3f5b",
+      "5ac1025c-2d84-468b-82f7-eb0a1e053c61",
+      "6cd0c437-9272-4275-9946-1c0c0b6c67c3"
+    ]
+  },
+  {
+    "query": "Which contractor was awarded contract 24BG0272?",
+    "contract_id": "24BG0272",
+    "intent": "winning_bidder",
+    "anchors": [
+      "JWU CONSTRUCTION"
+    ],
+    "expected_ids": [
+      "24830583-53f3-4a86-b333-ae86d6fe5cd9",
+      "8cd24886-4464-449f-b4c2-598de6a1a12e",
+      "5123ddb7-c72b-4d4f-bb9c-9a69bc84d228",
+      "09ba554d-9a90-4351-9a36-360564457055",
+      "817ed5d5-297e-4b99-9c43-d74ee40f7d52"
+    ]
+  },
+  {
+    "query": "Who is the District Engineer for contract 24BG0272?",
+    "contract_id": "24BG0272",
+    "intent": "district_engineer",
+    "anchors": [
+      "ASIS"
+    ],
+    "expected_ids": [
+      "54475184-df52-4768-9050-922541c55ce9",
+      "5123ddb7-c72b-4d4f-bb9c-9a69bc84d228",
+      "bf22e77e-6135-4983-9632-ab21d5ca3dcc",
+      "33cc731b-d5ac-49d0-bb94-8295c0db2b9a",
+      "876dd7f3-bcd2-4ecb-8cb5-0c36c11a8a33",
+      "2ebd3ed9-e489-41ee-8d66-1f867f4bf5ca",
+      "1bef5af3-2f54-407c-b4ee-60a0bee2c2a4",
+      "06047af0-34f9-4585-b37f-cb36c8355d91"
+    ]
+  },
+  {
+    "query": "What is the contract amount for 24BG0272?",
+    "contract_id": "24BG0272",
+    "intent": "amount",
+    "anchors": [
+      "Pesos"
+    ],
+    "expected_ids": [
+      "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
+      "5315ba1f-0cd7-4bf6-a8ac-8b6147b37e75"
+    ]
+  },
+  {
+    "query": "What is the contract name of contract 24BJ0005?",
+    "contract_id": "24BJ0005",
+    "intent": "contract_name",
+    "anchors": [
+      "Contract Name"
+    ],
+    "expected_ids": [
+      "ab80f80d-481f-4e41-8526-370005edf9a3",
+      "3848c571-6c0c-4b40-aab6-0afbd6fdf8a8",
+      "f1134ba7-1abb-4fc8-a2fe-dfdcc24fb2a7",
+      "05e2ebc8-0058-4c3c-8b3f-479f8abbc7fe",
+      "1021ec8a-9403-4b96-87c9-ad3256380144",
+      "6b32205c-54ba-454a-8f82-556bf5a80bf5",
+      "ce34f98e-7215-4a34-b6fd-5a9ad0dec7bc"
+    ]
+  },
+  {
+    "query": "Which contractor was awarded contract 24BJ0005?",
+    "contract_id": "24BJ0005",
+    "intent": "winning_bidder",
+    "anchors": [
+      "BRG CONSTRUCTION"
+    ],
+    "expected_ids": [
+      "2a42f52f-3479-4bd7-bac6-6bebc53262d4",
+      "7f6e9800-7019-4ca9-a2b9-812fdc0a355f",
+      "e7fa44bf-db23-4b3e-a5e7-47d279bdb206",
+      "d74db3fa-6c2e-49c9-b633-e3aec8618f8d",
+      "5838b581-4be3-4b2d-a7eb-6ae96978682b",
+      "aad5445b-717b-489b-b533-ae2b228a7a86",
+      "9b649f28-d02a-4599-abf6-adae78afb962"
+    ]
+  },
+  {
+    "query": "Who is the District Engineer for contract 24BJ0005?",
+    "contract_id": "24BJ0005",
+    "intent": "district_engineer",
+    "anchors": [
+      "INGUILLO"
+    ],
+    "expected_ids": [
+      "2a42f52f-3479-4bd7-bac6-6bebc53262d4",
+      "6b0d7dc6-3f04-4389-9c5a-b1330ac1d308",
+      "bf69de34-0b37-4545-be9f-2db51f830124",
+      "5b21beba-28be-4411-9fdd-056053e30652",
+      "f35d8500-5c87-4f65-87f4-27de6f970295",
+      "752029a8-abb5-4e3e-a1c0-193676ad1897",
+      "fc9e0be8-6cf7-4069-8e2c-4e9c41f19f79",
+      "240660df-1df6-44d4-a702-d96c322f3c2d"
+    ]
+  },
+  {
+    "query": "What is the contract amount for 24BJ0005?",
+    "contract_id": "24BJ0005",
+    "intent": "amount",
+    "anchors": [
+      "Pesos"
+    ],
+    "expected_ids": [
+      "f157c4ee-28b5-4a47-9121-1a6a08569277",
+      "850d2a06-83b3-4e2e-9aa6-109e0ec91f0c"
+    ]
+  },
+  {
+    "query": "What is the contract name of contract 24CM0001?",
+    "contract_id": "24CM0001",
+    "intent": "contract_name",
+    "anchors": [
+      "Contract Name"
+    ],
+    "expected_ids": [
+      "d70b24bd-dc25-4fee-977f-472fe4403358"
+    ]
+  },
+  {
+    "query": "Which contractor was awarded contract 24CM0001?",
+    "contract_id": "24CM0001",
+    "intent": "winning_bidder",
+    "anchors": [
+      "JAMJLE"
+    ],
+    "expected_ids": [
+      "0030a3c6-3586-4759-a081-faf16f470508",
+      "79df3312-b517-4fa5-bc0c-d0cf0e47afba"
+    ]
+  },
+  {
+    "query": "Who is the District Engineer for contract 24CM0001?",
+    "contract_id": "24CM0001",
+    "intent": "district_engineer",
+    "anchors": [
+      "DIZON"
+    ],
+    "expected_ids": [
+      "0d8659ef-d5b2-4811-8c55-adb9d7e95fd0"
+    ]
+  },
+  {
+    "query": "What is the contract name of contract 24A00153?",
+    "contract_id": "24A00153",
+    "intent": "contract_name",
+    "anchors": [
+      "Contract Name"
+    ],
+    "expected_ids": [
+      "a5f6b286-b92f-4561-8b89-99f9b9763b2c",
+      "e6e329e1-f29e-4ed5-bb98-94347fe844a6",
+      "1486f8f4-b782-4c7b-87e2-bbd0c1fd0da3",
+      "a5af4aac-6182-4185-9eb4-d51b1e4b707b",
+      "df14ca54-bda3-411f-b495-bc8621aa1492",
+      "e1fcac92-cd14-45ae-9417-558a39f953a4",
+      "48697345-0c2b-436f-9274-f75040c9dfca"
+    ]
+  },
+  {
+    "query": "Which contractor was awarded contract 24A00153?",
+    "contract_id": "24A00153",
+    "intent": "winning_bidder",
+    "anchors": [
+      "Rodekom"
+    ],
+    "expected_ids": [
+      "630e9c13-c4f2-4d3f-9209-74020e6c1f7d",
+      "c6567d38-b9d4-46eb-90f1-ca48ef9fa531",
+      "e3c5451a-de03-44f3-bdb1-fd240595526e",
+      "7b8b6c46-5f88-4d37-b4c4-2f85da3465df",
+      "29782e42-65b2-4a43-bc4a-ce22007cdc37",
+      "0cfb70aa-ec42-434a-817d-0ce94c37a874",
+      "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+      "17b245dd-71f0-493c-b5ff-4b2bb52c2057",
+      "94353284-8cde-40b0-848f-55260309b3c1",
+      "f18aef8f-1978-4037-b579-91ff56465294",
+      "cc1a73eb-0605-4553-88e3-1ba30771f7d8"
+    ]
+  },
+  {
+    "query": "Who signed as Chief of the Construction Division for contract 24A00153?",
+    "contract_id": "24A00153",
+    "intent": "bac_official",
+    "anchors": [
+      "JUCAR"
+    ],
+    "expected_ids": [
+      "51a389f1-950c-4916-8c33-bf497c0c2b60",
+      "9f65d9d4-f659-4bc4-acb2-06b5834fca7c",
+      "2cc625ee-868a-4140-8200-fbf78f2efec6",
+      "7b8c131b-3fe6-4b05-a073-3a68a75c2940"
+    ]
+  }
+]

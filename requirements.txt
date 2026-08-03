@@ -1,0 +1,14 @@
+# RAG pipeline dependencies (pinned for reproducible handoff).
+llama-index-core==0.12.52.post1
+
+# Step 4 default embedding backend: HuggingFace bge-small (CPU).
+# Pulls torch/transformers/sentence-transformers. Install CPU-only torch to avoid CUDA:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+llama-index-embeddings-huggingface>=0.3,<0.6
+
+# Optional alternative backend (RAG_EMBED_PROVIDER=ollama); uncomment if used:
+# llama-index-embeddings-ollama>=0.3,<0.6
+
+# Step 8 generation backend: local LLM via Ollama (default granite4.1:3b).
+# Requires a running Ollama server with the model pulled (`ollama pull granite4.1:3b`).
+llama-index-llms-ollama>=0.3,<0.7
