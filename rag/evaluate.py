@@ -63,8 +63,9 @@ def evaluate(top_k: int = TOP_K, filter_by_contract: bool = FILTER_BY_CONTRACT, 
             retriever = index.as_retriever(similarity_top_k=candidate_k)
         if reranker is not None:
             retriever = RerankingRetriever(retriever, reranker)
-        # with a contract filter, search on intent only (drop the redundant contract id)
-        query_text = strip_contract_phrase(item["query"]) if filter_by_contract else item["query"]
+        # with a contract filter, search on intent only: the item's pre-stripped search_query.
+        # (the human-style `query` names the contract, which biases ranking toward header chunks.)
+        query_text = item["search_query"] if filter_by_contract else item["query"]
         evaluator = RetrieverEvaluator.from_metric_names(["hit_rate", "mrr"], retriever=retriever)
         result = evaluator.evaluate(query=query_text, expected_ids=item["expected_ids"])
         results.append((item, result))

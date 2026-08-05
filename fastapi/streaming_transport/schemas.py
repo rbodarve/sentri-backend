@@ -1,7 +1,7 @@
 """Request schemas for the generic streaming transport.
 
 Domain-neutral: these describe the *inbound* HTTP contract only (a question,
-a session id, and prior chat turns). They carry no Sentri/DPWH specifics, so a
+a session id, and prior chat turns). They carry no domain specifics, so a
 second service can reuse them unchanged.
 
 Kept separate from transport.py so an upstream client (Spring Boot, a Next.js

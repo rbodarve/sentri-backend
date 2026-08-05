@@ -37,7 +37,9 @@ from llama_index.core import Settings
 # what keeps the semantic-combine answer identical to the CLI agent — worth the
 # private import rather than duplicating (and drifting from) the prompt.
 from rag.agent import AgenticRag, _COMBINE_TEMPLATE
+from rag.enrich import CONTRACT_ID_RE
 from rag.generate import format_sources
+from rag.manifest import load_manifest
 from rag.verify import Report
 
 # Seam 4 stage vocabulary — the stage names this pipeline reports.
@@ -56,15 +58,15 @@ class StreamPart:
     report: Report
     contract_id: str | None
     sources: str  # "contract/doc_type pN, ..." from rag.generate.format_sources
-    # Per-chunk evidence in Sentri's source-panel shape ({name, page, score,
-    # chunk_id}), extracted from the retrieval Response so `finalize` can emit
-    # the same `sources` payload Sentri does.
+    # Per-chunk evidence in the external API's source-panel shape ({name, page,
+    # score, chunk_id}), extracted from the retrieval Response so `finalize` can
+    # emit the same `sources` payload the external API does.
     evidence: list[dict] = field(default_factory=list)
 
 
 def _node_evidence(response: Any) -> list[dict]:
-    """Project a retrieval Response's source nodes into Sentri's per-chunk
-    source shape. Manifest nodes (the injected contract list) are skipped —
+    """Project a retrieval Response's source nodes into the external API's
+    per-chunk source shape. Manifest nodes (the injected contract list) are skipped —
     they're context scaffolding, not citable evidence."""
     if response is None:
         return []
@@ -73,8 +75,8 @@ def _node_evidence(response: Any) -> list[dict]:
         md = n.metadata
         if md.get("is_manifest"):
             continue
-        # pdf_page is stored as a string in the DB; emit an int to match Sentri's
-        # source-panel shape (page: int). Leave non-numeric values untouched.
+        # pdf_page is stored as a string in the DB; emit an int to match the
+        # external API's source-panel shape (page: int). Leave non-numeric values untouched.
         page = md.get("pdf_page")
         page = int(page) if isinstance(page, str) and page.isdigit() else page
         out.append({
@@ -100,6 +102,15 @@ class StreamFinal:
     parts: list[StreamPart] = field(default_factory=list)
 
 
+def _humanize_ids(text: str, id_to_name: dict[str, str]) -> str:
+    """Swap each contract id in the DISPLAYED answer for its manifest short_name so the token
+    stream / response_text read naturally (e.g. '24cc0265_roa.pdf' -> '<name>_roa.pdf'). Matches
+    both cases (the regex char class covers them); an id with no short_name is left as-is.
+    Presentation only -- the `contract_ids`/`sources` metadata stays keyed by id, and this runs
+    after verification, so grounding is unaffected."""
+    return CONTRACT_ID_RE.sub(lambda m: id_to_name.get(m.group(0).upper(), m.group(0)), text)
+
+
 def _word_tokens(text: str) -> Iterator[str]:
     """Split into whitespace-preserving chunks so the client can re-join them
     back into the exact answer text. Used to replay the verified answer."""
@@ -114,6 +125,9 @@ class StreamingAgenticRag:
         # The transport already runs build_pipeline in a threadpool — do NOT wrap.
         self.agent = AgenticRag()
         self._rag = self.agent._rag  # the shared RagAnswerer the agent answers through
+        # contract_id -> short_name, for humanizing ids in the displayed answer (see run_stream).
+        self._id_to_name = {r["contract_id"].upper(): r.get("short_name") or r["contract_id"]
+                            for r in load_manifest()}
 
         # Adapter: capture the Response of each answer_once call so we can emit
         # citations (the agent itself keeps only text + report). Shimming the
@@ -190,6 +204,11 @@ class StreamingAgenticRag:
                 report = agent._verifier.check(combined)
                 tracer.record(STAGE_COMBINE, {"ok": report.ok})
                 result = StreamFinal(query, kind, ids, combined, report, parts)
+
+        # Humanize contract ids in the DISPLAYED answer only (the token stream + response_text
+        # read `finalize` off this same text). The `contract_ids`/`sources` metadata stays keyed
+        # by id. This runs after verification, so it can't affect grounding.
+        result.text = _humanize_ids(result.text, self._id_to_name)
 
         # Replay the verified answer as tokens. A withheld answer (failed the
         # grounding check) streams nothing — the withheld notice rides on `done`.

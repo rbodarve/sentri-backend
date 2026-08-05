@@ -1,7 +1,8 @@
 """The ragtest-specific seams handed to the generic transport.
 
-This is the ~30% that knows about DPWH / the agentic RAG pipeline — the analog
-of `only_for_read/streaming_transport_SEAMS.txt`, but bound to THIS workspace:
+This is the ~30% that knows about DPWH / the agentic RAG pipeline — the concrete
+implementation of the five seams the `streaming_transport` package defines (see
+`transport.create_app`), bound to THIS workspace:
 
   Seam 1  build_pipeline()   -> (StreamingAgenticRag, None)
   Seam 2  StreamingAgenticRag.run_stream(...)          (see pipeline.py)
@@ -10,8 +11,8 @@ of `only_for_read/streaming_transport_SEAMS.txt`, but bound to THIS workspace:
   Seam 5  finalize(final, context) -> [(event, data), ...]   (`done` last)
   augment passthrough_query(query, history) -> str        (workspace override)
 
-Sentri's `graph` event is dropped (no knowledge-graph store here), and its
-`contract_ids` event is kept — DPWH contract ids are exactly this workspace's
+The external API's `graph` event is dropped (no knowledge-graph store here), and
+its `contract_ids` event is kept — DPWH contract ids are exactly this workspace's
 "subject id", so the analog is direct.
 """
 from __future__ import annotations
@@ -38,7 +39,7 @@ if TYPE_CHECKING:  # only for the type hint on passthrough_query; no runtime dep
 def build_pipeline() -> "tuple[StreamingAgenticRag, None]":
     """Build the load-once agentic pipeline. Blocking is fine — the transport
     runs this in a threadpool so model loads don't block boot. No opaque context
-    to forward (unlike Sentri's graph store), so the second value is None."""
+    to forward (unlike the external service's graph store), so the second value is None."""
     return StreamingAgenticRag(), None
 
 
@@ -61,16 +62,16 @@ def summarize_stage(stage: str, data: dict[str, Any]) -> dict[str, Any]:
 
 
 # The backend is always local Ollama here (rag/config.py), so these are fixed
-# rather than read per-request like Sentri's multi-backend compose step.
+# rather than read per-request like the external service's multi-backend compose step.
 _COMPOSE_BACKEND = "ollama"
 
 
 def _document_graph(sources: "list[dict[str, Any]]") -> "dict[str, Any]":
-    """Sentri's `graph` shape ({nodes, edges}) over the cited documents.
+    """The external API's `graph` shape ({nodes, edges}) over the cited documents.
 
-    Sentri computes edges from a knowledge-graph store; this workspace has none,
-    so edges are always empty. Nodes are still the cited documents (Sentri's node
-    shape: {id, label, pages}), so a client that renders the graph sidebar gets
+    The external service computes edges from a knowledge-graph store; this
+    workspace has none, so edges are always empty. Nodes are still the cited
+    documents (its node shape: {id, label, pages}), so a client that renders the graph sidebar gets
     the same structure — just no inter-document links to draw."""
     nodes: dict[str, dict[str, Any]] = {}
     for s in sources:
@@ -88,15 +89,15 @@ def _document_graph(sources: "list[dict[str, Any]]") -> "dict[str, Any]":
 def finalize(final: StreamFinal, _context: Any) -> "list[tuple[str, dict[str, Any]]]":
     """Project the verified result into terminal SSE events, `done` last.
 
-    Shaped to match Sentri's `sources` / `graph` / `done` payloads so a client
-    written against sentri_api consumes this stream unchanged (see fastapi/README).
-    Fields Sentri derives from data this pipeline doesn't have carry honest
+    Shaped to match the external API's `sources` / `graph` / `done` payloads so a
+    client written against that API consumes this stream unchanged (see fastapi/README).
+    Fields the external API derives from data this pipeline doesn't have carry honest
     stand-ins: `confidence` is binary (this pipeline withholds instead of
     scoring), and `tokens`/`cost_usd` are 0 (local Ollama, no accounting)."""
     withheld = not final.report.ok
 
     # De-duplicate per-chunk evidence across sub-answers, preserving first-seen
-    # order, into Sentri's flat source-panel list.
+    # order, into the external API's flat source-panel list.
     sources: list[dict[str, Any]] = []
     seen: set[tuple] = set()
     for p in final.parts:
@@ -122,8 +123,8 @@ def finalize(final: StreamFinal, _context: Any) -> "list[tuple[str, dict[str, An
             "compose_model": GEN_MODEL,
             # Verified answer text, or "" when withheld (the notice stands in for it).
             "response_text": "" if withheld else final.text,
-            # Additive (not in Sentri's `done`): the grounding-check reason, so the
-            # withhold isn't silent when `uncertain` is True. Sentri clients that
+            # Additive (not in the external API's `done`): the grounding-check reason, so the
+            # withhold isn't silent when `uncertain` is True. Clients that
             # don't know the key simply ignore it.
             "notice": format_report(final.report) if withheld else None,
         }),

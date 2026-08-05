@@ -81,6 +81,33 @@ def _extraction_input(nodes) -> str:
     return "\n".join(parts)
 
 
+# A display-only label for humanizing contract ids in answer text (the fastapi checker). It is
+# DERIVED deterministically from fields already extracted -- never invented: an LLM asked to
+# "name the structure" hallucinated a "Dam" / "Coastal Barrier" for the two contracts whose name
+# is generic, which is exactly the confident fabrication the rest of the pipeline guards against.
+# So project type comes from keywords actually present in the name, the waterway only if the name
+# states one, and the location verbatim. It never feeds retrieval or the verifier -- presentation only.
+_PROJECT_TYPES = (
+    ("slope protection", "Slope Protection Project"),
+    ("flood control", "Flood Control Project"),
+    ("flood mitigation", "Flood Mitigation Project"),
+    ("flood management", "Flood Mitigation Project"),
+    ("flood", "Flood Control Project"),
+)
+_WATERWAY_RE = re.compile(r"\b(along|at)\s+([A-ZÑ][\w.]*(?:\s+[A-ZÑ][\w.]*)*\s+(?:River|Creek))\b")
+
+
+def _derive_short_name(contract_name: str, location: str) -> str:
+    """A concise, grounded label for display substitution -- project type + any named waterway +
+    location, all read from the record; no paraphrase, no invention."""
+    low = contract_name.lower()
+    ptype = next((label for key, label in _PROJECT_TYPES if key in low), "Project")
+    m = _WATERWAY_RE.search(contract_name)
+    waterway = f" {m.group(1)} {m.group(2)}" if m else ""
+    loc = location if location and location != "not stated" else ""
+    return f"{ptype}{waterway}" + (f", {loc}" if loc else "")
+
+
 def _parse_extraction(raw: str) -> dict:
     """Pull the JSON object out of the LLM reply; every field falls back to 'not stated'."""
     record = {field: "not stated" for field in _EXTRACT_FIELDS}
@@ -115,6 +142,7 @@ def build_manifest(nodes=None, persist: bool = True) -> list[dict]:
         doc_types = sorted({n.metadata["doc_type"] for n in group})
         reply = llm.complete(_EXTRACT_PROMPT.format(text=_extraction_input(group)))
         record = {"contract_id": contract_id, "doc_types": doc_types, **_parse_extraction(str(reply))}
+        record["short_name"] = _derive_short_name(record["contract_name"], record["location"])
         manifest.append(record)
 
     if persist:

@@ -1,6 +1,7 @@
 [
   {
-    "query": "What is the contract name of contract 24CC0265?",
+    "query": "What is the official contract name of the Tabang River flood control project in Bulakan, Bulacan?",
+    "search_query": "What is the contract name?",
     "contract_id": "24CC0265",
     "intent": "contract_name",
     "anchors": [
@@ -18,7 +19,8 @@
     ]
   },
   {
-    "query": "Which contractor was awarded contract 24CC0265?",
+    "query": "Which contractor was awarded the Tabang River flood control project in Bulakan, Bulacan?",
+    "search_query": "Which contractor was awarded?",
     "contract_id": "24CC0265",
     "intent": "winning_bidder",
     "anchors": [
@@ -39,7 +41,8 @@
     ]
   },
   {
-    "query": "What is the total contract amount for 24CC0265?",
+    "query": "What is the total contract amount for the Tabang River flood control project in Bulakan, Bulacan?",
+    "search_query": "What is the total contract amount?",
     "contract_id": "24CC0265",
     "intent": "amount",
     "anchors": [
@@ -55,7 +58,8 @@
     ]
   },
   {
-    "query": "Who is the District Engineer for contract 24CC0265?",
+    "query": "Who is the District Engineer for the Tabang River flood control project in Bulakan, Bulacan?",
+    "search_query": "Who is the District Engineer?",
     "contract_id": "24CC0265",
     "intent": "district_engineer",
     "anchors": [
@@ -70,7 +74,8 @@
     ]
   },
   {
-    "query": "What is the contract name of contract 24AJ0052?",
+    "query": "What is the official contract name of the slope protection project in San Carlos City, Pangasinan?",
+    "search_query": "What is the contract name?",
     "contract_id": "24AJ0052",
     "intent": "contract_name",
     "anchors": [
@@ -85,7 +90,8 @@
     ]
   },
   {
-    "query": "Which contractor was awarded contract 24AJ0052?",
+    "query": "Which contractor was awarded the slope protection project in San Carlos City, Pangasinan?",
+    "search_query": "Which contractor was awarded?",
     "contract_id": "24AJ0052",
     "intent": "winning_bidder",
     "anchors": [
@@ -101,7 +107,8 @@
     ]
   },
   {
-    "query": "What is the contract amount for 24AJ0052?",
+    "query": "What is the contract amount for the slope protection project in San Carlos City, Pangasinan?",
+    "search_query": "What is the contract amount?",
     "contract_id": "24AJ0052",
     "intent": "amount",
     "anchors": [
@@ -114,7 +121,8 @@
     ]
   },
   {
-    "query": "Who is the OIC District Engineer for contract 24AJ0052?",
+    "query": "Who is the OIC District Engineer for the slope protection project in San Carlos City, Pangasinan?",
+    "search_query": "Who is the OIC District Engineer?",
     "contract_id": "24AJ0052",
     "intent": "district_engineer",
     "anchors": [
@@ -129,7 +137,8 @@
     ]
   },
   {
-    "query": "What is the contract name of contract 24BG0272?",
+    "query": "What is the official contract name of the Macañao Creek flood control project in Cabatuan, Isabela?",
+    "search_query": "What is the contract name?",
     "contract_id": "24BG0272",
     "intent": "contract_name",
     "anchors": [
@@ -145,7 +154,8 @@
     ]
   },
   {
-    "query": "Which contractor was awarded contract 24BG0272?",
+    "query": "Which contractor was awarded the Macañao Creek flood control project in Cabatuan, Isabela?",
+    "search_query": "Which contractor was awarded?",
     "contract_id": "24BG0272",
     "intent": "winning_bidder",
     "anchors": [
@@ -160,7 +170,8 @@
     ]
   },
   {
-    "query": "Who is the District Engineer for contract 24BG0272?",
+    "query": "Who is the District Engineer for the Macañao Creek flood control project in Cabatuan, Isabela?",
+    "search_query": "Who is the District Engineer?",
     "contract_id": "24BG0272",
     "intent": "district_engineer",
     "anchors": [
@@ -178,7 +189,8 @@
     ]
   },
   {
-    "query": "What is the contract amount for 24BG0272?",
+    "query": "What is the contract amount for the Macañao Creek flood control project in Cabatuan, Isabela?",
+    "search_query": "What is the contract amount?",
     "contract_id": "24BG0272",
     "intent": "amount",
     "anchors": [
@@ -190,7 +202,8 @@
     ]
   },
   {
-    "query": "What is the contract name of contract 24BJ0005?",
+    "query": "What is the official contract name of the flood control project in Sta. Fe, Nueva Vizcaya?",
+    "search_query": "What is the contract name?",
     "contract_id": "24BJ0005",
     "intent": "contract_name",
     "anchors": [
@@ -207,7 +220,8 @@
     ]
   },
   {
-    "query": "Which contractor was awarded contract 24BJ0005?",
+    "query": "Which contractor was awarded the flood control project in Sta. Fe, Nueva Vizcaya?",
+    "search_query": "Which contractor was awarded?",
     "contract_id": "24BJ0005",
     "intent": "winning_bidder",
     "anchors": [
@@ -224,7 +238,8 @@
     ]
   },
   {
-    "query": "Who is the District Engineer for contract 24BJ0005?",
+    "query": "Who is the District Engineer for the flood control project in Sta. Fe, Nueva Vizcaya?",
+    "search_query": "Who is the District Engineer?",
     "contract_id": "24BJ0005",
     "intent": "district_engineer",
     "anchors": [
@@ -242,7 +257,8 @@
     ]
   },
   {
-    "query": "What is the contract amount for 24BJ0005?",
+    "query": "What is the contract amount for the flood control project in Sta. Fe, Nueva Vizcaya?",
+    "search_query": "What is the contract amount?",
     "contract_id": "24BJ0005",
     "intent": "amount",
     "anchors": [
@@ -254,7 +270,8 @@
     ]
   },
   {
-    "query": "What is the contract name of contract 24CM0001?",
+    "query": "What is the official contract name of the flood mitigation project in Olongapo City?",
+    "search_query": "What is the contract name?",
     "contract_id": "24CM0001",
     "intent": "contract_name",
     "anchors": [
@@ -265,7 +282,8 @@
     ]
   },
   {
-    "query": "Which contractor was awarded contract 24CM0001?",
+    "query": "Which contractor was awarded the flood mitigation project in Olongapo City?",
+    "search_query": "Which contractor was awarded?",
     "contract_id": "24CM0001",
     "intent": "winning_bidder",
     "anchors": [
@@ -277,7 +295,8 @@
     ]
   },
   {
-    "query": "Who is the District Engineer for contract 24CM0001?",
+    "query": "Who is the District Engineer for the flood mitigation project in Olongapo City?",
+    "search_query": "Who is the District Engineer?",
     "contract_id": "24CM0001",
     "intent": "district_engineer",
     "anchors": [
@@ -288,7 +307,8 @@
     ]
   },
   {
-    "query": "What is the contract name of contract 24A00153?",
+    "query": "What is the official contract name of the Aringay River flood control project in Tubao, La Union?",
+    "search_query": "What is the contract name?",
     "contract_id": "24A00153",
     "intent": "contract_name",
     "anchors": [
@@ -305,7 +325,8 @@
     ]
   },
   {
-    "query": "Which contractor was awarded contract 24A00153?",
+    "query": "Which contractor was awarded the Aringay River flood control project in Tubao, La Union?",
+    "search_query": "Which contractor was awarded?",
     "contract_id": "24A00153",
     "intent": "winning_bidder",
     "anchors": [
@@ -326,7 +347,8 @@
     ]
   },
   {
-    "query": "Who signed as Chief of the Construction Division for contract 24A00153?",
+    "query": "Who signed as Chief of the Construction Division for the Aringay River flood control project in Tubao, La Union?",
+    "search_query": "Who signed as Chief of the Construction Division?",
     "contract_id": "24A00153",
     "intent": "bac_official",
     "anchors": [

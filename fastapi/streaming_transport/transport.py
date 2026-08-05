@@ -1,8 +1,8 @@
 """Generic FastAPI + Server-Sent-Events transport for a streaming RAG/agent
 pipeline.
 
-This is the ~70% of the original `sentri_api/server.py` that has NO dependency
-on Sentri, RAG, DPWH, or any knowledge-graph shape. It owns the hard parts:
+This is the ~70% of an external agent service's SSE server that has NO dependency
+on that service, RAG, DPWH, or any knowledge-graph shape. It owns the hard parts:
 
   * build-once-at-startup lifespan + a singleton holder
   * the blocking-generator → async-queue bridge (pipeline runs in a threadpool
@@ -12,7 +12,7 @@ on Sentri, RAG, DPWH, or any knowledge-graph shape. It owns the hard parts:
     boundaries)
   * SSE framing, the streaming-response headers, and a /health probe
 
-Everything Sentri-specific is injected as one of five seams (see `create_app`).
+Everything domain-specific is injected as one of five seams (see `create_app`).
 To stand up a second service you implement those five callables against your
 own pipeline and hand them here — you never edit this file.
 """

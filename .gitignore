@@ -16,5 +16,10 @@ env/
 # ignore only machine-local overrides.
 .claude/settings.local.json
 
+# Session query traces (disk-backed, 7-day retention; regenerated at runtime)
+fastapi/traces.jsonl
+
 # OS/editor
 .DS_Store
+# Windows/WSL "downloaded from the internet" metadata streams
+*:Zone.Identifier

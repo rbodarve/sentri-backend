@@ -1,10 +1,9 @@
 # fastapi — streaming API for the ragtest agentic RAG pipeline
 
-Wires this workspace into the reusable SSE transport from
-[`only_for_read/streaming_transport/`](../only_for_read/streaming_transport/). The
-transport package here is vendored **unchanged** (it's domain-neutral — you never
-edit it); the workspace-specific ~30% is the five seams in
-[seams.py](seams.py) + [pipeline.py](pipeline.py).
+Wires this workspace into the reusable SSE transport in
+[`streaming_transport/`](streaming_transport/). That package is domain-neutral and
+vendored **unchanged** (you never edit it); the workspace-specific ~30% is the
+five seams in [seams.py](seams.py) + [pipeline.py](pipeline.py).
 
 It serves the same agentic controller as `make agent` / `make chat-agentic`
 (router → fan-out / semantic decomposition → verifier-driven self-correction over
@@ -14,7 +13,7 @@ the single-pass RAG), streamed over HTTP as Server-Sent Events.
 
 | File | Role |
 |---|---|
-| `streaming_transport/` | Vendored generic transport (FastAPI app + SSE bridge + cancel-on-disconnect). Copied verbatim from `only_for_read/`. |
+| `streaming_transport/` | Vendored generic transport (FastAPI app + SSE bridge + cancel-on-disconnect). Domain-neutral — you never edit it. |
 | `pipeline.py` | **Seam 2/3** — `StreamingAgenticRag` wraps `rag.agent.AgenticRag` in the `run_stream(query, tracer, cancel_check)` contract and records per-stage progress. |
 | `seams.py` | **Seams 1, 4, 5 + augment** — `build_pipeline`, `summarize_stage`, `finalize`, `passthrough_query`. |
 | `app.py` | `create_app(...)` wiring + `uvicorn` entrypoint. |
@@ -43,17 +42,17 @@ curl -N -X POST localhost:8000/query \
 
 ## How the seams map to this workspace
 
-| Seam | Sentri (reference) | ragtest (here) |
+| Seam | External API (reference) | ragtest (here) |
 |---|---|---|
-| 1 Construction | `SentriPipeline.from_config` | `StreamingAgenticRag()` → `AgenticRag` (index + reranker + LLM, load-once) |
+| 1 Construction | external service's build-from-config | `StreamingAgenticRag()` → `AgenticRag` (index + reranker + LLM, load-once) |
 | 2 Streaming | live `token`/`thinking`/`final_output` | verified answer **replayed** as `token` (see below); no `thinking` |
 | 4 Stages | director/search/rerank/experts | `route`, `decompose`, `subanswer`, `combine` |
-| 5 Final | `contract_ids`, `sources`, `graph`, `done` | `contract_ids`, `sources`, `graph`, `done` (**Sentri-shaped** — `graph` has empty edges, no KG store) |
+| 5 Final | `contract_ids`, `sources`, `graph`, `done` | `contract_ids`, `sources`, `graph`, `done` (**matches the external API's shape** — `graph` has empty edges, no KG store) |
 
 ## Wire events
 
-The terminal payloads are **shaped to match sentri_api** so a client written
-against that API consumes this stream unchanged. See the parity notes below.
+The terminal payloads are **shaped to match an external agent API** so a client
+written against that API consumes this stream unchanged. See the parity notes below.
 
 - Generic (from the transport): `meta`, `stage`, `token`, `error`.
 - Terminal (from `finalize`): `contract_ids`, `sources`, `graph`, `done`.
@@ -62,25 +61,25 @@ against that API consumes this stream unchanged. See the parity notes below.
 `route` `{kind, contract_ids}`, `decompose` `{strategy, parts}`,
 `subanswer` `{contract_id, ok, citations, issues}`, `combine` `{ok}`.
 
-`sources`: `[{name, page, score, chunk_id}]` — same shape as Sentri; `name` is
+`sources`: `[{name, page, score, chunk_id}]` — same shape as the external API; `name` is
 `"<contract_id>/<doc_type>"`. `graph`: `{nodes: [{id, label, pages}], edges: []}`
 — nodes are the cited documents; edges are always empty (no knowledge-graph
 store here). `done`: `{confidence, uncertain, tokens, cost_usd, files,
 compose_backend, compose_model, response_text, notice}`.
 
-### Parity with sentri_api (honest stand-ins)
+### Parity with the external API (honest stand-ins)
 
-Fields Sentri derives from state this pipeline lacks carry truthful defaults, so
+Fields the external API derives from state this pipeline lacks carry truthful defaults, so
 the shape matches without faking numbers:
 
 - `confidence` is **binary** — `1.0` passed the grounding check, `0.0` withheld
   (this pipeline withholds instead of scoring). `uncertain` mirrors the withhold.
 - `tokens` and `cost_usd` are `0` — local Ollama, no token/cost accounting.
 - `compose_backend` is `"ollama"`, `compose_model` is `RAG_GEN_MODEL`.
-- `graph.edges` is always `[]` — nodes match Sentri's shape, but there are no
+- `graph.edges` is always `[]` — nodes match the external API's shape, but there are no
   inter-document links to compute without a KG store.
-- `notice` is an **additive** key (not in Sentri's `done`): the grounding-check
-  reason when `uncertain` is true, so a withhold is never silent. Sentri clients
+- `notice` is an **additive** key (not in the external API's `done`): the grounding-check
+  reason when `uncertain` is true, so a withhold is never silent. Clients
   that don't know the key ignore it.
 
 ## Why tokens are replayed, not streamed live

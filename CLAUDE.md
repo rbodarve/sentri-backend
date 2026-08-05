@@ -19,7 +19,10 @@ are workspace-specific additions on top of it; keep such additions here, not in 
   `make`/scripts, or `conda activate ragtest` first.
 - **CPU-only, zero-VRAM by design.** torch is installed CPU-only (`scripts/setup.sh`).
 - **Generation needs a running Ollama server** with the model pulled
-  (`ollama pull granite4.1:3b`). Retrieval/eval do not need Ollama.
+  (`ollama pull granite4.1:3b`). Retrieval/recall eval do not need Ollama — but
+  `make build` does: its final `rag.manifest` step extracts one record per contract
+  via the LLM, and it runs *after* the CPU embedding, so a missing Ollama fails the
+  build late (after the expensive embed).
 
 ## Commands
 
@@ -27,7 +30,8 @@ Use `make` (details in [scripts/README.md](scripts/README.md)):
 
 - `make setup` — create the conda env + install pinned deps (one-time).
 - `make check` — stage 1–3 self-checks (loader, enrich, relationships); pure Python, no model.
-- `make build` — build the eval set + embed & persist the vector index to `index_store/`.
+- `make build` — build the eval set + embed & persist the vector index to `index_store/`,
+  then extract the corpus manifest (this last step needs Ollama).
 - `make eval [MODE=baseline|filtered|rerank]` — measure retrieval recall; default `rerank`.
 - `make ask Q="..."` — one-shot retrieve + rerank + generate (needs Ollama).
 - `make chat` — interactive query loop.

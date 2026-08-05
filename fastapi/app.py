@@ -1,8 +1,8 @@
 """Streaming API for the ragtest agentic RAG pipeline.
 
 Wires this workspace into the generic `streaming_transport` package by handing
-it the five seams from `seams.py` — the transport itself is vendored unchanged
-from `only_for_read/streaming_transport/` (you never edit it).
+it the five seams from `seams.py` — the transport itself (the `streaming_transport/`
+package in this folder) is domain-neutral and vendored unchanged (you never edit it).
 
 Run from INSIDE this folder so the installed `fastapi` library is not shadowed
 by this folder's name (see serve.sh):
@@ -16,9 +16,16 @@ Then POST to /query:
 """
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from pathlib import Path
+
+# The transport logs each query via logging.getLogger("streaming_transport") at
+# INFO, but nothing configures a handler, so those records fall through to the
+# root logger (default WARNING) and are dropped — only uvicorn's access log
+# shows. Configure the root logger at INFO so "Query received: query=..." emits.
+logging.basicConfig(level=logging.INFO)
 
 # Expose the repo root so `import rag.*` resolves. Appended (not prepended) so
 # the installed `fastapi` library still wins over this sibling folder named
@@ -38,6 +45,7 @@ os.environ.setdefault("RAG_PERSIST_DIR", str(_REPO_ROOT / "index_store"))
 # still this folder, so the folder's name cannot shadow the library.
 from streaming_transport import create_app
 from seams import build_pipeline, finalize, passthrough_query, summarize_stage
+from trace_recorder import TraceStore, TracingMiddleware, add_trace_route
 
 app = create_app(
     service_name="ragtest-api",
@@ -47,6 +55,16 @@ app = create_app(
     augment_query=passthrough_query,    # override: deterministic router wants a clean question
     startup_message="Loading index + reranker + LLM (first boot can take ~30s)…",
 )
+
+# Disk-backed, time-bounded trace of every /query and its full SSE stream.
+# Read at GET /trace and /trace/{n}; finished records are appended to
+# fastapi/traces.jsonl (gitignored) and survive a restart, with anything older
+# than the retention window (7 days) pruned on startup. Wrap AFTER the FastAPI
+# app is built so /trace is reachable through the middleware (which only taps
+# POST /query and passes everything else straight through).
+_trace_store = TraceStore()
+add_trace_route(app, _trace_store)
+app = TracingMiddleware(app, _trace_store)
 
 
 if __name__ == "__main__":
