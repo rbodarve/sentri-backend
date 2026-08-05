@@ -1,6 +1,21 @@
 # Convenience targets for the RAG pipeline. Each delegates to scripts/.
-# Usage: make setup | make check | make build | make eval [MODE=baseline|filtered|rerank] | make ask Q="..." | make chat | make all | make clean
-.PHONY: setup check build eval ask chat all clean
+# Usage: make setup | make check | make build | make eval [MODE=baseline|filtered|rerank] | make ask Q="..." | make chat | make agent Q="..." | make chat-agentic | make eval-agentic | make all | make clean
+.PHONY: help setup check build eval ask chat agent chat-agentic eval-agentic all clean
+
+help:
+	@echo "RAG pipeline commands (run via 'make <target>'):"
+	@echo "  make setup                          Create conda env 'ragtest' + install pinned deps (one-time)"
+	@echo "  make check                          Stage 1-3 self-checks (loader, enrich, relationships); no model"
+	@echo "  make build                          Build the eval set + embed & persist the vector index"
+	@echo "  make eval [MODE=baseline|filtered|rerank]  Measure retrieval recall (default rerank -> 1.000)"
+	@echo "  make ask Q=\"...\"                     One-shot retrieve + rerank + generate a grounded answer (needs Ollama)"
+	@echo "  make chat                           Interactive query loop (index + LLM loaded once; needs Ollama)"
+	@echo "  make agent Q=\"...\"                   Agentic controller: router + fan-out + decomposition + self-correction (needs Ollama)"
+	@echo "  make chat-agentic                   Interactive query loop routed through the agentic controller (needs Ollama)"
+	@echo "  make eval-agentic                   Answer-level eval of the agent (needs Ollama)"
+	@echo "  make all                            check + build + eval"
+	@echo "  make clean                          Remove the regenerable index_store/ + caches"
+	@echo "  make help                           Show this list"
 
 setup:
 	bash scripts/setup.sh
@@ -19,6 +34,18 @@ ask:
 
 chat:
 	bash scripts/chat.sh
+
+# Agentic controller: router + fan-out + semantic decomposition + verifier-driven self-correction.
+agent:
+	bash scripts/agent.sh "$(Q)"
+
+# Interactive query loop routed through the agentic controller (needs Ollama).
+chat-agentic:
+	bash scripts/chat_agentic.sh
+
+# Answer-level eval for the agentic controller (needs Ollama; make eval stays the recall gate).
+eval-agentic:
+	bash scripts/evaluate_agentic.sh
 
 all: check build eval
 

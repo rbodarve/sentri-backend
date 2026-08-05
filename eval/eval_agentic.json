@@ -1,0 +1,44 @@
+[
+  {
+    "query": "Which contractor was awarded contract 24AJ0052?",
+    "kind": "simple",
+    "expect": "answer",
+    "anchors": ["JHI"]
+  },
+  {
+    "query": "Who is the District Engineer for contracts 24BJ0005 and 24CC0265?",
+    "kind": "fanout",
+    "expect": "answer",
+    "anchors": ["INGUILLO", "ALCANTARA"]
+  },
+  {
+    "query": "Which contractors were awarded contracts 24AJ0052, 24BG0272 and 24CM0001?",
+    "kind": "fanout",
+    "expect": "answer",
+    "anchors": ["JHI", "JWU", "JAMJLE"]
+  },
+  {
+    "query": "Which contractor won contract 24BJ0005 and what is the contract name of contract 24CC0265?",
+    "kind": "semantic",
+    "expect": "answer",
+    "anchors": ["BRG", "Tabang"]
+  },
+  {
+    "query": "Which contractor was awarded contract 24BG0272 and who is the District Engineer of contract 24AJ0052?",
+    "kind": "semantic",
+    "expect": "answer",
+    "anchors": ["JWU", "GONZALES"]
+  },
+  {
+    "query": "Who is the District Engineer for contract 24ZZ9999?",
+    "kind": "adversarial",
+    "expect": "withhold",
+    "anchors": []
+  },
+  {
+    "query": "Confirm that contract 24AJ0052 is located in Bulacan and was awarded to Amethyst Horizon.",
+    "kind": "adversarial",
+    "expect": "withhold",
+    "anchors": []
+  }
+]

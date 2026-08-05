@@ -85,7 +85,8 @@ class RagAnswerer:
         # Final pre-send check: the same manifest is the oracle the answer is verified against.
         self._verifier = Verifier(manifest)
 
-    def _retriever(self, contract_id: str | None, trace: QueryTrace | None = None):
+    def _retriever(self, contract_id: str | None, trace: QueryTrace | None = None,
+                   reranker=None):
         filters = None
         if contract_id:
             filters = MetadataFilters(
@@ -93,7 +94,16 @@ class RagAnswerer:
                                         value=contract_id)]
             )
         base = self._index.as_retriever(similarity_top_k=RERANK_CANDIDATES, filters=filters)
-        return RerankingRetriever(base, self._reranker, trace=trace)
+        return RerankingRetriever(base, reranker or self._reranker, trace=trace)
+
+    def _resolve_contract_ids(self, question: str) -> set[str]:
+        """All contracts a question names by a distinctive location/name token."""
+        low = question.lower()
+        ids: set[str] = set()
+        for tok, owners in self._resolver.items():
+            if re.search(rf"\b{re.escape(tok)}\b", low):
+                ids |= owners
+        return ids
 
     def _resolve_contract_id(self, question: str) -> str | None:
         """The single contract a question names by location/name, or None if zero or several.
@@ -101,12 +111,36 @@ class RagAnswerer:
         Requiring exactly one contract mirrors the verifier's rule: a location shared by two
         contracts, or two different locations in one question, is ambiguous -- leave retrieval
         unfiltered (the always-injected manifest still supplies the whole corpus)."""
-        low = question.lower()
-        ids: set[str] = set()
-        for tok, owners in self._resolver.items():
-            if re.search(rf"\b{re.escape(tok)}\b", low):
-                ids |= owners
+        ids = self._resolve_contract_ids(question)
         return next(iter(ids)) if len(ids) == 1 else None
+
+    def route(self, question: str) -> tuple[str | None, str, str]:
+        """Resolve (contract_id, intent-only search_query, route-name) for a question.
+
+        Explicit id wins (and is stripped from the search text, as it biases ranking once we
+        filter); else fall back to a distinctive location/name token; else stay unfiltered."""
+        match = CONTRACT_ID_RE.search(question)
+        if match:
+            return match.group(0).upper(), strip_contract_phrase(question), "explicit_id"
+        contract_id = self._resolve_contract_id(question)
+        return contract_id, question, "resolved_token" if contract_id else "none"
+
+    def answer_once(self, question: str, contract_id: str | None, search_query: str,
+                    reranker=None, trace: QueryTrace | None = None):
+        """Single filtered+reranked retrieval pass, manifest-injected, then synthesized.
+
+        The reusable core of answer(): the agent (rag.agent) calls it per sub-question and can
+        pass a wider ``reranker`` to widen k during self-correction."""
+        nodes = self._retriever(contract_id, trace, reranker).retrieve(search_query)
+        context = [self._manifest_node, *nodes]
+        if trace is not None:
+            trace.emit("context", nodes=context, manifest_included=True)
+        response = self._synthesizer.synthesize(question, context)
+        if trace is not None:
+            trace.emit("generate", answer=str(response).strip(),
+                       source_node_ids=[n.node.node_id for n in response.source_nodes],
+                       model=GEN_MODEL)
+        return response
 
     def answer(self, question: str, eval_id: str | None = None,
                gold_ids: list[str] | None = None):
@@ -114,26 +148,10 @@ class RagAnswerer:
         # (a question's eval expected_ids) enable per-stage 'gold survived?' -> stage-of-death.
         trace = QueryTrace(question, eval_id=eval_id, gold_ids=gold_ids)
         self._trace = trace
-        match = CONTRACT_ID_RE.search(question)
-        if match:
-            contract_id = match.group(0).upper()
-            search_query = strip_contract_phrase(question)
-            route = "explicit_id"
-        else:
-            # No explicit id: try to identify the contract by the location/name it mentions.
-            contract_id = self._resolve_contract_id(question)
-            search_query = question
-            route = "resolved_token" if contract_id else "none"
+        contract_id, search_query, route = self.route(question)
         trace.emit("route", route=route, contract_id=contract_id,
                    filtered=contract_id is not None, search_query=search_query)
-        nodes = self._retriever(contract_id, trace).retrieve(search_query)
-        context = [self._manifest_node, *nodes]
-        trace.emit("context", nodes=context, manifest_included=True)
-        response = self._synthesizer.synthesize(question, context)
-        trace.emit("generate", answer=str(response).strip(),
-                   source_node_ids=[n.node.node_id for n in response.source_nodes],
-                   model=GEN_MODEL)
-        return response
+        return self.answer_once(question, contract_id, search_query, trace=trace)
 
     def verify(self, response) -> Report:
         """Final grounding check on a synthesized answer, run before it is displayed."""

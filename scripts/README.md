@@ -12,6 +12,9 @@ available as `make <target>`.
 | `bash scripts/evaluate.sh [mode]` | `make eval [MODE=...]` | Measure recall; `mode` = `baseline` \| `filtered` \| `rerank` (default `rerank`) |
 | `bash scripts/ask.sh "<question>"` | `make ask Q="..."` | One-shot: retrieve + rerank + generate a grounded, cited answer (no arg = demo questions) |
 | `bash scripts/chat.sh` | `make chat` | Interactive query loop: ask many questions in one session (index + LLM loaded once) |
+| `bash scripts/agent.sh "<question>"` | `make agent Q="..."` | Agentic controller: router + fan-out + semantic decomposition + verifier-driven self-correction (no arg = demo questions) |
+| `bash scripts/chat_agentic.sh` | `make chat-agentic` | Interactive query loop routed through the agentic controller (index + LLM loaded once) |
+| `bash scripts/evaluate_agentic.sh` | `make eval-agentic` | Answer-level eval of the agent (routing / fan-out / decomposition / withholding); needs Ollama |
 | — | `make all` | check + build + eval |
 
 ## Typical first run

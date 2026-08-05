@@ -148,8 +148,10 @@ def format_report(report: Report) -> str:
     appears to be hallucinating" notice that stands in for the withheld answer; the specific
     reason(s) follow so the failure can be diagnosed."""
     if report.ok:
-        return ("✓ checked: contract IDs, locations & contractors match the manifest "
-                "-- names, figures and other details not verified here")
+        return ("✓ grounding check passed -- but this ONLY confirms contract IDs, locations & "
+                "contractors against the manifest.\n"
+                "  ⚠ NOT verified here: amounts/figures, district engineers, offices, dates and "
+                "every other detail -- treat those as unconfirmed and check the source documents.")
     lines = ["⛔ verification: the model appears to be hallucinating -- answer withheld "
              "(failed the manifest grounding check):"]
     lines += [f"    - {r}" for r in report.blocks + report.flags]

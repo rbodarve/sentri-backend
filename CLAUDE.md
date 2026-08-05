@@ -4,6 +4,14 @@ RAG pipeline over a corpus of DPWH (Philippine gov) construction-bid documents. 
 retrieves and generates grounded, cited answers about contracts (bidders, awards, dates,
 amounts) from OCR'd source PDFs. Built on LlamaIndex; runs entirely on CPU + local Ollama.
 
+## Working rules (this workspace)
+
+The global `~/.claude/CLAUDE.md` is the base — its principles always apply. The rules below
+are workspace-specific additions on top of it; keep such additions here, not in the global.
+
+- **Never push to GitHub automatically.** Make changes locally, and commit only when asked.
+  Leave `git push` to the user — do not push without an explicit, in-the-moment request.
+
 ## Environment (read first)
 
 - **Everything runs in the `ragtest` conda env.** `python -m rag.*` fails from base — the
@@ -23,6 +31,11 @@ Use `make` (details in [scripts/README.md](scripts/README.md)):
 - `make eval [MODE=baseline|filtered|rerank]` — measure retrieval recall; default `rerank`.
 - `make ask Q="..."` — one-shot retrieve + rerank + generate (needs Ollama).
 - `make chat` — interactive query loop.
+- `make agent Q="..."` — agentic controller: router + fan-out + semantic decomposition +
+  verifier-driven self-correction over the single-pass RAG (needs Ollama).
+- `make chat-agentic` — interactive query loop routed through the agentic controller (needs Ollama).
+- `make eval-agentic` — answer-level eval of the agent (routing/fan-out/decomposition/
+  withholding) against `eval/eval_agentic.json`; needs Ollama. `make eval` stays the recall gate.
 - `make clean` — remove the regenerable `index_store/` + caches.
 
 ## Architecture
@@ -33,6 +46,16 @@ Pipeline stages, each a module in [rag/](rag/) runnable as `python -m rag.<name>
 `build_eval` + `index` + `manifest` (`make build`) → `evaluate` (recall) / `generate`,
 `chat` (answers). `rerank.py` is the CPU cross-encoder stage; `config.py` is the single
 config surface; `verify.py`/`trace.py` are support libs.
+
+`agent.py` is the **agentic layer** over `generate.py` (it does not replace it): a
+deterministic router classifies each question `simple | fanout | semantic`, fan-out splits a
+contiguous multi-contract question into one single-contract sub-question each (by rule),
+`semantic` multi-hop questions are decomposed by the LLM (the only place the LLM drives
+control), and every sub-answer runs the deterministic route + `Verifier` inside a
+self-correction ladder (widen k → drop the contract filter → withhold). It reuses
+`RagAnswerer.answer_once`, so it never adds a retrieval path and can't move recall; the LLM is
+forbidden from computing sums (aggregation stays deferred to the handoff model).
+`evaluate_agentic.py` scores it at the answer level.
 
 Data & artifacts:
 
@@ -53,6 +76,10 @@ embedding/reranker/LLM for better hardware without touching pipeline code. Defau
   `make eval` in `rerank` mode → `hit_rate 1.000` (contract-filtered + CPU rerank);
   `baseline`/`filtered` are ablations. When changing retrieval, re-run `make eval` and keep
   recall at 1.000.
+- **Agent eval is answer-level, not recall.** `make eval-agentic` scores the agent on
+  `eval/eval_agentic.json`: an `answer` row passes only if the answer clears the `Verifier` AND
+  contains every expected anchor; a `withhold` row (invented contract / mis-binding lure) passes
+  only if the agent correctly withholds. It needs Ollama and is separate from the recall gate.
 - **Verify gate:** `.claude/verify.sh` (a Stop hook) validates `database/` OCR integrity on
   every turn. It must exit 0. It only checks JSON structure — it never re-OCRs.
 - Match existing style; keep changes surgical. `PYTHONWARNINGS=ignore` is set by the scripts.

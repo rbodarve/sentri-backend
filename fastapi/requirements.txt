@@ -1,0 +1,5 @@
+# Streaming-transport deps, on top of the ragtest env (llama-index, torch, etc.).
+# Install into the ragtest conda env: pip install -r fastapi/requirements.txt
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0

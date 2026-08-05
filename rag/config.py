@@ -27,6 +27,13 @@ RERANK_MODEL = os.getenv("RAG_RERANK_MODEL", "BAAI/bge-reranker-base")
 RERANK_CANDIDATES = int(os.getenv("RAG_RERANK_CANDIDATES", "40"))
 RERANK_TOP_N = int(os.getenv("RAG_RERANK_TOP_N", "10"))
 
+# Agentic controller (rag.agent): self-correction retry budget and the widened rerank top_n
+# it falls back to. Deterministic router + verifier drive the loop; the LLM is used only for
+# semantic decomposition. AGENT_WIDE_TOP_N keeps more reranked chunks per retry (candidates
+# are already RERANK_CANDIDATES, so this only widens what reaches the LLM -- recall is unchanged).
+AGENT_MAX_ATTEMPTS = int(os.getenv("RAG_AGENT_MAX_ATTEMPTS", "2"))
+AGENT_WIDE_TOP_N = int(os.getenv("RAG_AGENT_WIDE_TOP_N", "20"))
+
 # Generation (Step 8): local LLM. Default granite4.1:3b -- measured 100% GPU on a 4GB card
 # (no RAM spill). Swap to a bigger model on better hardware without touching pipeline code.
 GEN_PROVIDER = os.getenv("RAG_GEN_PROVIDER", "ollama")  # "ollama"
