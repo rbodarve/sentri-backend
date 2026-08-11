@@ -1,24 +1,23 @@
 [
   {
+    "type": "single",
     "query": "What is the official contract name of the Tabang River flood control project in Bulakan, Bulacan?",
     "search_query": "What is the contract name?",
     "contract_id": "24CC0265",
     "intent": "contract_name",
     "anchors": [
-      "Contract Name"
+      "Tabang River, Barangay Tibig"
     ],
     "expected_ids": [
-      "aca154d9-0c4e-4709-bdb1-61bf7d5184ab",
+      "405c437c-5c7b-47eb-b4ae-14a15ca894fb",
       "0294f87c-0f7d-47bd-9abf-60a3a3030811",
-      "efd39c0d-1148-43eb-8cb3-0ab8f53e0e85",
-      "7ba93cd7-fca6-47ae-90c8-81ba3795cb2c",
-      "8580da99-3efc-4de6-931c-f122f45df9a9",
       "7de7a167-e8fd-4e6e-965c-12d785c613f5",
       "1e43c0ad-e031-408e-bb40-0ab0c0bf65d1",
       "76947761-5489-4fc7-b9d1-04e38e67fa3b"
     ]
   },
   {
+    "type": "single",
     "query": "Which contractor was awarded the Tabang River flood control project in Bulakan, Bulacan?",
     "search_query": "Which contractor was awarded?",
     "contract_id": "24CC0265",
@@ -41,6 +40,7 @@
     ]
   },
   {
+    "type": "single",
     "query": "What is the total contract amount for the Tabang River flood control project in Bulakan, Bulacan?",
     "search_query": "What is the total contract amount?",
     "contract_id": "24CC0265",
@@ -58,12 +58,13 @@
     ]
   },
   {
+    "type": "single",
     "query": "Who is the District Engineer for the Tabang River flood control project in Bulakan, Bulacan?",
     "search_query": "Who is the District Engineer?",
     "contract_id": "24CC0265",
     "intent": "district_engineer",
     "anchors": [
-      "ALCANTARA"
+      "HENRY C. ALCANTARA"
     ],
     "expected_ids": [
       "52403a0a-936d-45ab-b50f-d6d753c39af5",
@@ -74,22 +75,7 @@
     ]
   },
   {
-    "query": "What is the official contract name of the slope protection project in San Carlos City, Pangasinan?",
-    "search_query": "What is the contract name?",
-    "contract_id": "24AJ0052",
-    "intent": "contract_name",
-    "anchors": [
-      "Contract Name"
-    ],
-    "expected_ids": [
-      "ed430f74-f5b9-4c39-adfe-ae5263953ef2",
-      "a0ac9565-9736-4290-9d96-7b0e33904fd5",
-      "31d00aab-4884-4788-b4e9-4e68f8d2ea94",
-      "8fc754b6-c51d-4fbf-8dc0-c0d8b89f61a2",
-      "5a5e1fd8-7eb4-4d0c-b96a-0b3eca5985d4"
-    ]
-  },
-  {
+    "type": "single",
     "query": "Which contractor was awarded the slope protection project in San Carlos City, Pangasinan?",
     "search_query": "Which contractor was awarded?",
     "contract_id": "24AJ0052",
@@ -107,12 +93,13 @@
     ]
   },
   {
+    "type": "single",
     "query": "What is the contract amount for the slope protection project in San Carlos City, Pangasinan?",
     "search_query": "What is the contract amount?",
     "contract_id": "24AJ0052",
     "intent": "amount",
     "anchors": [
-      "NINETEEN MILLION"
+      "19,109,972"
     ],
     "expected_ids": [
       "be883897-178d-40cb-bb18-0b2cb11067fa",
@@ -121,12 +108,13 @@
     ]
   },
   {
+    "type": "single",
     "query": "Who is the OIC District Engineer for the slope protection project in San Carlos City, Pangasinan?",
     "search_query": "Who is the OIC District Engineer?",
     "contract_id": "24AJ0052",
     "intent": "district_engineer",
     "anchors": [
-      "GONZALES"
+      "MEL HARVEY A. GONZALES"
     ],
     "expected_ids": [
       "cbbdce3b-2172-4f92-bbf5-2d02e203aa22",
@@ -137,23 +125,21 @@
     ]
   },
   {
-    "query": "What is the official contract name of the Macañao Creek flood control project in Cabatuan, Isabela?",
-    "search_query": "What is the contract name?",
-    "contract_id": "24BG0272",
-    "intent": "contract_name",
+    "type": "single",
+    "query": "What is the required completion time for the slope protection project in San Carlos City, Pangasinan?",
+    "search_query": "What is the completion time in calendar days?",
+    "contract_id": "24AJ0052",
+    "intent": "duration",
     "anchors": [
-      "Contract Name"
+      "163 Calendar Days"
     ],
     "expected_ids": [
-      "1add8b0b-98d5-4a34-86c1-dca97efcdb7c",
-      "1c304b25-8201-4f32-90ab-164cfcae698e",
-      "12720441-9367-4970-b84d-0bda851e08cc",
-      "a98651c5-9dcd-44f5-ab8f-abb979ca3f5b",
-      "5ac1025c-2d84-468b-82f7-eb0a1e053c61",
-      "6cd0c437-9272-4275-9946-1c0c0b6c67c3"
+      "b892e348-52e1-4b06-aeae-127da35b5981",
+      "84fc94db-9ef4-4462-ada4-578c3b376390"
     ]
   },
   {
+    "type": "single",
     "query": "Which contractor was awarded the Macañao Creek flood control project in Cabatuan, Isabela?",
     "search_query": "Which contractor was awarded?",
     "contract_id": "24BG0272",
@@ -170,12 +156,13 @@
     ]
   },
   {
+    "type": "single",
     "query": "Who is the District Engineer for the Macañao Creek flood control project in Cabatuan, Isabela?",
     "search_query": "Who is the District Engineer?",
     "contract_id": "24BG0272",
     "intent": "district_engineer",
     "anchors": [
-      "ASIS"
+      "ADONIS A. ASIS"
     ],
     "expected_ids": [
       "54475184-df52-4768-9050-922541c55ce9",
@@ -183,43 +170,41 @@
       "bf22e77e-6135-4983-9632-ab21d5ca3dcc",
       "33cc731b-d5ac-49d0-bb94-8295c0db2b9a",
       "876dd7f3-bcd2-4ecb-8cb5-0c36c11a8a33",
-      "2ebd3ed9-e489-41ee-8d66-1f867f4bf5ca",
       "1bef5af3-2f54-407c-b4ee-60a0bee2c2a4",
       "06047af0-34f9-4585-b37f-cb36c8355d91"
     ]
   },
   {
+    "type": "single",
     "query": "What is the contract amount for the Macañao Creek flood control project in Cabatuan, Isabela?",
     "search_query": "What is the contract amount?",
     "contract_id": "24BG0272",
     "intent": "amount",
     "anchors": [
-      "Pesos"
+      "96,489,983"
     ],
     "expected_ids": [
       "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
-      "5315ba1f-0cd7-4bf6-a8ac-8b6147b37e75"
+      "5315ba1f-0cd7-4bf6-a8ac-8b6147b37e75",
+      "6cd0c437-9272-4275-9946-1c0c0b6c67c3"
     ]
   },
   {
-    "query": "What is the official contract name of the flood control project in Sta. Fe, Nueva Vizcaya?",
-    "search_query": "What is the contract name?",
-    "contract_id": "24BJ0005",
-    "intent": "contract_name",
+    "type": "single",
+    "query": "What is the construction duration for the Macañao Creek flood control project in Cabatuan, Isabela?",
+    "search_query": "What is the construction duration in calendar days?",
+    "contract_id": "24BG0272",
+    "intent": "duration",
     "anchors": [
-      "Contract Name"
+      "Twenty One (321)"
     ],
     "expected_ids": [
-      "ab80f80d-481f-4e41-8526-370005edf9a3",
-      "3848c571-6c0c-4b40-aab6-0afbd6fdf8a8",
-      "f1134ba7-1abb-4fc8-a2fe-dfdcc24fb2a7",
-      "05e2ebc8-0058-4c3c-8b3f-479f8abbc7fe",
-      "1021ec8a-9403-4b96-87c9-ad3256380144",
-      "6b32205c-54ba-454a-8f82-556bf5a80bf5",
-      "ce34f98e-7215-4a34-b6fd-5a9ad0dec7bc"
+      "5315ba1f-0cd7-4bf6-a8ac-8b6147b37e75",
+      "6cd0c437-9272-4275-9946-1c0c0b6c67c3"
     ]
   },
   {
+    "type": "single",
     "query": "Which contractor was awarded the flood control project in Sta. Fe, Nueva Vizcaya?",
     "search_query": "Which contractor was awarded?",
     "contract_id": "24BJ0005",
@@ -238,12 +223,13 @@
     ]
   },
   {
+    "type": "single",
     "query": "Who is the District Engineer for the flood control project in Sta. Fe, Nueva Vizcaya?",
     "search_query": "Who is the District Engineer?",
     "contract_id": "24BJ0005",
     "intent": "district_engineer",
     "anchors": [
-      "INGUILLO"
+      "MARLYN G. INGUILLO"
     ],
     "expected_ids": [
       "2a42f52f-3479-4bd7-bac6-6bebc53262d4",
@@ -257,12 +243,13 @@
     ]
   },
   {
+    "type": "single",
     "query": "What is the contract amount for the flood control project in Sta. Fe, Nueva Vizcaya?",
     "search_query": "What is the contract amount?",
     "contract_id": "24BJ0005",
     "intent": "amount",
     "anchors": [
-      "Pesos"
+      "93,990,000"
     ],
     "expected_ids": [
       "f157c4ee-28b5-4a47-9121-1a6a08569277",
@@ -270,18 +257,7 @@
     ]
   },
   {
-    "query": "What is the official contract name of the flood mitigation project in Olongapo City?",
-    "search_query": "What is the contract name?",
-    "contract_id": "24CM0001",
-    "intent": "contract_name",
-    "anchors": [
-      "Contract Name"
-    ],
-    "expected_ids": [
-      "d70b24bd-dc25-4fee-977f-472fe4403358"
-    ]
-  },
-  {
+    "type": "single",
     "query": "Which contractor was awarded the flood mitigation project in Olongapo City?",
     "search_query": "Which contractor was awarded?",
     "contract_id": "24CM0001",
@@ -295,36 +271,20 @@
     ]
   },
   {
+    "type": "single",
     "query": "Who is the District Engineer for the flood mitigation project in Olongapo City?",
     "search_query": "Who is the District Engineer?",
     "contract_id": "24CM0001",
     "intent": "district_engineer",
     "anchors": [
-      "DIZON"
+      "ROSBE S. DIZON"
     ],
     "expected_ids": [
       "0d8659ef-d5b2-4811-8c55-adb9d7e95fd0"
     ]
   },
   {
-    "query": "What is the official contract name of the Aringay River flood control project in Tubao, La Union?",
-    "search_query": "What is the contract name?",
-    "contract_id": "24A00153",
-    "intent": "contract_name",
-    "anchors": [
-      "Contract Name"
-    ],
-    "expected_ids": [
-      "a5f6b286-b92f-4561-8b89-99f9b9763b2c",
-      "e6e329e1-f29e-4ed5-bb98-94347fe844a6",
-      "1486f8f4-b782-4c7b-87e2-bbd0c1fd0da3",
-      "a5af4aac-6182-4185-9eb4-d51b1e4b707b",
-      "df14ca54-bda3-411f-b495-bc8621aa1492",
-      "e1fcac92-cd14-45ae-9417-558a39f953a4",
-      "48697345-0c2b-436f-9274-f75040c9dfca"
-    ]
-  },
-  {
+    "type": "single",
     "query": "Which contractor was awarded the Aringay River flood control project in Tubao, La Union?",
     "search_query": "Which contractor was awarded?",
     "contract_id": "24A00153",
@@ -347,18 +307,784 @@
     ]
   },
   {
-    "query": "Who signed as Chief of the Construction Division for the Aringay River flood control project in Tubao, La Union?",
-    "search_query": "Who signed as Chief of the Construction Division?",
+    "type": "single",
+    "query": "Who is the Regional Director that awarded the Aringay River flood control project in Tubao, La Union?",
+    "search_query": "Who is the Regional Director?",
     "contract_id": "24A00153",
-    "intent": "bac_official",
+    "intent": "regional_director",
     "anchors": [
-      "JUCAR"
+      "RONNEL M. TAN"
     ],
     "expected_ids": [
-      "51a389f1-950c-4916-8c33-bf497c0c2b60",
-      "9f65d9d4-f659-4bc4-acb2-06b5834fca7c",
-      "2cc625ee-868a-4140-8200-fbf78f2efec6",
-      "7b8c131b-3fe6-4b05-a073-3a68a75c2940"
+      "a8aa0091-21a4-4706-ba72-efa245750763",
+      "44aa76c1-086b-427f-96f5-6dd178abe33b",
+      "1b2957a7-cc1b-42a3-94ff-67cdd04c3679",
+      "566355f8-cc7e-45dc-a2ab-47caa9543983",
+      "fcb319c9-db42-4e4a-9d87-2e04e7b98e48"
     ]
+  },
+  {
+    "type": "single",
+    "query": "What is the total contract amount for the Aringay River flood control project in Tubao, La Union?",
+    "search_query": "What is the total contract amount?",
+    "contract_id": "24A00153",
+    "intent": "amount",
+    "anchors": [
+      "140,274,481"
+    ],
+    "expected_ids": [
+      "d32c0731-ad2e-448d-8131-3b7d79c6e620",
+      "c6567d38-b9d4-46eb-90f1-ca48ef9fa531",
+      "664114f6-9be4-44e3-b776-c6199d6e8c65",
+      "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+      "94353284-8cde-40b0-848f-55260309b3c1",
+      "f18aef8f-1978-4037-b579-91ff56465294"
+    ]
+  },
+  {
+    "type": "broad",
+    "query": "List every District Engineer, OIC District Engineer, or Regional Director named across all the contracts in the database.",
+    "search_query": "List every District Engineer, OIC District Engineer, or Regional Director named across all the contracts in the database.",
+    "contract_id": null,
+    "intent": "all_district_engineers",
+    "anchors": [
+      "HENRY C. ALCANTARA",
+      "MEL HARVEY A. GONZALES",
+      "ADONIS A. ASIS",
+      "MARLYN G. INGUILLO",
+      "ROSBE S. DIZON",
+      "RONNEL M. TAN"
+    ],
+    "expected_ids": [
+      "52403a0a-936d-45ab-b50f-d6d753c39af5",
+      "43edf4e7-da9c-46b3-ade5-5dbf80a66cc2",
+      "85883c00-8580-444c-a1be-a0e17f55cb40",
+      "7752316d-3074-4f82-9aa6-47f9fddf801d",
+      "eafdc914-7f2c-4e1d-a879-0b3c34d483fe",
+      "0d8659ef-d5b2-4811-8c55-adb9d7e95fd0",
+      "a8aa0091-21a4-4706-ba72-efa245750763",
+      "44aa76c1-086b-427f-96f5-6dd178abe33b",
+      "1b2957a7-cc1b-42a3-94ff-67cdd04c3679",
+      "566355f8-cc7e-45dc-a2ab-47caa9543983",
+      "fcb319c9-db42-4e4a-9d87-2e04e7b98e48",
+      "cbbdce3b-2172-4f92-bbf5-2d02e203aa22",
+      "9335ae61-3387-4715-9499-0251f9f496f9",
+      "0b987293-f353-4c4a-9ae8-059695f459cf",
+      "191a644b-f45c-47a1-b0b1-92b855c5f385",
+      "970f4bf8-54f0-4b00-91ae-f0c13105eaa2",
+      "54475184-df52-4768-9050-922541c55ce9",
+      "5123ddb7-c72b-4d4f-bb9c-9a69bc84d228",
+      "bf22e77e-6135-4983-9632-ab21d5ca3dcc",
+      "33cc731b-d5ac-49d0-bb94-8295c0db2b9a",
+      "876dd7f3-bcd2-4ecb-8cb5-0c36c11a8a33",
+      "1bef5af3-2f54-407c-b4ee-60a0bee2c2a4",
+      "06047af0-34f9-4585-b37f-cb36c8355d91",
+      "2a42f52f-3479-4bd7-bac6-6bebc53262d4",
+      "6b0d7dc6-3f04-4389-9c5a-b1330ac1d308",
+      "bf69de34-0b37-4545-be9f-2db51f830124",
+      "5b21beba-28be-4411-9fdd-056053e30652",
+      "f35d8500-5c87-4f65-87f4-27de6f970295",
+      "752029a8-abb5-4e3e-a1c0-193676ad1897",
+      "fc9e0be8-6cf7-4069-8e2c-4e9c41f19f79",
+      "240660df-1df6-44d4-a702-d96c322f3c2d"
+    ]
+  },
+  {
+    "type": "broad",
+    "query": "Which contractors were awarded contracts across the corpus?",
+    "search_query": "Which contractors were awarded contracts across the corpus?",
+    "contract_id": null,
+    "intent": "all_winning_bidders",
+    "anchors": [
+      "AMETHYST HORIZON",
+      "JHI Construction",
+      "JWU CONSTRUCTION",
+      "BRG CONSTRUCTION",
+      "JAMJLE",
+      "Rodekom"
+    ],
+    "expected_ids": [
+      "1aed3a4e-e6c0-428d-99e1-1d166d10f6c2",
+      "57ac06eb-ffaa-4488-b846-c952fcc1c865",
+      "e2634ddf-c588-4903-a632-e485e0fcea7a",
+      "2a5e18ca-0cb2-4e3d-9e31-06278ccbfd13",
+      "9df67afc-10fb-4e27-aad4-b86826e75e4f",
+      "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+      "3d012ada-d835-44a3-964f-6038f198dd92",
+      "0dcea5d7-961d-40de-82b9-493e31c57e1f",
+      "d803861e-551e-424e-b9a2-02a8f1429c14",
+      "f691dec3-569c-49c8-a004-59deb6fac775",
+      "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+      "0030a3c6-3586-4759-a081-faf16f470508",
+      "79df3312-b517-4fa5-bc0c-d0cf0e47afba",
+      "630e9c13-c4f2-4d3f-9209-74020e6c1f7d",
+      "c6567d38-b9d4-46eb-90f1-ca48ef9fa531",
+      "e3c5451a-de03-44f3-bdb1-fd240595526e",
+      "7b8b6c46-5f88-4d37-b4c4-2f85da3465df",
+      "29782e42-65b2-4a43-bc4a-ce22007cdc37",
+      "0cfb70aa-ec42-434a-817d-0ce94c37a874",
+      "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+      "17b245dd-71f0-493c-b5ff-4b2bb52c2057",
+      "94353284-8cde-40b0-848f-55260309b3c1",
+      "f18aef8f-1978-4037-b579-91ff56465294",
+      "cc1a73eb-0605-4553-88e3-1ba30771f7d8",
+      "0ed58e9a-079f-45ab-91d5-51253dbfb637",
+      "6f5ba71d-d11a-4585-9430-46c3f67be5bd",
+      "0a3dfc37-ed46-4989-a798-1089d56efa8e",
+      "73290ec7-5f37-4d47-a8d5-6fa2cc952648",
+      "b578eab0-54c2-4f8f-9231-56bcdd0c6e1e",
+      "16ce10ff-5cf0-4893-8338-a5d0df14338d",
+      "24830583-53f3-4a86-b333-ae86d6fe5cd9",
+      "8cd24886-4464-449f-b4c2-598de6a1a12e",
+      "5123ddb7-c72b-4d4f-bb9c-9a69bc84d228",
+      "09ba554d-9a90-4351-9a36-360564457055",
+      "817ed5d5-297e-4b99-9c43-d74ee40f7d52",
+      "2a42f52f-3479-4bd7-bac6-6bebc53262d4",
+      "7f6e9800-7019-4ca9-a2b9-812fdc0a355f",
+      "e7fa44bf-db23-4b3e-a5e7-47d279bdb206",
+      "d74db3fa-6c2e-49c9-b633-e3aec8618f8d",
+      "5838b581-4be3-4b2d-a7eb-6ae96978682b",
+      "aad5445b-717b-489b-b533-ae2b228a7a86",
+      "9b649f28-d02a-4599-abf6-adae78afb962"
+    ]
+  },
+  {
+    "type": "broad",
+    "query": "What are all the awarded contract amounts recorded across the projects?",
+    "search_query": "What are all the awarded contract amounts recorded across the projects?",
+    "contract_id": null,
+    "intent": "all_amounts",
+    "anchors": [
+      "69,479,428",
+      "19,109,972",
+      "96,489,983",
+      "93,990,000",
+      "140,274,481"
+    ],
+    "expected_ids": [
+      "405c437c-5c7b-47eb-b4ae-14a15ca894fb",
+      "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+      "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+      "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+      "d803861e-551e-424e-b9a2-02a8f1429c14",
+      "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+      "d32c0731-ad2e-448d-8131-3b7d79c6e620",
+      "c6567d38-b9d4-46eb-90f1-ca48ef9fa531",
+      "664114f6-9be4-44e3-b776-c6199d6e8c65",
+      "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+      "94353284-8cde-40b0-848f-55260309b3c1",
+      "f18aef8f-1978-4037-b579-91ff56465294",
+      "be883897-178d-40cb-bb18-0b2cb11067fa",
+      "cd26a08b-e09b-4c24-b108-b0cb5911a125",
+      "ef255f31-9e38-4dba-9bd6-ca377bb3347b",
+      "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
+      "5315ba1f-0cd7-4bf6-a8ac-8b6147b37e75",
+      "6cd0c437-9272-4275-9946-1c0c0b6c67c3",
+      "f157c4ee-28b5-4a47-9121-1a6a08569277",
+      "850d2a06-83b3-4e2e-9aa6-109e0ec91f0c"
+    ]
+  },
+  {
+    "type": "broad",
+    "query": "List the non-winning bidders for the Tabang River contract in Bulakan, Bulacan.",
+    "search_query": "Who are the losing bidders?",
+    "contract_id": "24CC0265",
+    "intent": "losing_bidders",
+    "anchors": [
+      "Sto. Cristo",
+      "Jewel's Construction"
+    ],
+    "expected_ids": [
+      "9df67afc-10fb-4e27-aad4-b86826e75e4f",
+      "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+      "3d012ada-d835-44a3-964f-6038f198dd92",
+      "0170f067-eb64-4cdf-95f3-a3c0f3e5d917"
+    ]
+  },
+  {
+    "type": "broad",
+    "query": "Who are all the bidders that submitted for the Aringay River project in Tubao, La Union?",
+    "search_query": "Who are all the bidders that submitted?",
+    "contract_id": "24A00153",
+    "intent": "all_bidders",
+    "anchors": [
+      "R.U. Aquino",
+      "Rodekom",
+      "Grace Construction"
+    ],
+    "expected_ids": [
+      "630e9c13-c4f2-4d3f-9209-74020e6c1f7d",
+      "c6567d38-b9d4-46eb-90f1-ca48ef9fa531",
+      "e3c5451a-de03-44f3-bdb1-fd240595526e",
+      "7b8b6c46-5f88-4d37-b4c4-2f85da3465df",
+      "29782e42-65b2-4a43-bc4a-ce22007cdc37",
+      "0cfb70aa-ec42-434a-817d-0ce94c37a874",
+      "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+      "17b245dd-71f0-493c-b5ff-4b2bb52c2057",
+      "94353284-8cde-40b0-848f-55260309b3c1",
+      "f18aef8f-1978-4037-b579-91ff56465294",
+      "cc1a73eb-0605-4553-88e3-1ba30771f7d8"
+    ]
+  },
+  {
+    "type": "broad",
+    "query": "Which Bids and Awards Committee (BAC) members signed the resolution for the Tabang River contract?",
+    "search_query": "Who are the BAC members that signed the resolution?",
+    "contract_id": "24CC0265",
+    "intent": "bac_members",
+    "anchors": [
+      "IRENE DC. ONTINGCO",
+      "EVELYN T. DE JESUS",
+      "NORBERTO L. SANTOS",
+      "LORENZO A. PAGTALUNAN",
+      "ERNESTO C. GALANG",
+      "JAYPEE D. MENDOZA"
+    ],
+    "expected_ids": [
+      "275ded08-3497-4bf8-a5cc-ad63fbdd04dd",
+      "cf9485bb-c84b-4ae8-8a2b-bd73529f7d42",
+      "ff289b2d-d79f-414c-9ff9-55bf54c72da5",
+      "c371c95c-03a4-4e40-bc31-3817bb24e284",
+      "3b4e268d-e81c-4f8b-b49e-7bb0e6f2f6bb",
+      "c9cd9618-4518-4484-ac42-c403b8938210"
+    ]
+  },
+  {
+    "type": "broad",
+    "query": "In which provinces or cities are the flood-control projects located across the corpus?",
+    "search_query": "In which provinces or cities are the flood-control projects located across the corpus?",
+    "contract_id": null,
+    "intent": "project_locations",
+    "anchors": [
+      "Bulacan",
+      "Pangasinan",
+      "Isabela",
+      "Nueva Vizcaya",
+      "La Union",
+      "Olongapo"
+    ],
+    "expected_ids": [
+      "aca154d9-0c4e-4709-bdb1-61bf7d5184ab",
+      "52403a0a-936d-45ab-b50f-d6d753c39af5",
+      "405c437c-5c7b-47eb-b4ae-14a15ca894fb",
+      "0294f87c-0f7d-47bd-9abf-60a3a3030811",
+      "efd39c0d-1148-43eb-8cb3-0ab8f53e0e85",
+      "cfb87156-b508-4ae3-82ec-2bb0b9e37f67",
+      "7ba93cd7-fca6-47ae-90c8-81ba3795cb2c",
+      "8580da99-3efc-4de6-931c-f122f45df9a9",
+      "8bba0e39-e7a1-4189-83d4-4d4ff56cfecd",
+      "9e8c8b3d-ac73-4f2c-b9d0-19c6802505b6",
+      "7de7a167-e8fd-4e6e-965c-12d785c613f5",
+      "1e43c0ad-e031-408e-bb40-0ab0c0bf65d1",
+      "15d37dea-2d6c-451d-88d0-081acc7cd179",
+      "993ca98b-3d3d-49cc-9e10-71bf245a1277",
+      "76947761-5489-4fc7-b9d1-04e38e67fa3b",
+      "14dfbecd-20de-4573-aa47-2e56d1d79f64",
+      "d70b24bd-dc25-4fee-977f-472fe4403358",
+      "a5f6b286-b92f-4561-8b89-99f9b9763b2c",
+      "d32c0731-ad2e-448d-8131-3b7d79c6e620",
+      "630e9c13-c4f2-4d3f-9209-74020e6c1f7d",
+      "e6e329e1-f29e-4ed5-bb98-94347fe844a6",
+      "1486f8f4-b782-4c7b-87e2-bbd0c1fd0da3",
+      "9775a79b-67f0-41e6-b73f-05270ef1464a",
+      "fe658ea6-dceb-4004-84df-a207351fc0dd",
+      "8f4d4c34-dd3c-4260-a8ac-5be9b2e1030c",
+      "9df7f891-b3b8-4a11-9dc1-4cdf9748ea5d",
+      "cf6b394e-a22e-43cc-aa7f-17fb351f16ab",
+      "df14ca54-bda3-411f-b495-bc8621aa1492",
+      "e1fcac92-cd14-45ae-9417-558a39f953a4",
+      "d39a2699-201f-4141-8ff6-e53fa819033c",
+      "48697345-0c2b-436f-9274-f75040c9dfca",
+      "bb066663-0d16-442d-8856-70b0854b0ecc",
+      "ed430f74-f5b9-4c39-adfe-ae5263953ef2",
+      "0ed58e9a-079f-45ab-91d5-51253dbfb637",
+      "a0ac9565-9736-4290-9d96-7b0e33904fd5",
+      "31d00aab-4884-4788-b4e9-4e68f8d2ea94",
+      "0a3dfc37-ed46-4989-a798-1089d56efa8e",
+      "cd26a08b-e09b-4c24-b108-b0cb5911a125",
+      "ef255f31-9e38-4dba-9bd6-ca377bb3347b",
+      "8fc754b6-c51d-4fbf-8dc0-c0d8b89f61a2",
+      "0b987293-f353-4c4a-9ae8-059695f459cf",
+      "5a5e1fd8-7eb4-4d0c-b96a-0b3eca5985d4",
+      "2890f9c4-a9d6-458e-923a-3b05449a0f59",
+      "191a644b-f45c-47a1-b0b1-92b855c5f385",
+      "2cc7aeb1-be7b-49f1-b92d-b010c886ce1b",
+      "45f1d7d6-8075-4f77-94fa-2e5163c51881",
+      "b892e348-52e1-4b06-aeae-127da35b5981",
+      "448cd286-f613-42e5-b833-987f0e2979e2",
+      "67d0eab3-34d1-42ac-a1fa-30158e70cc7f",
+      "6fcafad4-e172-4f38-b814-ae3d61fa0d9e",
+      "84fc94db-9ef4-4462-ada4-578c3b376390",
+      "0c172142-d6d8-4d12-8aa4-db81d9956490",
+      "7b0c2ab9-1b0d-4b8b-8700-e90221ba17b2",
+      "4ceeb32b-a4b7-4a34-aa30-9e16d158fa9e",
+      "9938306f-d0c4-48ef-b365-7e79b8a0432a",
+      "0cdf58ec-c832-461e-b25c-f0cafb9df10b",
+      "1add8b0b-98d5-4a34-86c1-dca97efcdb7c",
+      "8cd24886-4464-449f-b4c2-598de6a1a12e",
+      "1c304b25-8201-4f32-90ab-164cfcae698e",
+      "5123ddb7-c72b-4d4f-bb9c-9a69bc84d228",
+      "8e12f024-5467-4b2b-9a56-92d148a495ee",
+      "5315ba1f-0cd7-4bf6-a8ac-8b6147b37e75",
+      "12720441-9367-4970-b84d-0bda851e08cc",
+      "a98651c5-9dcd-44f5-ab8f-abb979ca3f5b",
+      "41597395-ae67-498f-bd4c-2165933bd21c",
+      "5ac1025c-2d84-468b-82f7-eb0a1e053c61",
+      "2ebd3ed9-e489-41ee-8d66-1f867f4bf5ca",
+      "d077caaf-b590-4d53-8472-78e0d50992ad",
+      "c266118d-dd5d-451c-a2d2-330edcb94b3d",
+      "817ed5d5-297e-4b99-9c43-d74ee40f7d52",
+      "6cd0c437-9272-4275-9946-1c0c0b6c67c3",
+      "ab80f80d-481f-4e41-8526-370005edf9a3",
+      "f157c4ee-28b5-4a47-9121-1a6a08569277",
+      "2a42f52f-3479-4bd7-bac6-6bebc53262d4",
+      "3848c571-6c0c-4b40-aab6-0afbd6fdf8a8",
+      "5b21beba-28be-4411-9fdd-056053e30652",
+      "f1134ba7-1abb-4fc8-a2fe-dfdcc24fb2a7",
+      "05e2ebc8-0058-4c3c-8b3f-479f8abbc7fe",
+      "5838b581-4be3-4b2d-a7eb-6ae96978682b",
+      "057df1c5-7ee5-48ad-94e1-b84cab03b424",
+      "1021ec8a-9403-4b96-87c9-ad3256380144",
+      "6b32205c-54ba-454a-8f82-556bf5a80bf5",
+      "ce34f98e-7215-4a34-b6fd-5a9ad0dec7bc",
+      "ce861f75-729a-426f-b7a1-65d9341f1e46",
+      "9b649f28-d02a-4599-abf6-adae78afb962"
+    ]
+  },
+  {
+    "type": "broad",
+    "query": "List all the Notary Publics who notarized the contract agreements in the corpus.",
+    "search_query": "List all the Notary Publics who notarized the contract agreements in the corpus.",
+    "contract_id": null,
+    "intent": "notaries",
+    "anchors": [
+      "AILEIN GRACE",
+      "ALFREDO S. VELASCO",
+      "FERNANDEZ B. TAGART"
+    ],
+    "expected_ids": [
+      "9df7f891-b3b8-4a11-9dc1-4cdf9748ea5d",
+      "4f80192d-27c1-427a-84b4-e64f35f90010",
+      "cbc9aadc-b1b8-4654-a40c-db5777cb347b"
+    ]
+  },
+  {
+    "type": "broad",
+    "query": "Who are the accountants named across the contracts?",
+    "search_query": "Who are the accountants named across the contracts?",
+    "contract_id": null,
+    "intent": "accountants",
+    "anchors": [
+      "DEXTER D. LOMBOY",
+      "JULIETA C. BACANI",
+      "JAYSON V. ANTONIO",
+      "JONNALYN Q. BARASI",
+      "JUANITO C. MENDOZA"
+    ],
+    "expected_ids": [
+      "b81f1b34-af98-4d7b-a7c1-0a57e4fb69b3",
+      "33e151ae-9397-4a72-b252-8cf0602a1a90",
+      "a40d722c-09c1-42dc-8761-ee0633e408c3",
+      "c701581c-c75e-4559-b4f9-afa592eb0e86",
+      "d4536142-10dc-476d-a95f-494df37a6562",
+      "d4c3d72d-96e1-44c1-911c-ac48aec3d22e",
+      "2b7cc579-e80c-41d6-9d26-4de6f3136326",
+      "f896dd27-ec22-4962-bd73-1761e1eb887d",
+      "a224da1b-c6f0-4fe1-a13a-fa0ba7c6256c",
+      "dad957b3-fb65-488c-b0fa-ea3aae5151e7",
+      "8746006b-4a20-4520-b7b2-98183e0fa86d",
+      "4a4cadf4-e6d7-4fcc-85b8-487fe0fc7a77",
+      "7293335d-1e85-4abc-9345-0b475319d195",
+      "fee265cf-c1d4-4e30-b306-cd201c89b85a",
+      "9a5f660f-be76-4f78-ba7c-92d29b3f289e"
+    ]
+  },
+  {
+    "type": "broad",
+    "query": "What document types make up the Aringay River contract file in Tubao, La Union?",
+    "search_query": "What document types make up this contract file?",
+    "contract_id": "24A00153",
+    "intent": "document_types",
+    "anchors": [
+      "NOTICE OF AWARD",
+      "CONTRACT AGREEMENT",
+      "NOTICE TO PROCEED",
+      "BAC RESOLUTION",
+      "ACKNOWLEDGEMENT"
+    ],
+    "expected_ids": [
+      "01187882-57dd-4526-b767-7ac0d1587604",
+      "c6567d38-b9d4-46eb-90f1-ca48ef9fa531",
+      "4decdd88-de8e-49d0-aaa6-b0753af74dd5",
+      "301b0b62-4e4a-4516-8d01-8c64a96e7efe",
+      "60320879-b697-4396-983c-1526590703d8",
+      "b03a86c8-e23e-49ca-88c9-180215724b83",
+      "25872bd2-1d13-42e1-8869-79ad6a674b65",
+      "8afeb533-be8e-4a73-9548-7cad670ea962",
+      "8b17a3ec-d635-49ea-8f28-2f6ba3eb2c29",
+      "76250330-5469-4557-80da-8a806eed7b19"
+    ]
+  },
+  {
+    "type": "complex",
+    "query": "Which contract has the highest awarded amount, and how much is it?",
+    "search_query": "Which contract has the highest awarded amount, and how much is it?",
+    "contract_id": null,
+    "intent": "max_amount",
+    "anchors": [
+      "69,479,428",
+      "19,109,972",
+      "96,489,983",
+      "93,990,000",
+      "140,274,481"
+    ],
+    "expected_ids": [
+      "405c437c-5c7b-47eb-b4ae-14a15ca894fb",
+      "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+      "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+      "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+      "d803861e-551e-424e-b9a2-02a8f1429c14",
+      "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+      "d32c0731-ad2e-448d-8131-3b7d79c6e620",
+      "c6567d38-b9d4-46eb-90f1-ca48ef9fa531",
+      "664114f6-9be4-44e3-b776-c6199d6e8c65",
+      "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+      "94353284-8cde-40b0-848f-55260309b3c1",
+      "f18aef8f-1978-4037-b579-91ff56465294",
+      "be883897-178d-40cb-bb18-0b2cb11067fa",
+      "cd26a08b-e09b-4c24-b108-b0cb5911a125",
+      "ef255f31-9e38-4dba-9bd6-ca377bb3347b",
+      "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
+      "5315ba1f-0cd7-4bf6-a8ac-8b6147b37e75",
+      "6cd0c437-9272-4275-9946-1c0c0b6c67c3",
+      "f157c4ee-28b5-4a47-9121-1a6a08569277",
+      "850d2a06-83b3-4e2e-9aa6-109e0ec91f0c"
+    ]
+  },
+  {
+    "type": "complex",
+    "query": "What is the combined total value of all the awarded contract amounts in the corpus?",
+    "search_query": "What is the combined total value of all the awarded contract amounts in the corpus?",
+    "contract_id": null,
+    "intent": "total_amount",
+    "anchors": [
+      "69,479,428",
+      "19,109,972",
+      "96,489,983",
+      "93,990,000",
+      "140,274,481"
+    ],
+    "expected_ids": [
+      "405c437c-5c7b-47eb-b4ae-14a15ca894fb",
+      "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+      "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+      "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+      "d803861e-551e-424e-b9a2-02a8f1429c14",
+      "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+      "d32c0731-ad2e-448d-8131-3b7d79c6e620",
+      "c6567d38-b9d4-46eb-90f1-ca48ef9fa531",
+      "664114f6-9be4-44e3-b776-c6199d6e8c65",
+      "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+      "94353284-8cde-40b0-848f-55260309b3c1",
+      "f18aef8f-1978-4037-b579-91ff56465294",
+      "be883897-178d-40cb-bb18-0b2cb11067fa",
+      "cd26a08b-e09b-4c24-b108-b0cb5911a125",
+      "ef255f31-9e38-4dba-9bd6-ca377bb3347b",
+      "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
+      "5315ba1f-0cd7-4bf6-a8ac-8b6147b37e75",
+      "6cd0c437-9272-4275-9946-1c0c0b6c67c3",
+      "f157c4ee-28b5-4a47-9121-1a6a08569277",
+      "850d2a06-83b3-4e2e-9aa6-109e0ec91f0c"
+    ]
+  },
+  {
+    "type": "complex",
+    "query": "By how much did the winning bid for the Aringay River project come in under its Approved Budget for the Contract (ABC)?",
+    "search_query": "How much under the Approved Budget for the Contract was the winning bid?",
+    "contract_id": "24A00153",
+    "intent": "abc_savings",
+    "anchors": [
+      "144,750,000",
+      "140,274,481"
+    ],
+    "expected_ids": [
+      "d32c0731-ad2e-448d-8131-3b7d79c6e620",
+      "c6567d38-b9d4-46eb-90f1-ca48ef9fa531",
+      "664114f6-9be4-44e3-b776-c6199d6e8c65",
+      "efd84e2c-b171-4ed6-a7e8-29912aae3231",
+      "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+      "94353284-8cde-40b0-848f-55260309b3c1",
+      "f18aef8f-1978-4037-b579-91ff56465294"
+    ]
+  },
+  {
+    "type": "complex",
+    "query": "For the Tabang River contract, how much more did the second-lowest bidder bid than the winning bid?",
+    "search_query": "How much more did the second-lowest bidder bid than the winning bid?",
+    "contract_id": "24CC0265",
+    "intent": "bid_gap",
+    "anchors": [
+      "71,651,188",
+      "69,479,428"
+    ],
+    "expected_ids": [
+      "405c437c-5c7b-47eb-b4ae-14a15ca894fb",
+      "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+      "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+      "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+      "d803861e-551e-424e-b9a2-02a8f1429c14",
+      "0170f067-eb64-4cdf-95f3-a3c0f3e5d917"
+    ]
+  },
+  {
+    "type": "complex",
+    "query": "Rodekom's bid for the Aringay River project was read at 143,137,226 with a 2% discount offered -- does the discounted amount match the awarded contract price?",
+    "search_query": "Does the bid after the 2% discount match the awarded contract price?",
+    "contract_id": "24A00153",
+    "intent": "discount_check",
+    "anchors": [
+      "143,137,226",
+      "140,274,481"
+    ],
+    "expected_ids": [
+      "d32c0731-ad2e-448d-8131-3b7d79c6e620",
+      "c6567d38-b9d4-46eb-90f1-ca48ef9fa531",
+      "664114f6-9be4-44e3-b776-c6199d6e8c65",
+      "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+      "94353284-8cde-40b0-848f-55260309b3c1",
+      "f18aef8f-1978-4037-b579-91ff56465294"
+    ]
+  },
+  {
+    "type": "complex",
+    "query": "Which contract has the longest construction duration in calendar days?",
+    "search_query": "Which contract has the longest construction duration in calendar days?",
+    "contract_id": null,
+    "intent": "max_duration",
+    "anchors": [
+      "240 (two hundred forty)",
+      "163 Calendar Days",
+      "Twenty One (321)"
+    ],
+    "expected_ids": [
+      "522f83cf-4a8f-4c48-bb10-610539ef3c46",
+      "b892e348-52e1-4b06-aeae-127da35b5981",
+      "84fc94db-9ef4-4462-ada4-578c3b376390",
+      "5315ba1f-0cd7-4bf6-a8ac-8b6147b37e75",
+      "6cd0c437-9272-4275-9946-1c0c0b6c67c3"
+    ]
+  },
+  {
+    "type": "complex",
+    "query": "Rank the corpus contracts from smallest to largest awarded amount.",
+    "search_query": "Rank the corpus contracts from smallest to largest awarded amount.",
+    "contract_id": null,
+    "intent": "rank_amounts",
+    "anchors": [
+      "69,479,428",
+      "19,109,972",
+      "96,489,983",
+      "93,990,000",
+      "140,274,481"
+    ],
+    "expected_ids": [
+      "405c437c-5c7b-47eb-b4ae-14a15ca894fb",
+      "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+      "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+      "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+      "d803861e-551e-424e-b9a2-02a8f1429c14",
+      "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+      "d32c0731-ad2e-448d-8131-3b7d79c6e620",
+      "c6567d38-b9d4-46eb-90f1-ca48ef9fa531",
+      "664114f6-9be4-44e3-b776-c6199d6e8c65",
+      "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+      "94353284-8cde-40b0-848f-55260309b3c1",
+      "f18aef8f-1978-4037-b579-91ff56465294",
+      "be883897-178d-40cb-bb18-0b2cb11067fa",
+      "cd26a08b-e09b-4c24-b108-b0cb5911a125",
+      "ef255f31-9e38-4dba-9bd6-ca377bb3347b",
+      "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
+      "5315ba1f-0cd7-4bf6-a8ac-8b6147b37e75",
+      "6cd0c437-9272-4275-9946-1c0c0b6c67c3",
+      "f157c4ee-28b5-4a47-9121-1a6a08569277",
+      "850d2a06-83b3-4e2e-9aa6-109e0ec91f0c"
+    ]
+  },
+  {
+    "type": "complex",
+    "query": "How much did the highest bid exceed the lowest bid for the Tabang River contract?",
+    "search_query": "How much did the highest bid exceed the lowest bid?",
+    "contract_id": "24CC0265",
+    "intent": "bid_spread",
+    "anchors": [
+      "69,479,428",
+      "71,868,373"
+    ],
+    "expected_ids": [
+      "405c437c-5c7b-47eb-b4ae-14a15ca894fb",
+      "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+      "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+      "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+      "d803861e-551e-424e-b9a2-02a8f1429c14",
+      "0170f067-eb64-4cdf-95f3-a3c0f3e5d917"
+    ]
+  },
+  {
+    "type": "complex",
+    "query": "The San Carlos City slope-protection project had an ABC of 19,600,000 -- what percentage of the ABC was the winning bid?",
+    "search_query": "What percentage of the Approved Budget for the Contract was the winning bid?",
+    "contract_id": "24AJ0052",
+    "intent": "abc_percentage",
+    "anchors": [
+      "19,600,000",
+      "19,109,972"
+    ],
+    "expected_ids": [
+      "be883897-178d-40cb-bb18-0b2cb11067fa",
+      "cd26a08b-e09b-4c24-b108-b0cb5911a125",
+      "ef255f31-9e38-4dba-9bd6-ca377bb3347b",
+      "b892e348-52e1-4b06-aeae-127da35b5981",
+      "84fc94db-9ef4-4462-ada4-578c3b376390"
+    ]
+  },
+  {
+    "type": "complex",
+    "query": "Across all contracts, what is the average awarded contract amount?",
+    "search_query": "Across all contracts, what is the average awarded contract amount?",
+    "contract_id": null,
+    "intent": "avg_amount",
+    "anchors": [
+      "69,479,428",
+      "19,109,972",
+      "96,489,983",
+      "93,990,000",
+      "140,274,481"
+    ],
+    "expected_ids": [
+      "405c437c-5c7b-47eb-b4ae-14a15ca894fb",
+      "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+      "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+      "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+      "d803861e-551e-424e-b9a2-02a8f1429c14",
+      "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+      "d32c0731-ad2e-448d-8131-3b7d79c6e620",
+      "c6567d38-b9d4-46eb-90f1-ca48ef9fa531",
+      "664114f6-9be4-44e3-b776-c6199d6e8c65",
+      "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+      "94353284-8cde-40b0-848f-55260309b3c1",
+      "f18aef8f-1978-4037-b579-91ff56465294",
+      "be883897-178d-40cb-bb18-0b2cb11067fa",
+      "cd26a08b-e09b-4c24-b108-b0cb5911a125",
+      "ef255f31-9e38-4dba-9bd6-ca377bb3347b",
+      "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
+      "5315ba1f-0cd7-4bf6-a8ac-8b6147b37e75",
+      "6cd0c437-9272-4275-9946-1c0c0b6c67c3",
+      "f157c4ee-28b5-4a47-9121-1a6a08569277",
+      "850d2a06-83b3-4e2e-9aa6-109e0ec91f0c"
+    ]
+  },
+  {
+    "type": "empty",
+    "query": "Which contractor was awarded the Pasig River flood control project in Metro Manila?",
+    "search_query": "Which contractor was awarded the Pasig River flood control project in Metro Manila?",
+    "contract_id": null,
+    "intent": "absent",
+    "anchors": [
+      "Pasig River"
+    ],
+    "expected_ids": []
+  },
+  {
+    "type": "empty",
+    "query": "What is the total contract amount for the Kalaklan River flood project in Olongapo City?",
+    "search_query": "What is the total contract amount for the Kalaklan River flood project in Olongapo City?",
+    "contract_id": "24CM0001",
+    "intent": "absent",
+    "anchors": [],
+    "expected_ids": []
+  },
+  {
+    "type": "empty",
+    "query": "Who is the Notary Public for the Olongapo City (Kalaklan River) contract?",
+    "search_query": "Who is the Notary Public for the Olongapo City (Kalaklan River) contract?",
+    "contract_id": "24CM0001",
+    "intent": "absent",
+    "anchors": [],
+    "expected_ids": []
+  },
+  {
+    "type": "empty",
+    "query": "What is the total contract amount for the Boracay Circumferential Road project?",
+    "search_query": "What is the total contract amount for the Boracay Circumferential Road project?",
+    "contract_id": null,
+    "intent": "absent",
+    "anchors": [
+      "Boracay"
+    ],
+    "expected_ids": []
+  },
+  {
+    "type": "empty",
+    "query": "Which company was awarded the Marikina River flood control project?",
+    "search_query": "Which company was awarded the Marikina River flood control project?",
+    "contract_id": null,
+    "intent": "absent",
+    "anchors": [
+      "Marikina"
+    ],
+    "expected_ids": []
+  },
+  {
+    "type": "empty",
+    "query": "Who won the Cagayan de Oro River flood control contract?",
+    "search_query": "Who won the Cagayan de Oro River flood control contract?",
+    "contract_id": null,
+    "intent": "absent",
+    "anchors": [
+      "Cagayan de Oro"
+    ],
+    "expected_ids": []
+  },
+  {
+    "type": "empty",
+    "query": "How many calendar days is the construction duration for the Olongapo City (Kalaklan River) project?",
+    "search_query": "How many calendar days is the construction duration for the Olongapo City (Kalaklan River) project?",
+    "contract_id": "24CM0001",
+    "intent": "absent",
+    "anchors": [],
+    "expected_ids": []
+  },
+  {
+    "type": "empty",
+    "query": "Which contractor was awarded the Agno River flood control project in Pangasinan?",
+    "search_query": "Which contractor was awarded the Agno River flood control project in Pangasinan?",
+    "contract_id": null,
+    "intent": "absent",
+    "anchors": [
+      "Agno"
+    ],
+    "expected_ids": []
+  },
+  {
+    "type": "empty",
+    "query": "What is the winning bidder for the Chico River irrigation project?",
+    "search_query": "What is the winning bidder for the Chico River irrigation project?",
+    "contract_id": null,
+    "intent": "absent",
+    "anchors": [
+      "Chico River"
+    ],
+    "expected_ids": []
+  },
+  {
+    "type": "empty",
+    "query": "What bid amount did Megawide Construction Corporation submit?",
+    "search_query": "What bid amount did Megawide Construction Corporation submit?",
+    "contract_id": null,
+    "intent": "absent",
+    "anchors": [
+      "Megawide"
+    ],
+    "expected_ids": []
   }
 ]
