@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Measure retrieval recall (hit_rate / mrr) against eval/eval_set.json.
+# Measure retrieval recall (hit_rate / mrr) against eval/eval_retrieval.json.
 # Usage: scripts/evaluate.sh [baseline|filtered|rerank]   (default: rerank)
 #   baseline  pure vector search
 #   filtered  + contract-id metadata filter

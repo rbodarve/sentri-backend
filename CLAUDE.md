@@ -30,7 +30,7 @@ Use `make` (details in [scripts/README.md](scripts/README.md)):
 
 - `make setup` — create the conda env + install pinned deps (one-time).
 - `make check` — stage 1–3 self-checks (loader, enrich, relationships); pure Python, no model.
-- `make build` — build the eval set + embed & persist the vector index to `index_store/`,
+- `make build` — build the retrieval eval set + embed & persist the vector index to `index_store/`,
   then extract the corpus manifest (this last step needs Ollama).
 - `make eval [MODE=baseline|filtered|rerank]` — measure retrieval recall; default `rerank`.
 - `make ask Q="..."` — one-shot retrieve + rerank + generate (needs Ollama).
@@ -40,6 +40,8 @@ Use `make` (details in [scripts/README.md](scripts/README.md)):
 - `make chat-agentic` — interactive query loop routed through the agentic controller (needs Ollama).
 - `make eval-agentic` — answer-level eval of the agent (routing/fan-out/decomposition/
   withholding) against `eval/eval_agentic.json`; needs Ollama. `make eval` stays the recall gate.
+- `make serve [HOST=.. PORT=..]` — serve the agent as a streaming (SSE) HTTP API via
+  [fastapi/](fastapi/) (needs Ollama, plus `pip install -r fastapi/requirements.txt`).
 - `make clean` — remove the regenerable `index_store/` + caches.
 
 ## Architecture
@@ -47,7 +49,7 @@ Use `make` (details in [scripts/README.md](scripts/README.md)):
 Pipeline stages, each a module in [rag/](rag/) runnable as `python -m rag.<name>`:
 
 `loader` → `enrich` → `relationships` (stages 1–3, validated by `make check`) →
-`build_eval` + `index` + `manifest` (`make build`) → `evaluate` (recall) / `generate`,
+`build_retrieval_eval` + `index` + `manifest` (`make build`) → `evaluate` (recall) / `generate`,
 `chat` (answers). `rerank.py` is the CPU cross-encoder stage; `config.py` is the single
 config surface; `verify.py`/`trace.py` are support libs.
 
@@ -66,7 +68,7 @@ Data & artifacts:
 - **`database/*.json` is the authoritative OCR transcription.** Chunks are UUID-keyed under
   `text`/`table`/`image`/`signature`, each with a `content` field. **Never re-OCR the
   `source/` PDFs to "verify" the database** — the DB is the trusted source of truth.
-- `source/` — original bid PDFs (corpus input). `eval/eval_set.json` — ground-truth Q/chunk
+- `source/` — original bid PDFs (corpus input). `eval/eval_retrieval.json` — ground-truth Q/chunk
   pairs. `index_store/` — the built vector index; **regenerable, gitignored** (`make build`).
 
 Models are **config-driven** in [rag/config.py](rag/config.py) via `RAG_*` env vars — swap

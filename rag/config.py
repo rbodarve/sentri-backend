@@ -22,7 +22,7 @@ PERSIST_DIR = os.getenv("RAG_PERSIST_DIR", "index_store")
 HF_HUB_CACHE = os.path.join(os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface")), "hub")
 
 # Reranker (Step 7): CPU cross-encoder, zero VRAM. Retrieve RERANK_CANDIDATES, keep RERANK_TOP_N.
-# 40 -> 10 measured at 100% recall on eval/eval_set.json (candidates and top_n must rise together).
+# 40 -> 10 measured at 100% recall on eval/eval_retrieval.json (candidates and top_n must rise together).
 RERANK_MODEL = os.getenv("RAG_RERANK_MODEL", "BAAI/bge-reranker-base")
 RERANK_CANDIDATES = int(os.getenv("RAG_RERANK_CANDIDATES", "40"))
 RERANK_TOP_N = int(os.getenv("RAG_RERANK_TOP_N", "10"))

@@ -5,7 +5,7 @@ per stage (intake, route, retrieve, rerank, context, generate, verify). The trac
 node *ids, scores and metadata* (never chunk text or vectors) so a run is machine-diffable
 and quiet. Gated by ``RAG_TRACE=1``: off means zero records and near-zero overhead.
 
-The payoff is *stage-of-death*: given a question's ground-truth chunk ids (``eval_set.json``
+The payoff is *stage-of-death*: given a question's ground-truth chunk ids (``eval_retrieval.json``
 ``expected_ids``, the same UUID space as ``node.node_id``), :func:`stage_of_death` reports the
 first stage where the gold chunk disappears -- retrieval miss vs rerank drop vs generation --
 so a failing eval question points straight at the component to fix.

@@ -6,7 +6,7 @@ help:
 	@echo "RAG pipeline commands (run via 'make <target>'):"
 	@echo "  make setup                          Create conda env 'ragtest' + install pinned deps (one-time)"
 	@echo "  make check                          Stage 1-3 self-checks (loader, enrich, relationships); no model"
-	@echo "  make build                          Build eval set + embed index + extract manifest (manifest step needs Ollama)"
+	@echo "  make build                          Build retrieval eval set + embed index + extract manifest (manifest step needs Ollama)"
 	@echo "  make eval [MODE=baseline|filtered|rerank]  Measure retrieval recall (default rerank -> 1.000)"
 	@echo "  make ask Q=\"...\"                     One-shot retrieve + rerank + generate a grounded answer (needs Ollama)"
 	@echo "  make chat                           Interactive query loop (index + LLM loaded once; needs Ollama)"

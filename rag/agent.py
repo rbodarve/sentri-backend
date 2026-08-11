@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from llama_index.core import Settings
 from llama_index.core.prompts import PromptTemplate
 
-from rag.config import AGENT_MAX_ATTEMPTS, AGENT_WIDE_TOP_N, GEN_MODEL
+from rag.config import AGENT_MAX_ATTEMPTS, AGENT_WIDE_TOP_N
 from rag.enrich import CONTRACT_ID_RE
 from rag.generate import RagAnswerer
 from rag.rerank import get_reranker

@@ -18,6 +18,7 @@ the single-pass RAG), streamed over HTTP as Server-Sent Events.
 | `seams.py` | **Seams 1, 4, 5 + augment** — `build_pipeline`, `summarize_stage`, `finalize`, `passthrough_query`. |
 | `app.py` | `create_app(...)` wiring + `uvicorn` entrypoint. |
 | `serve.sh` | Activates the `ragtest` env and launches uvicorn (mirrors `scripts/*.sh`). |
+| `serve_ngrok.sh` | Same as `serve.sh`, but also exposes the API over an ngrok tunnel and prints the public https URL. Optional — needs `ngrok` with an authtoken configured. |
 | `requirements.txt` | `fastapi`, `uvicorn`, `pydantic` — install into the `ragtest` env. |
 
 ## Run

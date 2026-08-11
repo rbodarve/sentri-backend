@@ -1,6 +1,6 @@
 """Step 6 of the RAG pipeline: measure retrieval recall (hit_rate) and MRR.
 
-Runs the ground-truth set (eval/eval_set.json) through the persisted index and reports
+Runs the ground-truth set (eval/eval_retrieval.json) through the persisted index and reports
 hit_rate (= recall@k: did any expected chunk appear in the top-k?) and MRR. Only the
 embedding model runs -- no generation LLM -- so this is zero-VRAM.
 
@@ -23,7 +23,7 @@ from rag.index import load_index
 
 from rag.config import RERANK_CANDIDATES, RERANK_TOP_N
 
-EVAL_PATH = Path("eval/eval_set.json")
+EVAL_PATH = Path("eval/eval_retrieval.json")
 TOP_K = int(os.getenv("RAG_TOP_K", "5"))
 FILTER_BY_CONTRACT = os.getenv("RAG_FILTER_BY_CONTRACT", "0") == "1"
 RERANK = os.getenv("RAG_RERANK", "0") == "1"

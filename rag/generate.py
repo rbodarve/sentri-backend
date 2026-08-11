@@ -176,7 +176,7 @@ if __name__ == "__main__":
 
     rag = RagAnswerer()
     # Map question -> expected_ids so RAG_TRACE=1 runs attach gold and stage-of-death works.
-    eval_path = Path("eval/eval_set.json")
+    eval_path = Path("eval/eval_retrieval.json")
     gold_by_query = (
         {e["query"]: e["expected_ids"] for e in json.loads(eval_path.read_text())}
         if eval_path.exists() else {}
