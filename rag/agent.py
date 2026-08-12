@@ -2,12 +2,15 @@
 
 Composes three behaviors on top of the deterministic pipeline, without replacing it:
 
-  router       -- classify a question: "simple" | "fanout" | "semantic".
+  router       -- classify a question: "simple" | "fanout" | "semantic" | "analytical".
   fan-out      -- a multi-contract question asking one intent of several contracts -- an
                   explicit id list, or a distributive "each/all projects" over the whole corpus
                   -- is split, by rule, into one single-contract sub-question each (no LLM).
   semantic     -- a genuine multi-hop/compound question is split into sub-questions by the LLM
                   (the ONLY place the LLM drives control), then the sub-answers are combined.
+  analytical   -- a corpus-wide pattern/anomaly/commonality question reasons over the COMPLETE
+                  manifest in one pass (not per-contract, no retrieval added -- the manifest is
+                  already the whole corpus), the substrate top-k retrieval structurally lacks.
   self-correct -- every sub-answer is checked by the manifest Verifier; on a block/flag (or an
                   unhelpful "I don't know") it retries with a widened k, then a dropped contract
                   filter, and otherwise the answer is withheld.
@@ -53,6 +56,13 @@ _COMPARISON_RE = re.compile(
 # intent of the whole corpus ("list each project's location"). It fans out over every known
 # contract; a leading "for"/"of" is left outside the match so the rewrite reads naturally.
 _EACH_RE = re.compile(r"\b(?:each|every|all|per)\s+(?:of\s+the\s+)?(?:projects?|contracts?)\b", re.I)
+# Cross-corpus analytical cues: a pattern/anomaly/commonality question that must reason over the
+# whole corpus at once, not fetch one contract's spans. Routed to the manifest-wide analytical
+# pass (see answer()). A question that instead compares >=2 *named* contracts stays semantic.
+_ANALYTICAL_RE = re.compile(
+    r"\b(?:patterns?|anomal(?:y|ies|ous)|outliers?|trends?|unusual|irregular(?:ities)?|"
+    r"recurring|commonalit(?:y|ies)|similarit(?:y|ies)|stands?\s+out)\b|\bin\s+common\b", re.I
+)
 
 _DECOMPOSE_TEMPLATE = PromptTemplate(
     "Break the question into the minimal list of independent, self-contained sub-questions "
@@ -67,6 +77,19 @@ _COMBINE_TEMPLATE = PromptTemplate(
     "totals. Name the source document(s).\n"
     "---------------------\n{context_str}\n---------------------\n"
     "Original question: {query_str}\nAnswer: "
+)
+# Analytical answers reason over the COMPLETE manifest (the whole corpus in one context), the one
+# place a cross-corpus pattern/anomaly is even visible. Grounded strictly in the manifest rows, no
+# sums/totals (aggregation stays the handoff model's job), honest when the manifest can't support it.
+_ANALYTICAL_TEMPLATE = PromptTemplate(
+    "You analyze a COMPLETE set of DPWH infrastructure-procurement contracts.\n"
+    "The CORPUS MANIFEST below is the authoritative, complete list of every contract and its "
+    "fields. Answer by reasoning ONLY over these rows -- identify patterns, commonalities, or "
+    "anomalies ACROSS the contracts. Ground every observation in specific contract ids and field "
+    "values from the manifest; add no facts beyond it, and do NOT compute sums or totals. If the "
+    "manifest does not support an observation, say so.\n"
+    "---------------------\n{manifest_str}\n---------------------\n"
+    "Question: {query_str}\nAnswer: "
 )
 
 
@@ -106,8 +129,13 @@ class AgenticRag:
 
     # -- routing -------------------------------------------------------------------------
     def classify(self, question: str) -> tuple[str, list[str]]:
-        """(kind, ordered contract ids). kind in {"simple","fanout","semantic"}."""
+        """(kind, ordered contract ids). kind in {"simple","fanout","semantic","analytical"}."""
         explicit = list(dict.fromkeys(m.upper() for m in CONTRACT_ID_RE.findall(question)))
+        # Analytical (corpus-wide pattern/anomaly) reasons over the whole manifest at once, so it
+        # precedes the fan-out/each rules. A question comparing >=2 *named* contracts is left to
+        # the semantic route (cross-contract reasoning over specific ids), not analytical.
+        if _ANALYTICAL_RE.search(question) and len(set(explicit)) < 2:
+            return "analytical", sorted(self._known)
         if not explicit and _EACH_RE.search(question):
             # "list/for each project ...": one intent asked of the whole corpus. Fan out over
             # every known contract so it can't be silently under-answered by a single pass.
@@ -176,6 +204,18 @@ class AgenticRag:
         if kind == "simple":
             part = self._answer_subquestion(question)
             return AgentResult(question, kind, part.answer, part.report, [part])
+
+        if kind == "analytical":
+            # One pass over the COMPLETE manifest (already built, whole corpus) -- no retrieval, so
+            # the retry ladder (widen k / drop filter) doesn't apply. Verified with the DERIVED
+            # BLOCK tier only: the per-contract mis-binding FLAG heuristic mis-reads a legitimate
+            # multi-contract synthesis, so the analytical route relaxes it (check_bindings=False)
+            # while still withholding any answer that invents a contract.
+            manifest_str = self._rag._manifest_node.node.text
+            text = str(Settings.llm.complete(
+                _ANALYTICAL_TEMPLATE.format(manifest_str=manifest_str, query_str=question))).strip()
+            report = self._verifier.check(text, check_bindings=False)
+            return AgentResult(question, kind, text, report, [])
 
         subqs = self._fanout_subquestions(question, ids) if kind == "fanout" \
             else self._decompose(question)

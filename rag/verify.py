@@ -104,7 +104,7 @@ class Verifier:
         self._loc_value = {r["contract_id"]: r.get("location", "") for r in manifest}
         self._con_value = {r["contract_id"]: r.get("contractor", "") for r in manifest}
 
-    def check(self, answer: str) -> Report:
+    def check(self, answer: str, *, check_bindings: bool = True) -> Report:
         report = Report()
         seen: set[str] = set()  # flag messages already recorded, so block/sentence scopes don't double-report
 
@@ -112,6 +112,15 @@ class Verifier:
         mentioned = {m.upper() for m in CONTRACT_ID_RE.findall(answer)}
         for unknown in sorted(mentioned - self._contracts):
             report.blocks.append(f"names contract {unknown}, which is not in the corpus")
+
+        # The mis-binding FLAG heuristic assumes each attribution unit is about exactly ONE
+        # contract. A cross-corpus analytical answer (rag.agent's "analytical" route) legitimately
+        # enumerates many contracts with their locations/contractors together, which the heuristic
+        # mis-reads as a mis-binding and would false-withhold. Such callers pass
+        # check_bindings=False to verify with only the DERIVED, zero-false-positive BLOCK tier
+        # above; single-contract callers keep the full check (the default).
+        if not check_bindings:
+            return report
 
         # FLAG: an attribution unit about exactly one contract that cites another contract's binding.
         for unit in _attribution_units(answer):

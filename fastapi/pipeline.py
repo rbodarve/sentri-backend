@@ -37,7 +37,7 @@ from llama_index.core import Settings
 # `_COMBINE_TEMPLATE` is module-private in rag.agent, but reusing it verbatim is
 # what keeps the semantic-combine answer identical to the CLI agent — worth the
 # private import rather than duplicating (and drifting from) the prompt.
-from rag.agent import AgenticRag, _COMBINE_TEMPLATE
+from rag.agent import AgenticRag, _ANALYTICAL_TEMPLATE, _COMBINE_TEMPLATE
 from rag.enrich import CONTRACT_ID_RE
 from rag.generate import format_sources
 from rag.manifest import load_manifest
@@ -96,7 +96,7 @@ class StreamFinal:
     """The terminal object handed to `finalize` (Seam 5)."""
 
     question: str
-    kind: str                    # "simple" | "fanout" | "semantic"
+    kind: str                    # "simple" | "fanout" | "semantic" | "analytical"
     contract_ids: list[str]      # contracts the router bound the question to
     text: str                    # combined answer (displayable only if report.ok)
     report: Report               # final grounding outcome
@@ -184,6 +184,18 @@ class StreamingAgenticRag:
         if kind == "simple":
             part = self._answer_part(query, tracer)
             result = StreamFinal(query, kind, ids, part.answer, part.report, [part])
+        elif kind == "analytical":
+            # Corpus-wide pattern/anomaly: one pass over the COMPLETE manifest -- no retrieval, no
+            # sub-questions, so there are no per-chunk citations. Verified with the BLOCK tier only
+            # (check_bindings=False) so a legitimate multi-contract synthesis isn't false-withheld.
+            # Mirrors AgenticRag.answer()'s analytical branch.
+            manifest_str = self._rag._manifest_node.node.text
+            text = str(Settings.llm.complete(
+                _ANALYTICAL_TEMPLATE.format(manifest_str=manifest_str, query_str=query)
+            )).strip()
+            report = agent._verifier.check(text, check_bindings=False)
+            tracer.record(STAGE_COMBINE, {"strategy": "analytical", "ok": report.ok})
+            result = StreamFinal(query, kind, ids, text, report, [])
         else:
             subqs = (agent._fanout_subquestions(query, ids) if kind == "fanout"
                      else agent._decompose(query))
