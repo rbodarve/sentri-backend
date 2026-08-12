@@ -28,6 +28,7 @@ the token replay, and the cancel-check polling the transport requires.
 from __future__ import annotations
 
 import re
+import threading
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterator
 
@@ -133,14 +134,21 @@ class StreamingAgenticRag:
         # citations (the agent itself keeps only text + report). Shimming the
         # bound attribute on our own instance leaves rag/ untouched; the accepted
         # attempt is always the last call before the retry ladder breaks.
-        self._last_response: Any = None
+        #
+        # This instance is a startup singleton the transport drives from a
+        # threadpool, so concurrent /query requests share it. The captured
+        # Response therefore lives in thread-local storage -- otherwise request A
+        # could read the chunks request B just wrote and cite the wrong sources.
+        # The whole route -> answer_once -> read runs in one worker thread, so a
+        # thread-local slot isolates each request cleanly.
+        self._captured = threading.local()
         _original = self._rag.answer_once
 
         def _capturing_answer_once(question, contract_id, search_query,
                                    reranker=None, trace=None):
             resp = _original(question, contract_id, search_query,
                              reranker=reranker, trace=trace)
-            self._last_response = resp
+            self._captured.response = resp
             return resp
 
         self._rag.answer_once = _capturing_answer_once
@@ -150,7 +158,7 @@ class StreamingAgenticRag:
         then record the stage with its citations."""
         contract_id, search_query, route = self._rag.route(subq)
         answer, report = self.agent._answer_verified(subq, contract_id, search_query)
-        resp = self._last_response
+        resp = getattr(self._captured, "response", None)
         sources = format_sources(resp) if resp is not None else ""
         evidence = _node_evidence(resp)
         tracer.record(STAGE_SUBANSWER, {

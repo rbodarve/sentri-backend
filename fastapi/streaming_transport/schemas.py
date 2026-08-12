@@ -9,8 +9,8 @@ frontend, etc.) can generate matching DTOs from this file alone without pulling
 in the FastAPI runtime.
 
 Outbound SSE events are NOT modeled here — they go over the wire as
-`event: <name>\ndata: <json>\n\n`. The transport emits four generic events
-(`meta`, `stage`, `thinking`, `token`, plus `error`); every *terminal* event
+`event: <name>\ndata: <json>\n\n`. The transport emits five generic events
+(`meta`, `stage`, `thinking`, `token`, and `error`); every *terminal* event
 (the answer projection) is produced by your injected `finalize` seam, so their
 shapes live with your pipeline, not here.
 """

@@ -25,8 +25,7 @@ from llama_index.core.schema import NodeWithScore, TextNode
 from llama_index.core.vector_stores import FilterOperator, MetadataFilter, MetadataFilters
 
 from rag.config import GEN_MODEL, RERANK_CANDIDATES, RERANK_TOP_N, get_llm
-from rag.enrich import CONTRACT_ID_RE
-from rag.evaluate import strip_contract_phrase
+from rag.enrich import CONTRACT_ID_RE, strip_contract_phrase
 from rag.index import load_index
 from rag.manifest import format_manifest, load_manifest
 from rag.rerank import RerankingRetriever, get_reranker

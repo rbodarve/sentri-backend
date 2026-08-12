@@ -1,6 +1,6 @@
 # Convenience targets for the RAG pipeline. Each delegates to scripts/.
 # Usage: make setup | make check | make build | make eval [MODE=baseline|filtered|rerank] | make ask Q="..." | make chat | make agent Q="..." | make chat-agentic | make eval-agentic | make serve | make all | make clean
-.PHONY: help setup check build eval ask chat agent chat-agentic eval-agentic serve all clean
+.PHONY: help setup check build eval ask chat agent chat-agentic eval-agentic serve serve-ngrok all clean
 
 help:
 	@echo "RAG pipeline commands (run via 'make <target>'):"
@@ -14,6 +14,7 @@ help:
 	@echo "  make chat-agentic                   Interactive query loop routed through the agentic controller (needs Ollama)"
 	@echo "  make eval-agentic                   Answer-level eval of the agent (needs Ollama)"
 	@echo "  make serve [HOST=.. PORT=..]        Serve the agent as a streaming (SSE) HTTP API (needs Ollama)"
+	@echo "  make serve-ngrok                    Serve the SSE API behind an ngrok public tunnel (needs Ollama + ngrok)"
 	@echo "  make all                            check + build + eval"
 	@echo "  make clean                          Remove the regenerable index_store/ + caches"
 	@echo "  make help                           Show this list"
@@ -51,6 +52,10 @@ eval-agentic:
 # Serve the agentic controller as a streaming SSE HTTP API (needs Ollama).
 serve:
 	bash fastapi/serve.sh
+
+# Same SSE API, exposed through an ngrok public tunnel (needs Ollama + ngrok).
+serve-ngrok:
+	bash fastapi/serve_ngrok.sh
 
 all: check build eval
 

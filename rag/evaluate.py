@@ -13,30 +13,18 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from pathlib import Path
 
 from llama_index.core.evaluation import RetrieverEvaluator
 from llama_index.core.vector_stores import FilterOperator, MetadataFilter, MetadataFilters
 
-from rag.index import load_index
-
 from rag.config import RERANK_CANDIDATES, RERANK_TOP_N
+from rag.index import load_index
 
 EVAL_PATH = Path("eval/eval_retrieval.json")
 TOP_K = int(os.getenv("RAG_TOP_K", "5"))
 FILTER_BY_CONTRACT = os.getenv("RAG_FILTER_BY_CONTRACT", "0") == "1"
 RERANK = os.getenv("RAG_RERANK", "0") == "1"
-
-
-# When we scope retrieval with a contract filter, the contract id in the query text is
-# redundant and biases ranking toward header chunks. Strip it so the semantic query is
-# intent-only (mirrors a real pipeline: parse the id for the filter, search on the rest).
-_CONTRACT_PHRASE_RE = re.compile(r"\s*(of\s+|for\s+)?contract\s+24[A-Za-z]{1,2}\d{4,5}", re.I)
-
-
-def strip_contract_phrase(query: str) -> str:
-    return _CONTRACT_PHRASE_RE.sub("", query).strip()
 
 
 def evaluate(top_k: int = TOP_K, filter_by_contract: bool = FILTER_BY_CONTRACT, rerank: bool = RERANK):

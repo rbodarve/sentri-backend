@@ -27,6 +27,11 @@ from llama_index.core.schema import TextNode
 # Contract IDs look like 24CC0265, 24AJ0052, or 24A00153 (24 + 1-2 letters + 4-5 digits).
 CONTRACT_ID_RE = re.compile(r"24[A-Za-z]{1,2}\d{4,5}")
 
+# When retrieval is scoped by a contract filter, the contract id in the query text is
+# redundant and biases ranking toward header chunks. Strip it so the semantic query is
+# intent-only (parse the id for the filter, search on the rest) -- used by rag.generate.
+_CONTRACT_PHRASE_RE = re.compile(r"\s*(of\s+|for\s+)?contract\s+24[A-Za-z]{1,2}\d{4,5}", re.I)
+
 # Ordered (filename keyword -> canonical doc type); first match wins. Covers every
 # pdf_source present in database/. Full-form keys are load-bearing: e.g. "notice_of_award"
 # contains no "noa" substring, so it needs its own entry.
@@ -59,6 +64,11 @@ def doc_type_from_source(pdf_source: str) -> str:
         if keyword in lowered:
             return doc_type
     return "UNKNOWN"
+
+
+def strip_contract_phrase(query: str) -> str:
+    """Remove a 'contract <id>' phrase from a query, leaving the intent-only text."""
+    return _CONTRACT_PHRASE_RE.sub("", query).strip()
 
 
 def enrich_nodes(nodes: list[TextNode]) -> list[TextNode]:

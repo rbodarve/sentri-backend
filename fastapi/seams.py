@@ -11,8 +11,9 @@ implementation of the five seams the `streaming_transport` package defines (see
   Seam 5  finalize(final, context) -> [(event, data), ...]   (`done` last)
   augment passthrough_query(query, history) -> str        (workspace override)
 
-The external API's `graph` event is dropped (no knowledge-graph store here), and
-its `contract_ids` event is kept — DPWH contract ids are exactly this workspace's
+The external API's `graph` event is kept but carries no edges (this workspace has
+no knowledge-graph store, so only the cited-document nodes are emitted), and its
+`contract_ids` event is kept as-is — DPWH contract ids are exactly this workspace's
 "subject id", so the analog is direct.
 """
 from __future__ import annotations
