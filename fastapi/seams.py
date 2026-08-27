@@ -113,6 +113,22 @@ def finalize(final: StreamFinal, _context: Any) -> "list[tuple[str, dict[str, An
         ("contract_ids", {"contract_ids": final.contract_ids}),
         ("sources", {"sources": sources}),
         ("graph", _document_graph(sources)),
+        # Per-sub-question breakdown: question text, bound contract, verified answer,
+        # grounding outcome (blocks/flags), formatted citation string, and per-chunk
+        # evidence with bounding boxes. Empty for "analytical" queries (no sub-questions).
+        ("parts", [
+            {
+                "question": p.question,
+                "contract_id": p.contract_id,
+                "answer": p.answer,
+                "ok": p.report.ok,
+                "blocks": p.report.blocks,
+                "flags": p.report.flags,
+                "citations": p.sources,
+                "evidence": p.evidence,
+            }
+            for p in final.parts
+        ]),
         ("done", {
             # Binary grounding confidence: passed the check (1.0) vs withheld (0.0).
             "confidence": 0.0 if withheld else 1.0,

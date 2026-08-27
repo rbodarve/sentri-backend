@@ -25,7 +25,7 @@ are workspace-specific additions on top of it; keep such additions here, not in 
   build late (after the expensive embed).
 
 ## Commands
-
+ 
 Use `make` (details in [scripts/README.md](scripts/README.md)):
 
 - `make setup` — create the conda env + install pinned deps (one-time).

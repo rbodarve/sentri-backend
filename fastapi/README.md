@@ -56,17 +56,21 @@ The terminal payloads are **shaped to match an external agent API** so a client
 written against that API consumes this stream unchanged. See the parity notes below.
 
 - Generic (from the transport): `meta`, `stage`, `token`, `error`.
-- Terminal (from `finalize`): `contract_ids`, `sources`, `graph`, `done`.
+- Terminal (from `finalize`): `contract_ids`, `sources`, `graph`, `parts`, `done`.
 
 `stage` payloads keep this workspace's own vocabulary (the pipelines differ):
 `route` `{kind, contract_ids}`, `decompose` `{strategy, parts}`,
 `subanswer` `{contract_id, ok, citations, issues}`, `combine` `{ok}`.
 
-`sources`: `[{name, page, score, chunk_id}]` — same shape as the external API; `name` is
-`"<contract_id>/<doc_type>"`. `graph`: `{nodes: [{id, label, pages}], edges: []}`
-— nodes are the cited documents; edges are always empty (no knowledge-graph
-store here). `done`: `{confidence, uncertain, tokens, cost_usd, files,
-compose_backend, compose_model, response_text, notice}`.
+`sources`: `[{name, page, score, chunk_id, bbox}]` — same shape as the external API plus
+`bbox: [x, y, width, height]` in PDF-space pixels from the OCR database (`null` for manifest
+nodes). `name` is the source-file stem (e.g. `"24aj0052_contract_agreement"`).
+`graph`: `{nodes: [{id, label, pages}], edges: []}` — nodes are the cited documents; edges are
+always empty (no knowledge-graph store here).
+`parts`: `[{question, contract_id, answer, ok, blocks, flags, citations, evidence}]` — one entry
+per sub-question; `evidence` carries the same `{name, page, score, chunk_id, bbox}` shape as
+`sources` but scoped to that sub-question only. Empty array for `analytical` queries (no sub-questions).
+`done`: `{confidence, uncertain, tokens, cost_usd, files, compose_backend, compose_model, response_text, notice}`.
 
 ### Parity with the external API (honest stand-ins)
 

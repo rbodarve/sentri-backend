@@ -154,21 +154,38 @@ class AgenticRag:
     # -- self-correction -----------------------------------------------------------------
     def _answer_verified(self, question: str, contract_id: str | None,
                          search_query: str) -> tuple[str, Report]:
-        """answer_once wrapped in the retry ladder: normal -> widen k -> drop filter -> withhold."""
-        # A contract id the corpus doesn't hold can't be filtered on (an empty filter makes the
-        # vector store raise); drop it so the unfiltered pass + Verifier BLOCK handle the invented id.
-        if contract_id and contract_id not in self._known:
+        """answer_once wrapped in the retry ladder.
+
+        Invented id (not in the corpus): can't filter on it (an empty filter makes the vector
+        store raise), so go unfiltered and let the Verifier BLOCK tier expose the hallucination.
+        The ladder may drop the filter -> widen k to surface the invented-id evidence.
+
+        Known id: stay filtered on EVERY rung. Dropping the filter would let another contract's
+        evidence answer a contract-scoped question -- a cross-contract mis-binding (fix A). And a
+        filtered pass is authoritative: when it legitimately finds no value the model punts
+        ("not stated"), which is the correct answer, so a punt is accepted rather than retried
+        into the wider corpus (fix B) -- only a grounding failure warrants the wider retry."""
+        known = contract_id is not None and contract_id in self._known
+        if contract_id and not known:
             contract_id = None
-        strategies = [
-            (contract_id, None),                    # as routed
-            (contract_id, self._wide_reranker),     # keep more reranked chunks
-            (None, self._wide_reranker),            # drop the contract filter too
-        ][: self._max_attempts + 1]
+        if known:
+            strategies = [(contract_id, None), (contract_id, self._wide_reranker)]
+        else:
+            strategies = [(contract_id, None), (contract_id, self._wide_reranker),
+                          (None, self._wide_reranker)]
+        strategies = strategies[: self._max_attempts + 1]
         resp = report = None
         for cid, reranker in strategies:
             resp = self._rag.answer_once(question, cid, search_query, reranker=reranker)
-            report = self._verifier.check(str(resp))
-            if not _needs_retry(resp, report):
+            # Pass the routed scope so the Verifier can test bindings even when the answer text
+            # omits the id (fix C).
+            report = self._verifier.check(str(resp), contract_id=contract_id)
+            # Known-id filtered pass: accept a grounded answer as-is (a punt is authoritative);
+            # retry only on a grounding failure. Invented id: keep the full retry ladder.
+            if known:
+                if report.ok:
+                    break
+            elif not _needs_retry(resp, report):
                 break
         return str(resp).strip(), report
 

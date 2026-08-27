@@ -104,7 +104,8 @@ class Verifier:
         self._loc_value = {r["contract_id"]: r.get("location", "") for r in manifest}
         self._con_value = {r["contract_id"]: r.get("contractor", "") for r in manifest}
 
-    def check(self, answer: str, *, check_bindings: bool = True) -> Report:
+    def check(self, answer: str, *, check_bindings: bool = True,
+              contract_id: str | None = None) -> Report:
         report = Report()
         seen: set[str] = set()  # flag messages already recorded, so block/sentence scopes don't double-report
 
@@ -125,9 +126,15 @@ class Verifier:
         # FLAG: an attribution unit about exactly one contract that cites another contract's binding.
         for unit in _attribution_units(answer):
             ids = {m.upper() for m in CONTRACT_ID_RE.findall(unit)} & self._contracts
-            if len(ids) != 1:
-                continue  # 0 or >1 contracts -> attribution is ambiguous, skip
-            (cid,) = tuple(ids)
+            if len(ids) == 1:
+                (cid,) = tuple(ids)
+            elif len(ids) == 0 and contract_id in self._contracts:
+                # The answer names no contract, but the caller routed this (sub)answer to a known
+                # contract -- bind the unit to that scope so a borrowed contractor/location from
+                # another contract is still caught (e.g. a scoped answer that omits the id).
+                cid = contract_id
+            else:
+                continue  # >1 contracts, or 0 with no routed scope -> ambiguous, skip
             low = unit.lower()
             self._flag_foreign(report, seen, low, cid, self._loc, self._loc_value,
                                "location", cid_desc=" is in")

@@ -30,6 +30,7 @@ from __future__ import annotations
 import re
 import threading
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Iterator
 
 from llama_index.core import Settings
@@ -81,12 +82,20 @@ def _node_evidence(response: Any) -> list[dict]:
         page = md.get("pdf_page")
         page = int(page) if isinstance(page, str) and page.isdigit() else page
         out.append({
-            "name": f"{md.get('contract_id')}/{md.get('doc_type')}",
+            # Match the external API's `name`: its doc_id is the source-file stem
+            # (e.g. "24aj0052_contract_agreement"), which this workspace carries as
+            # each chunk's pdf_source. Emit that stem rather than a synthetic
+            # "<CONTRACT_ID>/<DOC_TYPE>" pair, so a client keyed on the external
+            # API's filename-style name binds unchanged.
+            "name": Path(md.get("pdf_source", "")).stem,
             "page": page,
             # The reranker returns a numpy float32; coerce to a builtin float so
             # the SSE layer's json.dumps can serialize it.
             "score": float(n.score) if n.score is not None else None,
             "chunk_id": n.node.node_id,
+            # [x, y, width, height] in PDF-space pixels, straight from the OCR database.
+            # None for manifest-injected nodes (they have no coordinate).
+            "bbox": md.get("coordinate"),
         })
     return out
 
