@@ -66,4 +66,4 @@ all: check build eval
 
 # Remove the regenerable vector index (rebuild with `make build`) and caches.
 clean:
-	rm -rf index_store __pycache__ rag/__pycache__
+	rm -rf index_store __pycache__ rag/__pycache__ fastapi/__pycache__ fastapi/streaming_transport/__pycache__
