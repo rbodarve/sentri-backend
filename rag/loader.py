@@ -28,10 +28,16 @@ def load_nodes(database_dir: str = "database") -> list[TextNode]:
         data = json.loads(path.read_text(encoding="utf-8"))
         for category in SECTIONS:
             for uuid, chunk in data.get(category, {}).items():
+                raw = chunk["content"]
+                # Prefix signature chunks with their semantic role so the embedding
+                # captures "signatory" rather than just the bare name+title block.
+                # "Contract" is deliberately omitted from the prefix — it appears in most
+                # manifest-extraction queries and would displace content chunks in that context.
+                text = f"Signatory: {raw}" if category == "signature" else raw
                 nodes.append(
                     TextNode(
                         id_=uuid,
-                        text=chunk["content"],
+                        text=text,
                         metadata={
                             "category": category,
                             "pdf_source": chunk["pdfSource"],

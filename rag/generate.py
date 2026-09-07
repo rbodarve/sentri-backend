@@ -30,7 +30,7 @@ from rag.index import load_index
 from rag.manifest import format_manifest, load_manifest
 from rag.rerank import RerankingRetriever, get_reranker
 from rag.trace import QueryTrace
-from rag.verify import _GEO_STOP, Report, Verifier, format_report
+from rag.verify import _GEO_STOP, Report, Verifier, format_report, _extract_sig_names
 
 _QA_TEMPLATE = PromptTemplate(
     "You answer questions about DPWH infrastructure-procurement documents.\n"
@@ -42,6 +42,25 @@ _QA_TEMPLATE = PromptTemplate(
     "Question: {query_str}\n"
     "Answer: "
 )
+
+
+def _build_person_names(docstore) -> dict[str, set[str]]:
+    """Extract person names from signature nodes in the full corpus.
+
+    Iterates every signature and signature_summary node in the docstore and applies
+    the same all-caps name extraction used by the verifier, keyed by contract_id.
+    Called once at startup; the result is passed to Verifier so the grounding check
+    knows which persons are legitimate signatories for each contract."""
+    result: dict[str, set[str]] = {}
+    for node in docstore.docs.values():
+        md = node.metadata
+        if md.get("category") not in ("signature", "signature_summary"):
+            continue
+        cid = md.get("contract_id", "").upper()
+        if not cid:
+            continue
+        result.setdefault(cid, set()).update(_extract_sig_names(node.text))
+    return result
 
 
 def _resolver_index(manifest: list[dict]) -> dict[str, set[str]]:
@@ -81,8 +100,11 @@ class RagAnswerer:
         # Maps a location/name token to its contract, so a question that names a project by place
         # or name (not id) can still engage the contract filter (see answer()).
         self._resolver = _resolver_index(manifest)
-        # Final pre-send check: the same manifest is the oracle the answer is verified against.
-        self._verifier = Verifier(manifest)
+        # Final pre-send check: the same manifest is the oracle; person_names supplies the
+        # corpus-wide signatory map so the grounding check can detect person-contract
+        # fabrications (e.g. a signatory from contract A falsely attributed to contract B).
+        person_names = _build_person_names(self._index.storage_context.docstore)
+        self._verifier = Verifier(manifest, person_names=person_names)
 
     def _retriever(self, contract_id: str | None, trace: QueryTrace | None = None,
                    reranker=None):

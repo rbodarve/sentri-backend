@@ -40,10 +40,62 @@ _GEO_STOP = {
     "concrete", "facilities", "within", "major", "basins", "principal", "rivers", "project",
 }
 
+# All-caps multi-word sequences (no line-break crossing) that may be person names.
+_ALLCAPS_NAME_RE = re.compile(r'\b([A-Z][A-Z.]+(?:[^\S\n]+[A-Z.]+){1,})\b')
+
+# Words that appear in all-caps legal/government phrases but are NOT person-name tokens.
+_NAME_STOP_WORDS = frozenset({
+    # common English words
+    "and", "the", "for", "but", "nor", "yet", "not", "its", "our", "all", "any", "few",
+    "now", "this", "that", "with", "from", "upon", "into", "over", "under", "been", "have",
+    "done", "made", "make", "said", "each", "both", "when", "then", "than", "thus", "also",
+    "once", "only", "same", "some", "such", "here", "there", "where", "which", "what", "whom",
+    "will", "shall", "may", "can", "must", "duly", "until", "unto", "very", "said", "fore",
+    # legal/document boilerplate
+    "agreement", "witnesseth", "follows", "contract", "pursuant", "herein", "hereby",
+    "thereof", "thereto", "whereas", "sealed", "delivered", "executed", "aforesaid",
+    "foregoing", "witnessed", "above", "notary", "public", "roll", "commission", "valid",
+    # government/institutional terms
+    "department", "works", "highways", "republic", "philippines", "government", "general",
+    "corporation", "enterprise", "construction", "supply", "infrastructure", "district",
+    "engineering", "office", "region", "provincial", "authority", "institute", "foundation",
+    "association", "center", "bureau", "notice", "award", "certificate", "acceptance",
+    "completion", "scope", "terms", "conditions", "article", "section", "clause",
+    "office", "national", "regional", "implementing",
+})
+
+
+def _extract_sig_names(text: str) -> set[str]:
+    """Extract person-name-like tokens from an all-caps signature chunk.
+
+    Matches all-caps multi-word sequences on a single line, requires ≥2 words
+    with ≥3 alpha chars that are not legal/government stop-words. Used to build
+    the corpus-wide signatory map for the grounding check."""
+    names: set[str] = set()
+    for m in _ALLCAPS_NAME_RE.finditer(text):
+        candidate = m.group(0).strip()
+        qualified = [
+            w for w in candidate.split()
+            if len(re.sub(r"[^A-Za-z]", "", w)) >= 3 and w.lower() not in _NAME_STOP_WORDS
+        ]
+        if len(qualified) >= 2:
+            names.add(candidate.lower())
+    return names
+
+
+_GEO_STOP = {
+    "barangay", "brgy", "city", "phase", "north", "south", "east", "west", "norte", "sur",
+    "luzon", "street", "road", "river", "creek", "along", "construction", "rehabilitation",
+    "flood", "mitigation", "control", "structure", "protection", "slope", "reinforced",
+    "concrete", "facilities", "within", "major", "basins", "principal", "rivers", "project",
+}
+
 
 def _sentences(text: str) -> list[str]:
-    """Split an answer into sentences/lines; attribution is checked per sentence."""
-    return [s for s in re.split(r"(?<=[.!?])\s+|\n+", text) if s.strip()]
+    """Split an answer into sentences/lines; attribution is checked per sentence.
+    Requires ≥2 letter chars before the sentence-ending punctuation so single-letter
+    initials like 'D.' in 'Brandy D. Abeya' are not treated as sentence boundaries."""
+    return [s for s in re.split(r"(?<=[A-Za-z]{2}[.!?])\s+|\n+", text) if s.strip()]
 
 
 def _attribution_units(text: str) -> list[str]:
@@ -97,12 +149,20 @@ class Report:
 class Verifier:
     """Checks an answer's contract bindings against the manifest (the structured oracle)."""
 
-    def __init__(self, manifest: list[dict]):
+    def __init__(self, manifest: list[dict],
+                 person_names: dict[str, set[str]] | None = None):
         self._contracts = {r["contract_id"] for r in manifest}
         self._loc = _location_index(manifest)
         self._con = _contractor_index(manifest)
         self._loc_value = {r["contract_id"]: r.get("location", "") for r in manifest}
         self._con_value = {r["contract_id"]: r.get("contractor", "") for r in manifest}
+        # Inverse map: person name (lowercase) → set of contract_ids whose signature
+        # corpus contains that name. Built from signature chunks at startup; empty when
+        # the caller does not provide the map (e.g. tests that construct Verifier directly).
+        self._person_owners: dict[str, set[str]] = {}
+        for cid, names in (person_names or {}).items():
+            for name in names:
+                self._person_owners.setdefault(name, set()).add(cid)
 
     def check(self, answer: str, *, check_bindings: bool = True,
               contract_id: str | None = None) -> Report:
@@ -140,6 +200,39 @@ class Verifier:
                                "location", cid_desc=" is in")
             self._flag_foreign(report, seen, low, cid, self._con, self._con_value,
                                "contractor", cid_desc="'s contractor is")
+
+        # FLAG: person name grounding check.
+        # A person found in the answer alongside a contract's location/contractor token must
+        # appear in that contract's signature corpus. Catches the LLM using manifest metadata
+        # (contractor/location fields) to fabricate person-contract associations not in any
+        # retrieved chunk — e.g. claiming a signatory from contract A signed contract B.
+        if self._person_owners:
+            for sentence in _sentences(answer):
+                slow = sentence.lower()
+                # Contracts this sentence implies via distinctive location/contractor tokens.
+                sentence_contracts: set[str] = set()
+                for token, owners in self._loc.items():
+                    if re.search(rf"\b{re.escape(token)}\b", slow):
+                        sentence_contracts |= owners
+                for token, owners in self._con.items():
+                    if re.search(rf"\b{re.escape(token)}\b", slow):
+                        sentence_contracts |= owners
+                if not sentence_contracts:
+                    continue
+                for name, known_cids in self._person_owners.items():
+                    if not re.search(rf"\b{re.escape(name)}\b", slow):
+                        continue
+                    for cid in sentence_contracts:
+                        if cid not in known_cids:
+                            msg = (
+                                f"person '{name}' appears in answer with contract {cid}'s "
+                                f"location/contractor but has no record in {cid}'s signature "
+                                f"corpus (known to: {', '.join(sorted(known_cids))})"
+                            )
+                            if msg not in seen:
+                                seen.add(msg)
+                                report.flags.append(msg)
+
         return report
 
     @staticmethod

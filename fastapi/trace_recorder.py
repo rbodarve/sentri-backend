@@ -43,6 +43,32 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+class SessionStore:
+    """In-process, per-session chat history. Scoped to process lifetime (not disk-backed).
+
+    Injected into every POST /query request body by TracingMiddleware so that
+    `passthrough_query` (Seam augment) can resolve anaphoric follow-ups ("make
+    that a table") without the client needing to replay history itself.
+    """
+
+    def __init__(self, max_turns: int = 20) -> None:
+        self._histories: dict[str, list[dict[str, str]]] = {}
+        self._max_turns = max_turns
+        self._lock = threading.Lock()
+
+    def get(self, session_id: str) -> list[dict[str, str]]:
+        with self._lock:
+            return list(self._histories.get(session_id, []))
+
+    def append(self, session_id: str, role: str, content: str) -> None:
+        with self._lock:
+            turns = self._histories.setdefault(session_id, [])
+            turns.append({"role": role, "content": content})
+            # Cap history at max_turns user+assistant pairs.
+            if len(turns) > self._max_turns * 2:
+                del turns[: -self._max_turns * 2]
+
+
 class TraceStore:
     """A bounded ring of per-request trace records, newest last, disk-backed.
 
@@ -145,6 +171,22 @@ def _parse_sse_frame(frame: bytes) -> dict[str, Any] | None:
     return {"t": _now(), "event": event, "data": data}
 
 
+def _inject_history(body: bytes, session_id: str, sessions: SessionStore) -> bytes:
+    """Return modified request body with server-tracked history injected when the
+    client sent none. Returns the original bytes unchanged when no injection needed."""
+    try:
+        payload = json.loads(body)
+    except (json.JSONDecodeError, ValueError):
+        return body
+    if payload.get("history"):      # client already sent history — respect it
+        return body
+    history = sessions.get(session_id)
+    if not history:
+        return body
+    payload["history"] = history
+    return json.dumps(payload).encode()
+
+
 class TracingMiddleware:
     """Pure ASGI middleware — tees /query without buffering the stream.
 
@@ -153,9 +195,11 @@ class TracingMiddleware:
     arrives, so streaming is preserved — capture is a side effect, never a gate.
     """
 
-    def __init__(self, app: Any, store: TraceStore) -> None:
+    def __init__(self, app: Any, store: TraceStore,
+                 sessions: SessionStore | None = None) -> None:
         self.app = app
         self.store = store
+        self.sessions = sessions or SessionStore()
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
         if scope.get("type") != "http" or scope.get("method") != "POST" \
@@ -172,6 +216,14 @@ class TracingMiddleware:
                 req_body.extend(msg.get("body", b""))
                 if not msg.get("more_body", False):
                     _fill_query(rec, bytes(req_body))
+                    # Inject server-tracked history when the client sends none,
+                    # so passthrough_query can resolve anaphoric follow-ups.
+                    if rec.get("session_id"):
+                        injected = _inject_history(
+                            bytes(req_body), rec["session_id"], self.sessions
+                        )
+                        if injected != bytes(req_body):
+                            msg = {**msg, "body": injected}
             return msg
 
         sse_buf = bytearray()
@@ -187,6 +239,19 @@ class TracingMiddleware:
                         rec["events"].append(parsed)
                 if not msg.get("more_body", False):
                     rec["finished_at"] = _now()
+                    # Capture the verified answer and update session history so
+                    # the next turn in this session can resolve anaphoric refs.
+                    session_id = rec.get("session_id")
+                    query = rec.get("query")
+                    if session_id and query:
+                        answer = "".join(
+                            e["data"].get("text", "")
+                            for e in rec["events"]
+                            if e["event"] == "token" and isinstance(e["data"], dict)
+                        )
+                        if answer:
+                            self.sessions.append(session_id, "user", query)
+                            self.sessions.append(session_id, "assistant", answer)
                     # Offload the synchronous append so the one disk write per
                     # request never blocks the event loop mid-stream.
                     await run_in_threadpool(self.store.finish, rec)

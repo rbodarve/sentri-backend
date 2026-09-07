@@ -18,9 +18,11 @@ no knowledge-graph store, so only the cited-document nodes are emitted), and its
 """
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 from rag.config import GEN_MODEL
+from rag.enrich import CONTRACT_ID_RE
 from rag.verify import format_report
 
 from pipeline import (
@@ -30,6 +32,9 @@ from pipeline import (
     STAGE_SUBANSWER,
     StreamFinal,
     StreamingAgenticRag,
+    _NO_CONTEXT_SENTINEL,
+    _TRANSFORM_SENTINEL,
+    _TRANSFORM_SEP,
 )
 
 if TYPE_CHECKING:  # only for the type hint on passthrough_query; no runtime dep on the transport
@@ -37,11 +42,20 @@ if TYPE_CHECKING:  # only for the type hint on passthrough_query; no runtime dep
 
 
 # --- Seam 1: construction ------------------------------------------------------
+
+# Captured once after the pipeline initialises; used by passthrough_query so the
+# anaphora check can consult the same resolver the router uses.
+_pipeline_ref: StreamingAgenticRag | None = None
+
+
 def build_pipeline() -> "tuple[StreamingAgenticRag, None]":
     """Build the load-once agentic pipeline. Blocking is fine — the transport
     runs this in a threadpool so model loads don't block boot. No opaque context
     to forward (unlike the external service's graph store), so the second value is None."""
-    return StreamingAgenticRag(), None
+    global _pipeline_ref
+    pipeline = StreamingAgenticRag()
+    _pipeline_ref = pipeline
+    return pipeline, None
 
 
 # --- Seam 4: stage vocabulary --------------------------------------------------
@@ -149,12 +163,54 @@ def finalize(final: StreamFinal, _context: Any) -> "list[tuple[str, dict[str, An
 
 
 # --- Optional: query augmentation ----------------------------------------------
-def passthrough_query(query: str, _history: list[ChatMessage]) -> str:
-    """Route the current question as-is, ignoring chat history.
 
-    Overrides the transport's `default_augment_query`: this workspace's router
-    classifies deterministically by scanning the raw question for contract ids
-    and distinctive location tokens. Folding prior turns into the text would let
-    a stale id from a previous question misroute the current one, so the agent
-    is kept single-question — exactly how `make agent` / `make chat-agentic` use it."""
+# Anaphoric reference words that depend on a prior answer to be meaningful.
+_ANAPHORA_RE = re.compile(
+    r"\b(?:that|it|those|them|these|the above|the result|the previous|the last)\b", re.I
+)
+
+
+def _is_anaphoric(query: str, resolver: "dict | None") -> bool:
+    """True when the query uses an anaphoric reference with no self-contained location anchor.
+
+    A query is anaphoric when it contains a demonstrative pronoun ("that", "it", etc.) AND
+    has no explicit contract id AND contains no token that the router's resolver would
+    recognise as a distinctive location or contract-name identifier. This mirrors the exact
+    check the router runs, so "overview of that project" is caught (no location token) while
+    "overview of the Isabela project" is not (contains resolver token "isabela").
+    """
+    if not _ANAPHORA_RE.search(query):
+        return False
+    if CONTRACT_ID_RE.search(query):
+        return False
+    if resolver:
+        low = query.lower()
+        for tok in resolver:
+            if re.search(rf"\b{re.escape(tok)}\b", low):
+                return False  # query has a distinctive location/name anchor
+    return True
+
+
+def passthrough_query(query: str, history: list[ChatMessage]) -> str:
+    """Route self-contained questions as-is; resolve anaphoric follow-ups without retrieval.
+
+    For most queries this is a passthrough — the deterministic router classifies by
+    scanning the raw question for contract ids and location tokens, and folding prior
+    turns into the text would let a stale id from a previous question misroute the
+    current one.
+
+    Exception: anaphoric follow-ups ("make that a table", "give me an overview of that
+    project") have no retrieval anchor of their own. For those, run_stream handles the
+    request as a direct LLM transformation on the previous answer — no retrieval — so
+    retrieved document chunks cannot displace the prior answer as the model's context.
+    When no history is available, the no-context sentinel is returned instead.
+    """
+    resolver = _pipeline_ref.agent._rag._resolver if _pipeline_ref is not None else None
+    if _is_anaphoric(query, resolver):
+        last_assistant = next(
+            (m.content for m in reversed(history) if m.role == "assistant"), None
+        )
+        if last_assistant:
+            return f"{_TRANSFORM_SENTINEL}\n{last_assistant}{_TRANSFORM_SEP}{query}"
+        return f"{_NO_CONTEXT_SENTINEL}: {query}"
     return query

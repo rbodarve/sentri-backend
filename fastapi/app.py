@@ -45,7 +45,7 @@ os.environ.setdefault("RAG_PERSIST_DIR", str(_REPO_ROOT / "index_store"))
 # still this folder, so the folder's name cannot shadow the library.
 from streaming_transport import create_app
 from seams import build_pipeline, finalize, passthrough_query, summarize_stage
-from trace_recorder import TraceStore, TracingMiddleware, add_trace_route
+from trace_recorder import SessionStore, TraceStore, TracingMiddleware, add_trace_route
 
 app = create_app(
     service_name="ragtest-api",
@@ -63,8 +63,9 @@ app = create_app(
 # app is built so /trace is reachable through the middleware (which only taps
 # POST /query and passes everything else straight through).
 _trace_store = TraceStore()
+_session_store = SessionStore()
 add_trace_route(app, _trace_store)
-app = TracingMiddleware(app, _trace_store)
+app = TracingMiddleware(app, _trace_store, _session_store)
 
 
 if __name__ == "__main__":

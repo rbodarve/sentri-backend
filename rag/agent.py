@@ -137,9 +137,12 @@ class AgenticRag:
         if _ANALYTICAL_RE.search(question) and len(set(explicit)) < 2:
             return "analytical", sorted(self._known)
         if not explicit and _EACH_RE.search(question):
-            # "list/for each project ...": one intent asked of the whole corpus. Fan out over
-            # every known contract so it can't be silently under-answered by a single pass.
-            return "fanout", sorted(self._known)
+            # "list/for each project ...": one intent asked of some or all contracts.
+            # If the question also names a location, restrict to matching contracts so a
+            # location-scoped "all projects in X" doesn't fan out over the whole corpus.
+            location_ids = self._rag._resolve_contract_ids(question)
+            scope = sorted(location_ids) if location_ids else sorted(self._known)
+            return ("simple" if len(scope) <= 1 else "fanout"), scope
         ids = explicit or sorted(self._rag._resolve_contract_ids(question))
         if len(set(ids)) <= 1:
             return "simple", ids
@@ -180,10 +183,15 @@ class AgenticRag:
             # Pass the routed scope so the Verifier can test bindings even when the answer text
             # omits the id (fix C).
             report = self._verifier.check(str(resp), contract_id=contract_id)
-            # Known-id filtered pass: accept a grounded answer as-is (a punt is authoritative);
-            # retry only on a grounding failure. Invented id: keep the full retry ladder.
+            # Known-id filtered pass: retry with wider k if the model punts (the info may
+            # exist but ranked below the standard top-k cut), or on a grounding failure.
+            # Accept the result when grounded and non-punt, or when already on the wide
+            # reranker (no further strategies remain). Never drop the contract filter for a
+            # known id -- that would let another contract's evidence answer this question.
             if known:
-                if report.ok:
+                if report.ok and not _needs_retry(resp, report):
+                    break
+                if reranker is not None:   # already on the wide reranker — accept as-is
                     break
             elif not _needs_retry(resp, report):
                 break

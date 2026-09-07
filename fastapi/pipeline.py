@@ -46,6 +46,25 @@ from rag.verify import Report
 
 # Seam 4 stage vocabulary — the stage names this pipeline reports.
 STAGE_ROUTE = "route"
+
+# Returned by passthrough_query when an anaphoric follow-up has no session history.
+_NO_CONTEXT_SENTINEL = "__NO_PRIOR_CONTEXT__"
+
+# Returned by passthrough_query when an anaphoric follow-up has history to draw on.
+# Payload format: _TRANSFORM_SENTINEL + previous_answer + _TRANSFORM_SEP + follow_up
+# run_stream handles this as a direct LLM transformation (no retrieval) so that
+# retrieved document chunks can't displace the previous answer as the LLM's context.
+_TRANSFORM_SENTINEL = "__PRIOR_CONTEXT_TRANSFORM__"
+_TRANSFORM_SEP = "\n__FOLLOWUP__\n"
+
+_TRANSFORM_TEMPLATE = (
+    "Reformat or summarize the previous answer as the user requests.\n"
+    "Use ONLY information from the previous answer — add no new facts.\n"
+    "If the requested information is not in the previous answer, say so explicitly.\n"
+    "\nPrevious answer:\n{previous}\n"
+    "\nUser request: {request}\n"
+    "\nResponse:"
+)
 STAGE_DECOMPOSE = "decompose"
 STAGE_SUBANSWER = "subanswer"
 STAGE_COMBINE = "combine"
@@ -66,16 +85,37 @@ class StreamPart:
     evidence: list[dict] = field(default_factory=list)
 
 
-def _node_evidence(response: Any) -> list[dict]:
+def _node_evidence(response: Any, docstore=None) -> list[dict]:
     """Project a retrieval Response's source nodes into the external API's
     per-chunk source shape. Manifest nodes (the injected contract list) are skipped —
-    they're context scaffolding, not citable evidence."""
+    they're context scaffolding, not citable evidence.
+
+    When a signature_summary node is encountered and a docstore is provided, the
+    summary is expanded to its constituent signature chunks (stored in metadata as
+    source_node_ids at build time) so the client receives real bbox coordinates
+    instead of the summary's null coordinate."""
     if response is None:
         return []
     out: list[dict] = []
     for n in response.source_nodes:
         md = n.metadata
         if md.get("is_manifest"):
+            continue
+        if md.get("category") == "signature_summary" and docstore is not None:
+            for node_id in md.get("source_node_ids", []):
+                sig_node = docstore.get_node(node_id, raise_error=False)
+                if sig_node is None:
+                    continue
+                sig_md = sig_node.metadata
+                sig_page = sig_md.get("pdf_page")
+                sig_page = int(sig_page) if isinstance(sig_page, str) and sig_page.isdigit() else sig_page
+                out.append({
+                    "name": Path(sig_md.get("pdf_source", "")).stem,
+                    "page": sig_page,
+                    "score": float(n.score) if n.score is not None else None,
+                    "chunk_id": node_id,
+                    "bbox": sig_md.get("coordinate"),
+                })
             continue
         # pdf_page is stored as a string in the DB; emit an int to match the
         # external API's source-panel shape (page: int). Leave non-numeric values untouched.
@@ -150,6 +190,7 @@ class StreamingAgenticRag:
         # could read the chunks request B just wrote and cite the wrong sources.
         # The whole route -> answer_once -> read runs in one worker thread, so a
         # thread-local slot isolates each request cleanly.
+        self._docstore = self._rag._index.storage_context.docstore
         self._captured = threading.local()
         _original = self._rag.answer_once
 
@@ -169,7 +210,7 @@ class StreamingAgenticRag:
         answer, report = self.agent._answer_verified(subq, contract_id, search_query)
         resp = getattr(self._captured, "response", None)
         sources = format_sources(resp) if resp is not None else ""
-        evidence = _node_evidence(resp)
+        evidence = _node_evidence(resp, self._docstore)
         tracer.record(STAGE_SUBANSWER, {
             "question": subq, "route": route, "contract_id": contract_id,
             "ok": report.ok, "blocks": report.blocks, "flags": report.flags,
@@ -185,54 +226,101 @@ class StreamingAgenticRag:
     ) -> Iterator[tuple[str, Any]]:
         agent = self.agent
 
-        kind, ids = agent.classify(query)
-        tracer.record(STAGE_ROUTE, {"kind": kind, "contract_ids": ids})
-        if cancel_check():
-            return
-
-        if kind == "simple":
-            part = self._answer_part(query, tracer)
-            result = StreamFinal(query, kind, ids, part.answer, part.report, [part])
-        elif kind == "analytical":
-            # Corpus-wide pattern/anomaly: one pass over the COMPLETE manifest -- no retrieval, no
-            # sub-questions, so there are no per-chunk citations. Verified with the BLOCK tier only
-            # (check_bindings=False) so a legitimate multi-contract synthesis isn't false-withheld.
-            # Mirrors AgenticRag.answer()'s analytical branch.
-            manifest_str = self._rag._manifest_node.node.text
+        if query.startswith(_NO_CONTEXT_SENTINEL):
+            # Anaphoric query with no session history — ask the user to rephrase.
+            original = query[len(_NO_CONTEXT_SENTINEL) + 2:]
+            tracer.record(STAGE_ROUTE, {"kind": "no_context", "contract_ids": []})
+            result = StreamFinal(
+                original, "no_context", [],
+                "I need more context — please re-state your full question.",
+                Report(blocks=[], flags=[]), [],
+            )
+        elif query.startswith(_TRANSFORM_SENTINEL):
+            # Anaphoric follow-up with resolved history (e.g. "make that a table").
+            # Run a direct LLM transformation on the previous answer — no retrieval —
+            # so retrieved document chunks can't displace the prior answer as context.
+            rest = query[len(_TRANSFORM_SENTINEL) + 1:]  # strip sentinel + newline
+            sep_idx = rest.index(_TRANSFORM_SEP)
+            previous = rest[:sep_idx]
+            follow_up = rest[sep_idx + len(_TRANSFORM_SEP):]
+            tracer.record(STAGE_ROUTE, {"kind": "transform", "contract_ids": []})
             text = str(Settings.llm.complete(
-                _ANALYTICAL_TEMPLATE.format(manifest_str=manifest_str, query_str=query)
+                _TRANSFORM_TEMPLATE.format(previous=previous, request=follow_up)
             )).strip()
+            # check_bindings=False: this is a reformatting of an already-verified
+            # answer, not a fresh retrieval, so location mis-binding flags don't apply.
             report = agent._verifier.check(text, check_bindings=False)
-            tracer.record(STAGE_COMBINE, {"strategy": "analytical", "ok": report.ok})
-            result = StreamFinal(query, kind, ids, text, report, [])
+            result = StreamFinal(follow_up, "transform", [], text, report, [])
         else:
-            subqs = (agent._fanout_subquestions(query, ids) if kind == "fanout"
-                     else agent._decompose(query))
-            tracer.record(STAGE_DECOMPOSE, {"strategy": kind, "subquestions": subqs})
+            kind, ids = agent.classify(query)
+            # Only emit contract IDs that the user explicitly typed in the query.
+            # Location-resolved IDs (inferred from place names like "La Union") are used
+            # internally for routing but must not appear in the output stream — the client
+            # didn't ask by ID and shouldn't receive one it never mentioned.
+            explicit_ids = list(dict.fromkeys(
+                m.upper() for m in CONTRACT_ID_RE.findall(query)
+            ))
+            tracer.record(STAGE_ROUTE, {"kind": kind, "contract_ids": explicit_ids})
+            if cancel_check():
+                return
 
-            parts: list[StreamPart] = []
-            for subq in subqs:
-                if cancel_check():
-                    return
-                parts.append(self._answer_part(subq, tracer))
-
-            if kind == "fanout":
-                # Per-contract listing: combined report is ok only if every part cleared.
-                text = "\n".join(f"- {p.answer}" for p in parts)
-                report = Report(blocks=[b for p in parts for b in p.report.blocks],
-                                flags=[f for p in parts for f in p.report.flags])
-                result = StreamFinal(query, kind, ids, text, report, parts)
-            else:
-                # semantic: combine the (already verified) sub-answers, then verify the join.
-                context = "\n\n".join(
-                    f"Sub-question: {p.question}\nAnswer: {p.answer}" for p in parts
-                )
-                combined = str(Settings.llm.complete(
-                    _COMBINE_TEMPLATE.format(context_str=context, query_str=query)
+            if kind == "simple":
+                part = self._answer_part(query, tracer)
+                result = StreamFinal(query, kind, explicit_ids, part.answer, part.report, [part])
+            elif kind == "analytical":
+                # Corpus-wide pattern/anomaly: one pass over the COMPLETE manifest -- no retrieval,
+                # no sub-questions, so there are no per-chunk citations. Verified with the BLOCK
+                # tier only (check_bindings=False) so a legitimate multi-contract synthesis isn't
+                # false-withheld. Mirrors AgenticRag.answer()'s analytical branch.
+                manifest_str = self._rag._manifest_node.node.text
+                text = str(Settings.llm.complete(
+                    _ANALYTICAL_TEMPLATE.format(manifest_str=manifest_str, query_str=query)
                 )).strip()
-                report = agent._verifier.check(combined)
-                tracer.record(STAGE_COMBINE, {"ok": report.ok})
-                result = StreamFinal(query, kind, ids, combined, report, parts)
+                report = agent._verifier.check(text, check_bindings=False)
+                tracer.record(STAGE_COMBINE, {"strategy": "analytical", "ok": report.ok})
+                result = StreamFinal(query, kind, explicit_ids, text, report, [])
+            else:
+                subqs = (agent._fanout_subquestions(query, ids) if kind == "fanout"
+                         else agent._decompose(query))
+                tracer.record(STAGE_DECOMPOSE, {"strategy": kind, "subquestions": subqs})
+
+                parts: list[StreamPart] = []
+                for subq in subqs:
+                    if cancel_check():
+                        return
+                    parts.append(self._answer_part(subq, tracer))
+
+                if kind == "fanout":
+                    ok_parts = [p for p in parts if p.report.ok]
+                    if not ok_parts:
+                        # Every sub-answer failed grounding — withhold entirely.
+                        report = Report(blocks=[b for p in parts for b in p.report.blocks],
+                                        flags=[f for p in parts for f in p.report.flags])
+                        result = StreamFinal(query, kind, explicit_ids, "", report, parts)
+                    else:
+                        # Synthesize from verified parts only, then re-verify the join.
+                        # This prevents failed sub-answers (e.g. a hallucinated location)
+                        # from poisoning the composed text and triggering false Verifier flags.
+                        context = "\n\n".join(
+                            f"Sub-question: {p.question}\nAnswer: {p.answer}" for p in ok_parts
+                        )
+                        combined = str(Settings.llm.complete(
+                            _COMBINE_TEMPLATE.format(context_str=context, query_str=query)
+                        )).strip()
+                        report = agent._verifier.check(combined)
+                        tracer.record(STAGE_COMBINE, {"ok": report.ok})
+                        result = StreamFinal(query, kind, explicit_ids, combined, report, parts)
+                else:
+                    # semantic: combine the (already verified) sub-answers, then verify the join.
+                    context = "\n\n".join(
+                        f"Sub-question: {p.question}\nAnswer: {p.answer}" for p in parts
+                    )
+                    combined = str(Settings.llm.complete(
+                        _COMBINE_TEMPLATE.format(context_str=context, query_str=query)
+                    )).strip()
+                    report = agent._verifier.check(combined)
+                    tracer.record(STAGE_COMBINE, {"ok": report.ok})
+                    result = StreamFinal(query, kind, explicit_ids, combined, report, parts)
 
         # Humanize contract ids in the DISPLAYED answer only (the token stream + response_text
         # read `finalize` off this same text). The `contract_ids`/`sources` metadata stays keyed
