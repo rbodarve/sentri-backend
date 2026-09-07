@@ -1,0 +1,131 @@
+SCALABILITY VERDICT — what happens if the database grows to 100,000
+====================================================================
+
+Verdict: it does not scale to 100k. The root cause is a single architectural
+invariant, not a bug.
+
+Why it works today: the corpus is 6 contracts, 38 files, 401 chunks, a 3.6MB
+index. Every layer of the pipeline is built on the assumption "the whole corpus
+is small enough to enumerate exhaustively — in RAM, in a linear scan, and
+inside one LLM context." At this size that assumption is not a flaw; it's what
+buys the project its headline properties (recall 1.000, deterministic routing,
+a complete manifest that makes global questions answerable). At 100,000
+database files (~16k contracts, ~1M chunks — or worse if 100k means contracts),
+that invariant breaks in five independent places. Fixing any one of them isn't
+enough; they all inherit the same assumption.
+
+
+ROOT CAUSE, TRACED THROUGH EACH LAYER
+-------------------------------------
+
+1. The vector store is an in-memory brute-force scan — the hard blocker.
+   rag/index.py:127 uses LlamaIndex's default SimpleVectorStore: a Python dict
+   of embeddings persisted as one JSON blob (index_store/default__vector_store.json).
+   Three compounding failures at scale:
+   - Storage: 3.6MB for 401 chunks ≈ 9KB/chunk of JSON-encoded floats → ~9GB
+     single JSON file at 1M chunks, parsed whole into RAM on every load_index()
+     (multiply several× for Python object overhead — it won't fit).
+   - Query: SimpleVectorStore.query computes similarity as a dense dot-product
+     over EVERY embedding — O(N) per query. The contract_id MetadataFilter in
+     rag/generate.py:112-117 doesn't help: SimpleVectorStore applies filters by
+     iterating all nodes in Python first. There is no index structure at all.
+   - Build: build_index() (rag/index.py:123-129) re-embeds the entire corpus
+     from scratch every `make build`. CPU bge-small at ~1M chunks is many hours
+     to days, repaid in full for every single added document — there is no
+     incremental path.
+
+2. The manifest is injected into every prompt — the correctness blocker.
+   rag/generate.py:96-99 puts the COMPLETE contract list into every query's
+   context by design ("it is always present"). One line per contract
+   (~180 chars) × 16k contracts ≈ 3MB ≈ 700k+ tokens, against a deliberately
+   capped num_ctx of 4096. This isn't a tuning problem — the whole mechanism
+   ("global questions see the whole corpus in context") is only possible
+   because the corpus is tiny. At scale the manifest can't fit any context
+   window, local or handoff.
+
+3. Manifest build is one sequential LLM call per contract.
+   rag/manifest.py:140-146 loops sorted(by_contract) calling llm.complete()
+   once each on local Ollama. At seconds per call, 16k contracts ≈ days;
+   100k contracts ≈ weeks — and `make build` reruns it in full. It also runs
+   AFTER the (now days-long) embed, so any Ollama hiccup discards everything.
+
+4. Query-time routing degrades in both speed and behavior.
+   _resolve_contract_ids (rag/generate.py:120-127) runs one regex search over
+   the question PER distinctive token in the entire corpus — O(corpus
+   vocabulary) per query; at 16k contracts that's hundreds of thousands of
+   regex calls per question. Worse, the resolution rule "exactly one contract
+   owns this token" (rag/generate.py:129-136) collapses at scale: with 16k
+   Philippine infrastructure contracts, virtually every location token is
+   shared, so the filter almost never engages, retrieval goes unfiltered over
+   1M chunks with only 40 rerank candidates — and recall, the project's "pass"
+   definition, craters. The recall-1.000 result DEPENDS on the filter shrinking
+   the search space to one contract (~67 chunks).
+
+5. Startup and the verify gate are full-corpus scans.
+   _build_person_names (rag/generate.py:47-63) iterates the entire docstore
+   into RAM on every RagAnswerer() construction; .claude/verify.sh re-parses
+   every database/*.json on every turn — minutes per turn at 100k files.
+
+
+WHAT ALREADY SCALES (KEEP IT)
+-----------------------------
+
+The rerank stage (rag/rerank.py) scores a fixed 40 candidates regardless of
+corpus size. Generation's context is capped. The agent layer (rag/agent.py)
+has a bounded retry budget and adds no retrieval path. And crucially, the
+CONCEPT of contract-filtered retrieval is the scalable part of the design:
+with a real filtered index, per-query search space stays ~67 chunks whether
+the corpus has 6 contracts or 100k.
+
+
+STEPS TO MAKE IT SCALABLE (IN DEPENDENCY ORDER)
+-----------------------------------------------
+
+1. Replace SimpleVectorStore with a real vector DB (Qdrant or pgvector; both
+   run local/CPU) with an HNSW index and a payload-indexed contract_id filter.
+   rag/config.py is already the declared swap surface — add a RAG_VECTOR_STORE
+   provider and change only the StorageContext in rag/index.py's
+   build_index/load_index. This fixes storage, query time, and makes the
+   contract filter a true index lookup. Re-run `make eval` after — recall must
+   stay 1.000.
+
+2. Make the build incremental. Keep a ledger (file hash → indexed) so
+   `make build` embeds and manifest-extracts only new/changed task files, and
+   upserts into the vector DB instead of rebuilding. This turns "add one
+   contract" from a full days-long rebuild into seconds.
+
+3. Turn the manifest from prompt-text into a queryable table (SQLite next to
+   the index). Per-contract questions inject only the resolved contracts' rows
+   (a few hundred bytes) instead of the whole list. Global/aggregate questions
+   ("how many, total amount") get answered by deterministic code/SQL over the
+   table — note this changes the current handoff posture: today sums are
+   deferred to the stronger handoff model, but at 100k rows no model can read
+   the list either, so aggregation must move to code (still never the local
+   LLM, consistent with the existing "LLM is forbidden from computing sums"
+   rule).
+
+4. Invert the resolver. Tokenize the QUESTION once and look tokens up in the
+   token→contracts dict (O(question length), corpus-size independent) instead
+   of scanning the corpus vocabulary per query. Accept that token-based
+   single-contract resolution mostly won't fire at scale; explicit IDs and the
+   SQL manifest become the primary routing signals.
+
+5. Persist derived maps at build time. person_names and the verifier's oracle
+   should be built once during `make build` and loaded (or queried
+   per-contract) at runtime, not recomputed from a full docstore scan on every
+   startup.
+
+6. Make verify.sh incremental — validate only files changed since the last
+   pass (mtime or `git status`), keeping the full sweep as a manual command.
+
+7. Grow the eval set with the corpus. eval/eval_retrieval.json's ground truth
+   covers 6 contracts; the recall gate is only meaningful at 100k if it
+   samples the larger corpus, including distractor-heavy cases (many contracts
+   sharing locations) that today's corpus can't express.
+
+Steps 1–2 remove the hard blocker; step 3 removes the correctness blocker;
+4–6 remove the linear-scan tax. Nothing in the retrieval LOGIC
+(filter → rerank → verify) needs to change — which is the encouraging part:
+the design's per-contract discipline is exactly what a 100k corpus needs, it's
+just currently implemented on top of data structures that assume the corpus
+fits everywhere at once.
