@@ -21,7 +21,7 @@ from llama_index.core.schema import TextNode
 
 from rag.config import PERSIST_DIR, get_embed_model
 from rag.enrich import enrich_nodes
-from rag.loader import load_nodes
+from rag.loader import NOTARY_PREFIX, load_nodes
 from rag.relationships import link_reading_order
 
 # Lines that are context labels, not person names — skip them when parsing chunks.
@@ -80,6 +80,8 @@ def _signatory_summaries(nodes: list) -> list[TextNode]:
         raw = node.text
         if raw.startswith("Signatory: "):
             raw = raw[len("Signatory: "):]
+        elif raw.startswith(NOTARY_PREFIX):
+            raw = raw[len(NOTARY_PREFIX):]
         result = _person_from_chunk(raw.strip())
         if not result:
             continue

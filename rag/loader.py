@@ -20,6 +20,11 @@ from llama_index.core.schema import TextNode
 # The four chunk categories in every task_*.json file, all sharing one schema.
 SECTIONS = ("text", "table", "image", "signature")
 
+# A notary stamp is not a contract signatory: the generic "Signatory:" label buries
+# the block's real role, so retrieval (embed + cross-encoder, which score only the
+# chunk text) can't match role-based queries to it. Label it with what it is.
+NOTARY_PREFIX = "Notary Public who notarized this document: "
+
 
 def load_nodes(database_dir: str = "database") -> list[TextNode]:
     """Return one TextNode per OCR chunk found in ``database_dir``."""
@@ -33,7 +38,11 @@ def load_nodes(database_dir: str = "database") -> list[TextNode]:
                 # captures "signatory" rather than just the bare name+title block.
                 # "Contract" is deliberately omitted from the prefix — it appears in most
                 # manifest-extraction queries and would displace content chunks in that context.
-                text = f"Signatory: {raw}" if category == "signature" else raw
+                if category == "signature":
+                    prefix = NOTARY_PREFIX if "notary public" in raw.lower() else "Signatory: "
+                    text = prefix + raw
+                else:
+                    text = raw
                 nodes.append(
                     TextNode(
                         id_=uuid,
