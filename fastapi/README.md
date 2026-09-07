@@ -17,9 +17,10 @@ the single-pass RAG), streamed over HTTP as Server-Sent Events.
 | `pipeline.py` | **Seam 2/3** — `StreamingAgenticRag` wraps `rag.agent.AgenticRag` in the `run_stream(query, tracer, cancel_check)` contract and records per-stage progress. |
 | `seams.py` | **Seams 1, 4, 5 + augment** — `build_pipeline`, `summarize_stage`, `finalize`, `passthrough_query`. |
 | `app.py` | `create_app(...)` wiring + `uvicorn` entrypoint. |
+| `trace_recorder.py` | Session-history replay (`SessionStore`) + query tracing: `TracingMiddleware` taps `POST /query` and appends each finished record to `traces.jsonl` (gitignored, 7-day retention, survives a restart). Read back at `GET /trace` (all) or `GET /trace/{n}` (one). |
 | `serve.sh` | Activates the `ragtest` env and launches uvicorn (mirrors `scripts/*.sh`). |
 | `serve_ngrok.sh` | Same as `serve.sh`, but also exposes the API over an ngrok tunnel and prints the public https URL. Optional — needs `ngrok` with an authtoken configured. |
-| `requirements.txt` | `fastapi`, `uvicorn`, `pydantic` — install into the `ragtest` env. |
+| `requirements.txt` | `fastapi`, `uvicorn`, `pydantic`, `starlette` — install into the `ragtest` env. |
 
 ## Run
 
@@ -28,6 +29,9 @@ pip install -r fastapi/requirements.txt   # once, into the ragtest conda env
 ollama serve                              # generation needs a running Ollama
 bash fastapi/serve.sh                      # -> http://0.0.0.0:8000
 ```
+
+(`make serve [HOST=.. PORT=..]` and `make serve-ngrok` are aliases for `serve.sh` /
+`serve_ngrok.sh`.)
 
 `GET /health` reports `starting` → `ready`. Query with a streaming client:
 

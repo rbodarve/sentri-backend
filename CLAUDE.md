@@ -30,6 +30,8 @@ Use `make` (details in [scripts/README.md](scripts/README.md)):
 
 - `make setup` — create the conda env + install pinned deps (one-time).
 - `make check` — stage 1–3 self-checks (loader, enrich, relationships); pure Python, no model.
+- `make coverage` — model-free field-coverage report over the built manifest (the analytical
+  route's data ceiling).
 - `make build` — build the retrieval eval set + embed & persist the vector index to `index_store/`,
   then extract the corpus manifest (this last step needs Ollama).
 - `make eval [MODE=baseline|filtered|rerank]` — measure retrieval recall; default `rerank`.
@@ -42,6 +44,8 @@ Use `make` (details in [scripts/README.md](scripts/README.md)):
   withholding) against `eval/eval_agentic.json`; needs Ollama. `make eval` stays the recall gate.
 - `make serve [HOST=.. PORT=..]` — serve the agent as a streaming (SSE) HTTP API via
   [fastapi/](fastapi/) (needs Ollama, plus `pip install -r fastapi/requirements.txt`).
+- `make serve-ngrok` — same SSE API, exposed through an ngrok public tunnel (needs Ollama +
+  `ngrok` with an authtoken configured).
 - `make clean` — remove the regenerable `index_store/` + caches.
 
 ## Architecture
