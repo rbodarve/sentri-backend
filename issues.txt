@@ -1,6 +1,10 @@
 ISSUES — root-cause analysis from fastapi/traces.jsonl (first 4 queries)
 ========================================================================
 
+STATUS: all four issues FIXED and verified (2026-09-17). See RESOLUTION at the
+end of this file for what was actually implemented (two refinements differ from
+the proposals below) and the verification results.
+
 Corpus ground truth (the manifest): 6 contracts / locations
   Tubao, La Union · San Carlos, Pangasinan · Cabatuan, Isabela ·
   Sta. Fe, Nueva Vizcaya · Bulakan, Bulacan · Olongapo City
@@ -283,3 +287,69 @@ CONFIRMS ISSUE 4 (contract_id never surfaced)
   24AJ0052, 24BG0272, 24BJ0005, 24CC0265, 24CM0001 — all present in the
   subanswer stage events) are known and filtered on, yet none is shown. Same
   fix: inject/post-fill the resolved contract_id into the output.
+
+
+========================================================================
+RESOLUTION — what was implemented (2026-09-17)
+========================================================================
+
+All four fixes landed; the retrieval-recall gate is unchanged. Files touched:
+rag/generate.py, rag/agent.py, rag/manifest.py, fastapi/seams.py,
+fastapi/pipeline.py.
+
+ISSUE 1 — surface-form-brittle location resolution  [FIXED]
+  rag/generate.py: added _norm() (unicodedata NFKD + drop combining marks, so
+  ñ→n) and reworked _resolver_index() to return TWO indices — single tokens
+  (word-boundary matched against the normalized question) and a phrase index of
+  despaced adjacent-word pairs from the location (len>=6, e.g. "launion" from
+  "la union"), substring-matched against the despaced normalized question.
+  _resolve_contract_ids() normalizes both sides before matching.
+  Verified: "launion" → 24A00153, "macanao" → 24BG0272 (the Macañao/Isabela
+  contract; the filter now engages instead of running unfiltered as in #13).
+
+ISSUE 2 — corpus-wide "list all X" enumerated deterministically  [FIXED]
+  New "enumerate" route in rag/agent.py classify(), gated on _LIST_CORPUS_RE +
+  no explicit id + no resolvable location. Answered by a new
+  rag.manifest.format_enumeration() — one row per contract straight from the
+  manifest, no LLM, no retrieval; it surfaces the real contract_id too.
+  Wired into both rag/agent.py answer() and fastapi/pipeline.py run_stream().
+  REFINEMENT vs the proposal: _LIST_CORPUS_RE requires a PLURAL corpus noun
+  (projects|contracts|locations|places). An early singular-allowing version
+  false-matched #8's "for that project" and mis-routed it to enumerate; the
+  plural guard excludes anaphoric singulars cleanly.
+  Verified: #1/#4/#10/#14 all return the identical, complete 6-row list.
+
+ISSUE 3 — new-fact follow-ups now retrieve  [FIXED]
+  fastapi/seams.py: passthrough_query() now splits anaphoric follow-ups —
+  presentation-only ops (_PRESENTATION_RE: table/format/summarize/…) still go to
+  the transform path, while a new-fact follow-up resolves the prior contract
+  from the PREVIOUS ANSWER text (via rag._resolve_contract_ids) and rewrites the
+  anaphor to "contract <id>" so normal scoped retrieval runs. _is_anaphoric()
+  now delegates its anchor test to the router's resolver (spacing/diacritic-
+  robust) instead of duplicating a token scan.
+  Note: the prior contract is recovered from the previous answer's text, not a
+  stored session id; when it can't be pinned to exactly one contract it falls
+  back to reformatting the previous answer.
+  Verified: #8 "signatories for that project" → "…for contract 24A00153" →
+  routes simple and returns the signatory list.
+
+ISSUE 4 — real contract_id surfaced  [FIXED]
+  rag/generate.py: answer_once() now injects an authoritative id node (_id_node,
+  flagged is_manifest so it stays out of citations/evidence) into the generation
+  context whenever a contract_id is resolved, so the answer prints the real id.
+  KEY REFINEMENT vs the write-up: in the fastapi path the dominant cause was NOT
+  LLM fabrication — it was fastapi/pipeline.py _humanize_ids(), which rewrote
+  "Contract 24A00153" → "Contract <short_name>" for display, i.e. it manufactured
+  the exact "Contract ID: <project title>" mislabel. That step was removed, so
+  the id survives to the displayed answer (and #14's "Contract <name>" rows were
+  literally _humanize_ids output, not the model's).
+  Verified: #7 now prints "Contract ID :24A00153".
+
+Verification
+  - make eval (rerank): hit_rate=1.000 (single 20/20, broad 10/10, complex
+    10/10) — retrieval recall unchanged; no fix touches the retrieval path.
+  - Routing re-checked for all 14 traces; Issue-3 follow-up handling checked via
+    passthrough_query; enumerate / Issue-4 id / Issue-3 retrieval confirmed
+    end-to-end through Ollama.
+  - eval-agentic NOT re-run (Ollama-backed; its 7 cases all use explicit ids and
+    don't exercise the changed paths).
