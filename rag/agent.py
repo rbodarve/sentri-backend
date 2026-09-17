@@ -36,6 +36,7 @@ from llama_index.core.prompts import PromptTemplate
 from rag.config import AGENT_MAX_ATTEMPTS, AGENT_WIDE_TOP_N
 from rag.enrich import CONTRACT_ID_RE
 from rag.generate import RagAnswerer
+from rag.manifest import format_enumeration
 from rag.rerank import get_reranker
 from rag.verify import Report
 
@@ -56,6 +57,14 @@ _COMPARISON_RE = re.compile(
 # intent of the whole corpus ("list each project's location"). It fans out over every known
 # contract; a leading "for"/"of" is left outside the match so the rewrite reads naturally.
 _EACH_RE = re.compile(r"\b(?:each|every|all|per)\s+(?:of\s+the\s+)?(?:projects?|contracts?)\b", re.I)
+# Corpus-wide enumeration cue: a listing verb over a corpus-level noun. Combined with "no explicit
+# id AND no resolvable location" in classify(), this catches "list all projects" / "list the
+# locations you know about" -- questions whose complete answer IS the whole manifest, so they are
+# answered by deterministic enumeration instead of lossy summarization or a whole-corpus fan-out.
+_LIST_CORPUS_RE = re.compile(
+    r"\b(?:list|show|give|name|enumerate|tell)\b.{0,40}?"
+    r"\b(?:projects|contracts|locations|places)\b", re.I  # plural: a corpus-wide set, not "that project"
+)
 # Cross-corpus analytical cues: a pattern/anomaly/commonality question that must reason over the
 # whole corpus at once, not fetch one contract's spans. Routed to the manifest-wide analytical
 # pass (see answer()). A question that instead compares >=2 *named* contracts stays semantic.
@@ -131,6 +140,14 @@ class AgenticRag:
     def classify(self, question: str) -> tuple[str, list[str]]:
         """(kind, ordered contract ids). kind in {"simple","fanout","semantic","analytical"}."""
         explicit = list(dict.fromkeys(m.upper() for m in CONTRACT_ID_RE.findall(question)))
+        # Corpus-wide enumeration: a "list the projects/contracts/locations" question with no
+        # explicit id and no resolvable location -- its complete answer IS the manifest, so answer
+        # by deterministic enumeration (see answer()), not lossy/nondeterministic summarization or
+        # a whole-corpus fan-out. A location-scoped "list all projects in X" resolves an id here
+        # and so falls through to the scoped simple/fan-out route below.
+        if not explicit and _LIST_CORPUS_RE.search(question) \
+                and not self._rag._resolve_contract_ids(question):
+            return "enumerate", sorted(self._known)
         # Analytical (corpus-wide pattern/anomaly) reasons over the whole manifest at once, so it
         # precedes the fan-out/each rules. A question comparing >=2 *named* contracts is left to
         # the semantic route (cross-contract reasoning over specific ids), not analytical.
@@ -226,6 +243,13 @@ class AgenticRag:
     # -- top-level -----------------------------------------------------------------------
     def answer(self, question: str) -> AgentResult:
         kind, ids = self.classify(question)
+        if kind == "enumerate":
+            # The complete answer IS the manifest: enumerate it deterministically (no LLM, no
+            # retrieval), so the answer is complete and identical every run. Grounded by
+            # construction -- built straight from the oracle -- so the report is clean.
+            text = format_enumeration(self._rag._manifest)
+            return AgentResult(question, kind, text, Report(blocks=[], flags=[]), [])
+
         if kind == "simple":
             part = self._answer_subquestion(question)
             return AgentResult(question, kind, part.answer, part.report, [part])

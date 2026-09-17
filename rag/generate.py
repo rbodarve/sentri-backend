@@ -18,6 +18,7 @@ Answers are constrained to the retrieved context to curb hallucination.
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from llama_index.core import Settings, get_response_synthesizer
 from llama_index.core.prompts import PromptTemplate
@@ -63,21 +64,39 @@ def _build_person_names(docstore) -> dict[str, set[str]]:
     return result
 
 
-def _resolver_index(manifest: list[dict]) -> dict[str, set[str]]:
-    """Distinctive location/name token (lowercased) -> set of contract_ids that use it.
+def _norm(text: str) -> str:
+    """Lowercase and strip diacritics (ñ->n) so entity resolution does not turn on a dropped
+    tilde or an accented vowel ("macanao" must match "macañao")."""
+    decomposed = unicodedata.normalize("NFKD", text.lower())
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch))
 
-    Shares the verifier's geo/boilerplate stoplist so "distinctive" means the same thing on
-    both sides: a token that identifies a contract on the way in is exactly one the verifier
-    would police on the way out. Tokens shorter than 4 chars or in the stoplist are dropped.
+
+def _resolver_index(manifest: list[dict]) -> tuple[dict[str, set[str]], dict[str, set[str]]]:
+    """(token index, phrase index): a distinctive location/name key -> contract_ids that use it.
+
+    Both sides of the match are normalized (lowercased, diacritics stripped) so a dropped tilde
+    still resolves. The token index holds single words (word-boundary matched); the phrase index
+    holds despaced adjacent word pairs from the location ("launion" for "la union") so a
+    multi-word place written without its space resolves too, instead of failing open to the whole
+    corpus. Shares the verifier's geo/boilerplate stoplist and >=4-char guard so "distinctive"
+    means the same thing on both sides: a token that identifies a contract on the way in is
+    exactly one the verifier would police on the way out.
     """
-    idx: dict[str, set[str]] = {}
+    tokens: dict[str, set[str]] = {}
+    phrases: dict[str, set[str]] = {}
     for r in manifest:
-        text = f"{r.get('location', '')} {r.get('contract_name', '')}".lower()
-        for tok in re.findall(r"[a-zñ]+", text):
+        cid = r["contract_id"]
+        combined = _norm(f"{r.get('location', '')} {r.get('contract_name', '')}")
+        for tok in re.findall(r"[a-z]+", combined):
             if len(tok) < 4 or tok in _GEO_STOP:
                 continue
-            idx.setdefault(tok, set()).add(r["contract_id"])
-    return idx
+            tokens.setdefault(tok, set()).add(cid)
+        loc_words = re.findall(r"[a-z]+", _norm(r.get("location", "")))
+        for a, b in zip(loc_words, loc_words[1:]):
+            joined = a + b
+            if len(joined) >= 6:  # distinctive enough to substring-match safely
+                phrases.setdefault(joined, set()).add(cid)
+    return tokens, phrases
 
 
 class RagAnswerer:
@@ -94,12 +113,14 @@ class RagAnswerer:
         # global questions ("how many / list all / add the amounts") see the whole corpus, which
         # top-k retrieval alone never supplies. No intent classification -- it is always present.
         manifest = load_manifest()
+        self._manifest = manifest  # the full record list, for deterministic enumeration (agent)
         manifest_node = TextNode(text=format_manifest(manifest), metadata={"is_manifest": True})
         manifest_node.excluded_llm_metadata_keys = ["is_manifest"]
         self._manifest_node = NodeWithScore(node=manifest_node, score=1.0)
-        # Maps a location/name token to its contract, so a question that names a project by place
-        # or name (not id) can still engage the contract filter (see answer()).
-        self._resolver = _resolver_index(manifest)
+        # Maps a location/name token (and despaced multi-word place phrase) to its contract, so a
+        # question that names a project by place or name (not id) can still engage the contract
+        # filter (see answer()).
+        self._resolver, self._resolver_phrases = _resolver_index(manifest)
         # Final pre-send check: the same manifest is the oracle; person_names supplies the
         # corpus-wide signatory map so the grounding check can detect person-contract
         # fabrications (e.g. a signatory from contract A falsely attributed to contract B).
@@ -117,12 +138,34 @@ class RagAnswerer:
         base = self._index.as_retriever(similarity_top_k=RERANK_CANDIDATES, filters=filters)
         return RerankingRetriever(base, reranker or self._reranker, trace=trace)
 
+    def _id_node(self, contract_id: str) -> NodeWithScore:
+        """An authoritative context note carrying the resolved contract id, so the answer prints
+        the real id (known from routing) instead of fabricating a 'Contract ID' from the project
+        title. Flagged is_manifest so it is excluded from citations/evidence like the manifest."""
+        node = TextNode(
+            text=(f"AUTHORITATIVE: the contract in question is contract id {contract_id}. "
+                  f'Use exactly "{contract_id}" for any Contract ID field; never use the '
+                  "project name, location, or title as the contract id."),
+            metadata={"is_manifest": True},
+        )
+        node.excluded_llm_metadata_keys = ["is_manifest"]
+        return NodeWithScore(node=node, score=1.0)
+
     def _resolve_contract_ids(self, question: str) -> set[str]:
-        """All contracts a question names by a distinctive location/name token."""
-        low = question.lower()
+        """All contracts a question names by a distinctive location/name token.
+
+        Matching is diacritic- and spacing-robust: single tokens are matched by word boundary
+        against the normalized question, and despaced multi-word place phrases ("launion") as a
+        substring of the despaced question, so a missing space or dropped tilde still resolves
+        instead of leaving the filter to fail open to the whole corpus."""
+        norm = _norm(question)
         ids: set[str] = set()
         for tok, owners in self._resolver.items():
-            if re.search(rf"\b{re.escape(tok)}\b", low):
+            if re.search(rf"\b{re.escape(tok)}\b", norm):
+                ids |= owners
+        despaced = re.sub(r"[^a-z]", "", norm)
+        for phrase, owners in self._resolver_phrases.items():
+            if phrase in despaced:
                 ids |= owners
         return ids
 
@@ -154,6 +197,9 @@ class RagAnswerer:
         pass a wider ``reranker`` to widen k during self-correction."""
         nodes = self._retriever(contract_id, trace, reranker).retrieve(search_query)
         context = [self._manifest_node, *nodes]
+        if contract_id:
+            # Surface the resolved id to generation so the answer cites it, not the project title.
+            context = [self._id_node(contract_id), *context]
         if trace is not None:
             trace.emit("context", nodes=context, manifest_included=True)
         response = self._synthesizer.synthesize(question, context)

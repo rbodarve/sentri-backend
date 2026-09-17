@@ -169,48 +169,66 @@ _ANAPHORA_RE = re.compile(
     r"\b(?:that|it|those|them|these|the above|the result|the previous|the last)\b", re.I
 )
 
+# Presentation-only follow-up ops: reformat/summarize the PRIOR answer, no new facts needed.
+# A follow-up WITHOUT one of these cues is treated as a request for new information about the
+# prior entity (resolve its contract + retrieve), not a text transform -- "transform" can only
+# rework text the previous answer already holds, so it cannot fetch a fact that wasn't in it.
+_PRESENTATION_RE = re.compile(
+    r"\b(?:table|format|reformat|bullet|bullets|summar(?:y|ize|ise)|shorten|shorter|"
+    r"concise|rephrase|reword|rewrite|column|columns|row|rows)\b", re.I
+)
 
-def _is_anaphoric(query: str, resolver: "dict | None") -> bool:
-    """True when the query uses an anaphoric reference with no self-contained location anchor.
+
+def _is_anaphoric(query: str, rag) -> bool:
+    """True when the query uses an anaphoric reference with no self-contained anchor of its own.
 
     A query is anaphoric when it contains a demonstrative pronoun ("that", "it", etc.) AND
-    has no explicit contract id AND contains no token that the router's resolver would
-    recognise as a distinctive location or contract-name identifier. This mirrors the exact
-    check the router runs, so "overview of that project" is caught (no location token) while
-    "overview of the Isabela project" is not (contains resolver token "isabela").
+    has no explicit contract id AND names no token the router's resolver recognises as a
+    distinctive location/contract-name identifier. Delegates that last test to the router's own
+    resolver (spacing/diacritic-robust), so "overview of that project" is caught (no anchor)
+    while "overview of the Isabela project" is not (resolves to a contract).
     """
     if not _ANAPHORA_RE.search(query):
         return False
     if CONTRACT_ID_RE.search(query):
         return False
-    if resolver:
-        low = query.lower()
-        for tok in resolver:
-            if re.search(rf"\b{re.escape(tok)}\b", low):
-                return False  # query has a distinctive location/name anchor
+    if rag is not None and rag._resolve_contract_ids(query):
+        return False  # query has a distinctive location/name anchor
     return True
 
 
 def passthrough_query(query: str, history: list[ChatMessage]) -> str:
-    """Route self-contained questions as-is; resolve anaphoric follow-ups without retrieval.
+    """Route self-contained questions as-is; resolve anaphoric follow-ups against the prior turn.
 
-    For most queries this is a passthrough — the deterministic router classifies by
-    scanning the raw question for contract ids and location tokens, and folding prior
-    turns into the text would let a stale id from a previous question misroute the
-    current one.
+    For most queries this is a passthrough — the deterministic router classifies by scanning the
+    raw question for contract ids and location tokens, and folding prior turns into the text would
+    let a stale id from a previous question misroute the current one.
 
-    Exception: anaphoric follow-ups ("make that a table", "give me an overview of that
-    project") have no retrieval anchor of their own. For those, run_stream handles the
-    request as a direct LLM transformation on the previous answer — no retrieval — so
-    retrieved document chunks cannot displace the prior answer as the model's context.
+    Anaphoric follow-ups ("make that a table", "signatories for that project") have no retrieval
+    anchor of their own, so they are resolved against the previous answer in one of two ways:
+
+      * presentation-only ("make that a table", "summarize that"): run_stream reformats the prior
+        answer directly, no retrieval, so retrieved chunks cannot displace it as the LLM context.
+      * new information about the same entity ("signatories for that project"): reformatting can't
+        surface a fact the prior answer never held, so resolve the prior contract from that answer
+        and rewrite the anaphor into a self-contained, scoped question that runs normal retrieval.
+
     When no history is available, the no-context sentinel is returned instead.
     """
-    resolver = _pipeline_ref.agent._rag._resolver if _pipeline_ref is not None else None
-    if _is_anaphoric(query, resolver):
-        last_assistant = next(
-            (m.content for m in reversed(history) if m.role == "assistant"), None
-        )
-        if last_assistant:
-            return f"{_TRANSFORM_SENTINEL}\n{last_assistant}{_TRANSFORM_SEP}{query}"
+    rag = _pipeline_ref.agent._rag if _pipeline_ref is not None else None
+    if not _is_anaphoric(query, rag):
+        return query
+    last_assistant = next(
+        (m.content for m in reversed(history) if m.role == "assistant"), None
+    )
+    if not last_assistant:
         return f"{_NO_CONTEXT_SENTINEL}: {query}"
-    return query
+    if _PRESENTATION_RE.search(query):
+        return f"{_TRANSFORM_SENTINEL}\n{last_assistant}{_TRANSFORM_SEP}{query}"
+    # New-fact follow-up: pin the prior entity from the previous answer and rewrite the anaphor
+    # so normal retrieval runs. Only when exactly one contract is named there (else it is
+    # ambiguous -- fall back to reformatting the previous answer).
+    ids = rag._resolve_contract_ids(last_assistant) if rag is not None else set()
+    if len(ids) == 1:
+        return _ANAPHORA_RE.sub(f"contract {next(iter(ids))}", query, count=1)
+    return f"{_TRANSFORM_SENTINEL}\n{last_assistant}{_TRANSFORM_SEP}{query}"

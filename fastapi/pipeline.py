@@ -41,7 +41,7 @@ from llama_index.core import Settings
 from rag.agent import AgenticRag, _ANALYTICAL_TEMPLATE, _COMBINE_TEMPLATE
 from rag.enrich import CONTRACT_ID_RE
 from rag.generate import format_sources
-from rag.manifest import load_manifest
+from rag.manifest import format_enumeration
 from rag.verify import Report
 
 # Seam 4 stage vocabulary — the stage names this pipeline reports.
@@ -152,15 +152,6 @@ class StreamFinal:
     parts: list[StreamPart] = field(default_factory=list)
 
 
-def _humanize_ids(text: str, id_to_name: dict[str, str]) -> str:
-    """Swap each contract id in the DISPLAYED answer for its manifest short_name so the token
-    stream / response_text read naturally (e.g. '24cc0265_roa.pdf' -> '<name>_roa.pdf'). Matches
-    both cases (the regex char class covers them); an id with no short_name is left as-is.
-    Presentation only -- the `contract_ids`/`sources` metadata stays keyed by id, and this runs
-    after verification, so grounding is unaffected."""
-    return CONTRACT_ID_RE.sub(lambda m: id_to_name.get(m.group(0).upper(), m.group(0)), text)
-
-
 def _word_tokens(text: str) -> Iterator[str]:
     """Split into whitespace-preserving chunks so the client can re-join them
     back into the exact answer text. Used to replay the verified answer."""
@@ -175,9 +166,6 @@ class StreamingAgenticRag:
         # The transport already runs build_pipeline in a threadpool — do NOT wrap.
         self.agent = AgenticRag()
         self._rag = self.agent._rag  # the shared RagAnswerer the agent answers through
-        # contract_id -> short_name, for humanizing ids in the displayed answer (see run_stream).
-        self._id_to_name = {r["contract_id"].upper(): r.get("short_name") or r["contract_id"]
-                            for r in load_manifest()}
 
         # Adapter: capture the Response of each answer_once call so we can emit
         # citations (the agent itself keeps only text + report). Shimming the
@@ -264,7 +252,15 @@ class StreamingAgenticRag:
             if cancel_check():
                 return
 
-            if kind == "simple":
+            if kind == "enumerate":
+                # Corpus-wide "list all projects/locations": the complete answer IS the manifest.
+                # Enumerate it deterministically -- no retrieval, no sub-questions, grounded by
+                # construction (mirrors AgenticRag.answer()'s enumerate branch).
+                text = format_enumeration(self._rag._manifest)
+                report = Report(blocks=[], flags=[])
+                tracer.record(STAGE_COMBINE, {"strategy": "enumerate", "ok": True})
+                result = StreamFinal(query, kind, explicit_ids, text, report, [])
+            elif kind == "simple":
                 part = self._answer_part(query, tracer)
                 result = StreamFinal(query, kind, explicit_ids, part.answer, part.report, [part])
             elif kind == "analytical":
@@ -321,11 +317,6 @@ class StreamingAgenticRag:
                     report = agent._verifier.check(combined)
                     tracer.record(STAGE_COMBINE, {"ok": report.ok})
                     result = StreamFinal(query, kind, explicit_ids, combined, report, parts)
-
-        # Humanize contract ids in the DISPLAYED answer only (the token stream + response_text
-        # read `finalize` off this same text). The `contract_ids`/`sources` metadata stays keyed
-        # by id. This runs after verification, so it can't affect grounding.
-        result.text = _humanize_ids(result.text, self._id_to_name)
 
         # Replay the verified answer as tokens. A withheld answer (failed the
         # grounding check) streams nothing — the withheld notice rides on `done`.

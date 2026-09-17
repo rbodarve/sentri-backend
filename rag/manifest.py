@@ -172,6 +172,19 @@ def format_manifest(manifest: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def format_enumeration(manifest: list[dict]) -> str:
+    """Deterministic answer to a corpus-wide 'list all projects/locations' question: one row per
+    contract, read straight from the manifest -- no LLM, so the answer is complete and identical
+    every run (the failure the retrieval/summarization route produced). Surfaces the real
+    contract_id, which routing knows but generation never showed."""
+    lines = [f"The database contains {len(manifest)} contracts/projects:"]
+    for i, r in enumerate(manifest, 1):
+        name = r.get("short_name") or r.get("contract_name") or "not stated"
+        lines.append(f"{i}. Contract {r['contract_id']} — {name} — "
+                     f"Location: {r.get('location') or 'not stated'}")
+    return "\n".join(lines)
+
+
 if __name__ == "__main__":
     manifest = build_manifest()
     print(f"built manifest for {len(manifest)} contracts -> {MANIFEST_PATH}\n")
