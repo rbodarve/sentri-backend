@@ -1,9 +1,12 @@
 ISSUES — root-cause analysis from fastapi/traces.jsonl (first 4 queries)
 ========================================================================
 
-STATUS: all four issues FIXED and verified (2026-09-17). See RESOLUTION at the
-end of this file for what was actually implemented (two refinements differ from
-the proposals below) and the verification results.
+STATUS: all four issues FIXED. Landed and verified 2026-09-17; RE-CONFIRMED
+against the code 2026-09-22 (each fix located in the named source file, not
+just trusted from this write-up). See RESOLUTION at the end of this file for
+what was actually implemented (two refinements differ from the proposals below)
+and the verification results. One post-landing refinement to Issue 3 is noted
+there and is still uncommitted in the working tree.
 
 Corpus ground truth (the manifest): 6 contracts / locations
   Tubao, La Union · San Carlos, Pangasinan · Cabatuan, Isabela ·
@@ -327,11 +330,20 @@ ISSUE 3 — new-fact follow-ups now retrieve  [FIXED]
   anaphor to "contract <id>" so normal scoped retrieval runs. _is_anaphoric()
   now delegates its anchor test to the router's resolver (spacing/diacritic-
   robust) instead of duplicating a token scan.
-  Note: the prior contract is recovered from the previous answer's text, not a
-  stored session id; when it can't be pinned to exactly one contract it falls
-  back to reformatting the previous answer.
   Verified: #8 "signatories for that project" → "…for contract 24A00153" →
   routes simple and returns the signatory list.
+
+  REFINEMENT (2026-09-22, uncommitted in the working tree): the carried-over
+  contract is now recovered from the USER's turns, not the previous answer's
+  prose. New _current_subject() in fastapi/seams.py scans user turns newest-first
+  and returns the first that names exactly one contract (explicit id via
+  CONTRACT_ID_RE, else a location/name the router's resolver binds via
+  rag._resolve_contract_id). The anaphor is rewritten to "contract <id>" against
+  that sticky subject; it falls back to reformatting only when no subject has
+  been established yet. This removes the earlier failure mode where a verbose
+  prior answer mentioning several contracts could mis-bind the follow-up — the
+  subject now comes from the user's own utterances (the authoritative intent),
+  never generated answer text. Dependencies confirmed present; seams.py parses.
 
 ISSUE 4 — real contract_id surfaced  [FIXED]
   rag/generate.py: answer_once() now injects an authoritative id node (_id_node,
@@ -353,3 +365,18 @@ Verification
     end-to-end through Ollama.
   - eval-agentic NOT re-run (Ollama-backed; its 7 cases all use explicit ids and
     don't exercise the changed paths).
+
+RE-CONFIRMATION (2026-09-22)
+  Each fix re-located in its source file, not just trusted from this write-up:
+    Issue 1 — _norm()/_resolver_index() present in rag/generate.py (:67,:74);
+              _resolve_contract_ids() normalizes both sides (:154).
+    Issue 2 — _LIST_CORPUS_RE + "enumerate" route in rag/agent.py (:64,:148);
+              format_enumeration() in rag/manifest.py (:175); wired into both
+              rag/agent.py and fastapi/pipeline.py.
+    Issue 3 — _PRESENTATION_RE split + anaphora rewrite in fastapi/seams.py;
+              committed version present, plus the uncommitted _current_subject()
+              refinement above.
+    Issue 4 — _id_node()/is_manifest injection in rag/generate.py (:141,:202);
+              _humanize_ids() confirmed removed from fastapi/pipeline.py.
+  All four remain FIXED. The only working-tree delta vs the committed state is
+  the Issue-3 _current_subject() refinement, which is not yet committed.

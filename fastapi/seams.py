@@ -197,6 +197,31 @@ def _is_anaphoric(query: str, rag) -> bool:
     return True
 
 
+def _current_subject(history: list[ChatMessage], rag) -> str | None:
+    """The contract the conversation is currently about, for anaphora resolution.
+
+    Scans user turns newest-first and returns the first that names exactly one contract --
+    an explicit id, or a distinctive location/name the router's resolver binds. Sticky by
+    construction: anaphoric or corpus-wide turns name no single contract, so the subject
+    carries forward from the last turn that did, and only a turn naming a DIFFERENT single
+    contract changes it. Derived from the user's own utterances (the authoritative subject
+    intent), never from generated answer prose -- so a verbose answer that happens to mention
+    several contracts' project types can't misbind the follow-up (the earlier failure mode).
+    """
+    if rag is None:
+        return None
+    for m in reversed(history):
+        if m.role != "user":
+            continue
+        explicit = CONTRACT_ID_RE.search(m.content)
+        if explicit:
+            return explicit.group(0).upper()
+        cid = rag._resolve_contract_id(m.content)
+        if cid:
+            return cid
+    return None
+
+
 def passthrough_query(query: str, history: list[ChatMessage]) -> str:
     """Route self-contained questions as-is; resolve anaphoric follow-ups against the prior turn.
 
@@ -210,8 +235,9 @@ def passthrough_query(query: str, history: list[ChatMessage]) -> str:
       * presentation-only ("make that a table", "summarize that"): run_stream reformats the prior
         answer directly, no retrieval, so retrieved chunks cannot displace it as the LLM context.
       * new information about the same entity ("signatories for that project"): reformatting can't
-        surface a fact the prior answer never held, so resolve the prior contract from that answer
-        and rewrite the anaphor into a self-contained, scoped question that runs normal retrieval.
+        surface a fact the prior answer never held, so bind the anaphor to the conversation's
+        current subject (the last user turn that named a contract) and rewrite it into a
+        self-contained, scoped question that runs normal retrieval.
 
     When no history is available, the no-context sentinel is returned instead.
     """
@@ -225,10 +251,11 @@ def passthrough_query(query: str, history: list[ChatMessage]) -> str:
         return f"{_NO_CONTEXT_SENTINEL}: {query}"
     if _PRESENTATION_RE.search(query):
         return f"{_TRANSFORM_SENTINEL}\n{last_assistant}{_TRANSFORM_SEP}{query}"
-    # New-fact follow-up: pin the prior entity from the previous answer and rewrite the anaphor
-    # so normal retrieval runs. Only when exactly one contract is named there (else it is
-    # ambiguous -- fall back to reformatting the previous answer).
-    ids = rag._resolve_contract_ids(last_assistant) if rag is not None else set()
-    if len(ids) == 1:
-        return _ANAPHORA_RE.sub(f"contract {next(iter(ids))}", query, count=1)
+    # New-fact follow-up ("signatories for that project"): reformatting can't surface a fact the
+    # prior answer never held, so bind the anaphor to the conversation's current subject -- the
+    # last user turn that named a single contract -- and rewrite it into a scoped question that
+    # runs normal retrieval. Fall back to reformatting when no subject has been established yet.
+    cid = _current_subject(history, rag)
+    if cid:
+        return _ANAPHORA_RE.sub(f"contract {cid}", query, count=1)
     return f"{_TRANSFORM_SENTINEL}\n{last_assistant}{_TRANSFORM_SEP}{query}"
