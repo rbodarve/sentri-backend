@@ -21,6 +21,7 @@ import re
 import unicodedata
 
 from llama_index.core import Settings, get_response_synthesizer
+from llama_index.core.postprocessor import PrevNextNodePostprocessor
 from llama_index.core.prompts import PromptTemplate
 from llama_index.core.schema import NodeWithScore, TextNode
 from llama_index.core.vector_stores import FilterOperator, MetadataFilter, MetadataFilters
@@ -106,6 +107,15 @@ class RagAnswerer:
         Settings.llm = get_llm()
         self._index = load_index()
         self._reranker = get_reranker(RERANK_TOP_N)
+        # Reading-order (PREV/NEXT) neighbour expansion (Step 3, rag.relationships): after
+        # rerank, pull each hit's immediate neighbours from the docstore so a chunk that lands
+        # mid-block (a table row without its header, an answer split across two chunks) reaches
+        # the LLM with its adjacent context. mode="both"/num_nodes=1 is the minimal expansion;
+        # the postprocessor dedups shared neighbours and re-sorts into reading order. Applied only
+        # on the generation path (not the recall retriever), so `make eval` is unaffected.
+        self._neighbors = PrevNextNodePostprocessor(
+            docstore=self._index.storage_context.docstore, num_nodes=1, mode="both"
+        )
         self._synthesizer = get_response_synthesizer(
             response_mode="compact", text_qa_template=_QA_TEMPLATE
         )
@@ -196,6 +206,7 @@ class RagAnswerer:
         The reusable core of answer(): the agent (rag.agent) calls it per sub-question and can
         pass a wider ``reranker`` to widen k during self-correction."""
         nodes = self._retriever(contract_id, trace, reranker).retrieve(search_query)
+        nodes = self._neighbors.postprocess_nodes(nodes)
         context = [self._manifest_node, *nodes]
         if contract_id:
             # Surface the resolved id to generation so the answer cites it, not the project title.

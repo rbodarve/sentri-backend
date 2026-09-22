@@ -17,9 +17,19 @@ from collections import defaultdict
 from llama_index.core.schema import NodeRelationship, RelatedNodeInfo, TextNode
 
 
-def _reading_order_key(node: TextNode) -> tuple[int, float, float]:
+# Coordinates are image-space (imageSource present in the schema): origin top-left, y grows
+# downward (observed range ~9-821), so ascending y is top-to-bottom. Real line spacing is
+# ~51px while OCR y-jitter between chunks on the SAME visual line is <5px, so quantise y to a
+# 10px band before the x tie-break: same-line chunks then order left-to-right by x instead of by
+# jittery y, and the band is far narrower than a line so it never merges adjacent lines.
+_LINE_BAND = 10.0
+
+
+def _reading_order_key(node: TextNode) -> tuple[int, int, float]:
+    # NB: metadata["pdf_page"] is stored as a string ("1"); cast to int() for numeric ordering
+    # here. Any other numeric comparison on pdf_page must cast too -- it is never a number.
     x, y = node.metadata["coordinate"][0], node.metadata["coordinate"][1]
-    return (int(node.metadata["pdf_page"]), y, x)
+    return (int(node.metadata["pdf_page"]), round(y / _LINE_BAND), x)
 
 
 def link_reading_order(nodes: list[TextNode]) -> list[TextNode]:

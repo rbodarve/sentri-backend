@@ -72,11 +72,24 @@ def strip_contract_phrase(query: str) -> str:
 
 
 def enrich_nodes(nodes: list[TextNode]) -> list[TextNode]:
-    """Add contract_id/doc_type metadata and set embed/LLM visibility. Mutates in place."""
+    """Add contract_id/doc_type metadata and set embed/LLM visibility. Mutates in place.
+
+    Fails LOUD on underivable metadata: an "UNKNOWN" contract_id/doc_type means a pdf_source
+    missed CONTRACT_ID_RE or DOC_TYPE_KEYWORDS and would silently collapse into a bogus bucket,
+    mis-scoping the retrieval filter with no error. Raise here so `make build` (which runs
+    enrich) fails at ingest, not just `make check` -- matching the loader's fail-loud posture on
+    the authoritative corpus."""
     for node in nodes:
         pdf_source = node.metadata["pdf_source"]
-        node.metadata["contract_id"] = contract_id_from_source(pdf_source)
-        node.metadata["doc_type"] = doc_type_from_source(pdf_source)
+        contract_id = contract_id_from_source(pdf_source)
+        doc_type = doc_type_from_source(pdf_source)
+        if contract_id == "UNKNOWN" or doc_type == "UNKNOWN":
+            raise ValueError(
+                f"unclassifiable pdf_source {pdf_source!r}: contract_id={contract_id}, "
+                f"doc_type={doc_type}. Add its id pattern / doc-type keyword before building."
+            )
+        node.metadata["contract_id"] = contract_id
+        node.metadata["doc_type"] = doc_type
         node.excluded_embed_metadata_keys = list(_EXCLUDED_EMBED)
         node.excluded_llm_metadata_keys = list(_EXCLUDED_LLM)
     return nodes
