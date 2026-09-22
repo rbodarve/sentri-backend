@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
 
 from rag.config import PERSIST_DIR, get_llm
@@ -65,7 +66,7 @@ _EXTRACT_PROMPT = (
 def _extraction_input(nodes) -> str:
     """Identity-bearing text for one contract: prioritized docs, deduped lines, budget-capped."""
     ordered = sorted(nodes, key=lambda n: (_DOC_PRIORITY.get(n.metadata["doc_type"], 9),
-                                           n.metadata["pdf_page"]))
+                                           int(n.metadata["pdf_page"])))
     seen: set[str] = set()
     parts: list[str] = []
     total = 0
@@ -108,24 +109,37 @@ def _derive_short_name(contract_name: str, location: str) -> str:
     return f"{ptype}{waterway}" + (f", {loc}" if loc else "")
 
 
-def _parse_extraction(raw: str) -> dict:
-    """Pull the JSON object out of the LLM reply; every field falls back to 'not stated'."""
+def _parse_extraction(raw: str) -> tuple[dict, bool]:
+    """Pull the JSON object out of the LLM reply. Returns (record, parsed_ok): every field falls
+    back to 'not stated', and parsed_ok is False when the reply carried no parseable JSON object.
+    The caller surfaces that failure distinctly, because a parse failure is a MODEL/parse problem,
+    NOT the absent-DATA ceiling coverage.py reports off the 'not stated' sentinel -- conflating the
+    two would make coverage's DATA-vs-MODEL diagnosis untrustworthy. Non-greedy so a
+    prose+JSON+prose reply captures just the object, not everything up to a trailing brace."""
     record = {field: "not stated" for field in _EXTRACT_FIELDS}
-    match = re.search(r"\{.*\}", raw, re.DOTALL)
-    if match:
-        try:
-            parsed = json.loads(match.group(0))
-            for field in _EXTRACT_FIELDS:
-                value = str(parsed.get(field, "")).strip()
-                if value:
-                    record[field] = value
-        except json.JSONDecodeError:
-            pass
-    return record
+    match = re.search(r"\{.*?\}", raw, re.DOTALL)
+    if not match:
+        return record, False
+    try:
+        parsed = json.loads(match.group(0))
+    except json.JSONDecodeError:
+        return record, False
+    for field in _EXTRACT_FIELDS:
+        value = str(parsed.get(field, "")).strip()
+        if value:
+            record[field] = value
+    return record, True
 
 
 def build_manifest(nodes=None, persist: bool = True) -> list[dict]:
-    """One record per contract: free metadata fields + one LLM extraction call each."""
+    """One record per contract: free metadata fields + one LLM extraction call each.
+
+    Resumable: this step runs last and per-contract on Ollama, AFTER the expensive CPU embed, so
+    an interruption on contract k must not discard the k-1 done. Records are persisted after each
+    extraction, and a PARTIAL manifest.json (fewer contracts than the corpus) is resumed -- its
+    completed records are reused and only the missing contracts re-extracted. A COMPLETE manifest
+    is ignored, so a normal rebuild still re-extracts everything fresh (prompt/field changes take
+    effect); `make clean` or deleting manifest.json also forces a clean rebuild."""
     if nodes is None:
         from rag.index import build_nodes
 
@@ -135,18 +149,41 @@ def build_manifest(nodes=None, persist: bool = True) -> list[dict]:
     for node in nodes:
         by_contract.setdefault(node.metadata["contract_id"], []).append(node)
 
+    # Resume only from a partial (interrupted) manifest; a complete one means a normal rebuild.
+    done: dict[str, dict] = {}
+    if MANIFEST_PATH.exists():
+        prev = {r["contract_id"]: r for r in json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))}
+        if 0 < len(prev) < len(by_contract):
+            done = prev
+            print(f"resuming manifest: reusing {len(done)} record(s), extracting "
+                  f"{len(by_contract) - len(done)} remaining", file=sys.stderr)
+
     llm = get_llm()
     manifest: list[dict] = []
+    parse_failures: list[str] = []
     for contract_id in sorted(by_contract):
+        if contract_id in done:
+            manifest.append(done[contract_id])
+            continue
         group = by_contract[contract_id]
         doc_types = sorted({n.metadata["doc_type"] for n in group})
         reply = llm.complete(_EXTRACT_PROMPT.format(text=_extraction_input(group)))
-        record = {"contract_id": contract_id, "doc_types": doc_types, **_parse_extraction(str(reply))}
+        fields, parsed_ok = _parse_extraction(str(reply))
+        if not parsed_ok:
+            parse_failures.append(contract_id)
+            print(f"WARNING: manifest extraction for {contract_id} yielded no parseable JSON; "
+                  f"all fields set to 'not stated' (PARSE FAILURE, not absent data)", file=sys.stderr)
+        record = {"contract_id": contract_id, "doc_types": doc_types, **fields}
         record["short_name"] = _derive_short_name(record["contract_name"], record["location"])
         manifest.append(record)
+        if persist:  # persist after each extraction so an interruption keeps completed work
+            MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
 
     if persist:
         MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    if parse_failures:
+        print(f"manifest: {len(parse_failures)}/{len(by_contract)} extraction(s) failed to parse: "
+              f"{', '.join(parse_failures)}", file=sys.stderr)
     return manifest
 
 

@@ -202,6 +202,12 @@ PARTITION 2 — INDEX, BUILD & MANIFEST
 Files: rag/index.py, rag/build_retrieval_eval.py, rag/manifest.py,
        rag/coverage.py
 
+STATUS (2026-09-22): F1, F2, F3, F4, F6 IMPLEMENTED and verified; F5 documented
+(model-coupled smoke test kept, with a caveat comment). See RESOLUTION at the end
+of this partition for what was implemented and how it was verified (make check +
+model-free unit checks of the manifest parse/resume logic; no retrieval-path code
+changed, so make eval recall is unaffected).
+
 Same constraints as Partition 1 (small corpus by design; database/ authoritative;
 CPU-only; config-driven; Simplicity/Surgical/root-cause). Scale is NOT flagged
 here -- verdict.txt owns the 100k analysis (SimpleVectorStore brute force,
@@ -235,8 +241,8 @@ WHAT'S GENUINELY WELL-BUILT (KEEP)
 ISSUES, BY SEVERITY
 -------------------
 
-F1 - HIGH (coupling): two independent signatory parsers must agree, maintained
-   separately.
+F1 - HIGH (coupling) [FIXED — pinned by test]: two independent signatory parsers
+   must agree, maintained separately.
    index.py has _CONTEXT_LINE_RE + _person_from_chunk (index.py:28-57) to BUILD
    the per-contract signatory_summary node. verify.py has a DIFFERENT extractor,
    _extract_sig_names (verify.py:68), which generate._build_person_names
@@ -249,9 +255,18 @@ F1 - HIGH (coupling): two independent signatory parsers must agree, maintained
    parser lives in this partition (index.py); the consumer is Partition 4
    (verify/generate). Consolidate to one signatory extractor imported by both,
    or add a test asserting the two agree over database/ signature chunks.
+   RESOLVED: took the TEST fork (consolidation was wrong — the two functions have
+   different shapes/goals: one returns (name,title) pairs to build the summary,
+   the other a name set to police answers). rag/verify.py gained a __main__ pin,
+   wired into scripts/check.sh, that builds the summaries via
+   index._signatory_summaries and asserts _extract_sig_names recovers every listed
+   name over the real database/ chunks. Verified: make check → "6 signatory
+   summaries, 34 listed names all recoverable". NB the drift is latent today
+   (signature names are all-caps, which both parsers agree on); the pin now fails
+   loudly the moment a builder-emitted name the policer can't ground appears.
 
-F2 - MEDIUM (integrity): manifest JSON-parse failure silently degrades a whole
-   contract to "not stated", which coverage.py then misreports as a DATA ceiling.
+F2 - MEDIUM (integrity) [FIXED]: manifest JSON-parse failure silently degrades a
+   whole contract to "not stated", which coverage.py then misreports as a DATA ceiling.
    _parse_extraction (manifest.py:111-124) matches `\{.*\}` (greedy, DOTALL) and
    on any json.JSONDecodeError falls back to ALL fields = "not stated" with the
    error swallowed (bare `pass`). Consequence: a model/parse failure is
@@ -263,8 +278,15 @@ F2 - MEDIUM (integrity): manifest JSON-parse failure silently degrades a whole
    Fix: log/surface a parse failure distinctly from an honest "not stated" (even
    a stderr warning + a count in the build output) so coverage's ceiling stays
    trustworthy.
+   RESOLVED: _parse_extraction now returns (record, parsed_ok); build_manifest
+   prints a per-contract stderr WARNING and a final "N/total failed to parse"
+   count when a reply carries no parseable JSON, so a parse failure is visibly
+   distinct from an honest "not stated". The greedy \{.*\} was also tightened to
+   non-greedy \{.*?\} so a prose+JSON+prose reply captures just the object.
+   Verified (model-free): good/broken/no-brace/prose+object inputs classify
+   correctly.
 
-F3 - MEDIUM (build robustness): the manifest step has no resume/idempotency.
+F3 - MEDIUM (build robustness) [FIXED]: the manifest step has no resume/idempotency.
    build_manifest (manifest.py:127-150) loops sorted(by_contract) issuing one
    llm.complete() per contract and only persists after ALL succeed. It runs as
    the LAST of three separate processes (build.sh:13), AFTER the expensive CPU
@@ -276,15 +298,27 @@ F3 - MEDIUM (build robustness): the manifest step has no resume/idempotency.
    of restarting. Also note load_nodes/enrich run in all three processes and
    build_nodes runs again inside build_manifest -- cheap (pure Python), so not
    worth changing, but it means the node prep is recomputed 3x.
+   RESOLVED: build_manifest now persists each record as it completes and RESUMES
+   from a partial manifest.json (fewer contracts than the corpus) — reusing the
+   done records and re-extracting only the missing ones. A COMPLETE manifest is
+   ignored, so a normal rebuild still re-extracts fresh (prompt/field changes take
+   effect; `make clean` / deleting manifest.json also forces a clean build).
+   Verified (model-free, stub LLM): a partial manifest resumed with only the
+   missing contracts extracted; a complete manifest re-extracted all. The 3x
+   node-prep recompute is left as-is (cheap pure Python, as noted).
 
-F4 - LOW (latent): pdf_page is string-sorted in the extraction input.
+F4 - LOW (latent) [FIXED]: pdf_page is string-sorted in the extraction input.
    _extraction_input sorts by (doc_priority, pdf_page) with pdf_page a string
    (manifest.py:67-68). Harmless today -- verified max page is 4, so lexical ==
    numeric. At >=10 pages, page "10" sorts before "2", reordering the lines fed
    into the 3000-char budget and possibly truncating identity content. Same
    root as Partition-1 F5 (pdf_page stored as str). Cast to int in the sort key.
+   RESOLVED: _extraction_input sort key now casts int(n.metadata["pdf_page"]), so
+   pages order numerically (1,2,10) not lexically (1,10,2). Verified (model-free)
+   with a synthetic 10-page input. One-line change, mirrors Partition-1 F4.
 
-F5 - LOW: index.py's smoke test hard-codes a model-specific assertion.
+F5 - LOW [DOCUMENTED — kept as-is]: index.py's smoke test hard-codes a
+   model-specific assertion.
    __main__ asserts the top hit for a "Tabang River" query is 24CC0265
    (index.py:147-157). Fine as a persistence smoke test on the default embed
    model, but it is coupled to a specific model's ranking -- swapping
@@ -292,8 +326,13 @@ F5 - LOW: index.py's smoke test hard-codes a model-specific assertion.
    when retrieval is healthy. It's a self-check, not the recall gate, so low
    impact; just don't read a failure here as a retrieval regression without
    re-checking `make eval`.
+   DOCUMENTED (deliberately NOT changed): the assertion is a persistence smoke
+   test, not the recall gate, and hard-failing on a legit model swap is a smaller
+   harm than losing the smoke test. Added an NB comment at index.py:158 spelling
+   out that a failure after an RAG_EMBED_* swap must be confirmed against
+   `make eval` before it counts as a regression. No behavioural change.
 
-F6 - NIT: synthetic summary nodes get a random id_ each build.
+F6 - NIT [FIXED]: synthetic summary nodes get a random id_ each build.
    _signatory_summaries emits TextNode(...) with no id_ (index.py:99-110), so
    LlamaIndex assigns a fresh UUID every build -- the index isn't byte-repro-
    ducible across rebuilds for these nodes. Harmless (eval ground truth is real
@@ -301,22 +340,64 @@ F6 - NIT: synthetic summary nodes get a random id_ each build.
    embedded and retrievable, so they can compete with real chunks in top-k
    (a retrieval-quality question for Partition 3, flagged here only because they
    originate in this partition).
+   RESOLVED: _signatory_summaries now sets a deterministic id_
+   (f"{cid.lower()}_signatories_summary", the same key as pdf_source) instead of
+   letting LlamaIndex assign a fresh UUID, so these nodes are byte-reproducible
+   across rebuilds. Verified (model-free): ids stable across two builds and equal
+   to the pdf_source key. Takes effect on the next `make build`. The retrieval-
+   competition question (summary nodes vs real chunks in top-k) is left for
+   Partition 3, unchanged.
 
 
 BOTTOM LINE
 -----------
 
-Solid, well-documented stage with an honest data posture. One finding is worth
-acting on now: F1 (two signatory parsers that must agree but share no code --
-the summary builder here vs. the verifier in Partition 4). F2 and F3 are cheap
-integrity/robustness hardening (distinguish parse-failure from absent data;
-make the manifest build resumable). F4-F6 are latent or cosmetic under the
-current corpus.
+Solid, well-documented stage with an honest data posture. Findings acted on:
+F1 pinned by a check.sh test (the two signatory parsers now fail loud if they
+drift); F2 (parse-failure now distinct from absent data) and F3 (manifest build
+resumable + incrementally persisted) hardened; F4 (numeric page sort) and F6
+(deterministic summary ids) fixed. F5 kept as-is with a caveat comment. See
+RESOLUTION below.
+
+
+RESOLUTION — what was implemented (2026-09-22)
+----------------------------------------------
+Files touched: rag/manifest.py, rag/index.py, rag/verify.py, scripts/check.sh.
+
+F1 [FIXED] rag/verify.py __main__ + scripts/check.sh — signatory-parser agreement
+   pin: asserts _extract_sig_names recovers every name index._signatory_summaries
+   lists, over database/ chunks. Runs in `make check` (model-free).
+F2 [FIXED] rag/manifest.py — _parse_extraction returns (record, parsed_ok);
+   build_manifest warns per-contract + prints a failed-parse count; greedy brace
+   regex tightened to non-greedy.
+F3 [FIXED] rag/manifest.py — build_manifest persists each record and resumes a
+   partial manifest.json (reuse done, extract missing); a complete manifest still
+   rebuilds fresh.
+F4 [FIXED] rag/manifest.py — _extraction_input sorts on int(pdf_page).
+F6 [FIXED] rag/index.py — _signatory_summaries sets a deterministic id_.
+F5 [DOCUMENTED] rag/index.py — NB comment on the model-coupled smoke assertion; no
+   behavioural change.
+
+Verification
+   - make check: stages 1-3 pass AND the new F1 pin passes ("6 signatory
+     summaries, 34 listed names all recoverable").
+   - Model-free unit checks (stub LLM, no Ollama): F2 parse-failure vs 'not stated'
+     distinguished + non-greedy capture; F4 numeric page order (1,2,10); F6 ids
+     deterministic/stable == pdf_source; F3 partial manifest resumed (only missing
+     extracted), complete manifest rebuilt fresh.
+   - make eval NOT re-run: no Partition-2 change touches the retrieval/rerank/eval
+     path (manifest build, summary ids, a self-check), so recall is unaffected by
+     construction. F4/F6 take effect on the next `make build` (needs Ollama).
 
 
 PARTITION 3 — RETRIEVAL & RECALL EVAL
 =====================================
 Files: rag/rerank.py, rag/evaluate.py
+
+STATUS (2026-09-22): ALL findings addressed. F1, F2, F4, F6, F7 IMPLEMENTED; F3,
+F5 IMPLEMENTED as reporting changes; nothing changes retrieval, so the recall gate
+is unmoved (GATE single hit_rate=1.000, resolver gate 40/40). See RESOLUTION at the
+end of this partition.
 
 Same constraints as before (small corpus by design; database/ authoritative;
 CPU-only; config-driven; Simplicity/Surgical/root-cause). "Pass" in this project
@@ -348,7 +429,7 @@ WHAT'S GENUINELY WELL-BUILT (KEEP)
 ISSUES, BY SEVERITY
 -------------------
 
-F1 - MEDIUM-HIGH (eval validity): the recall gate uses the GROUND-TRUTH
+F1 - MEDIUM-HIGH (eval validity) [FIXED]: the recall gate uses the GROUND-TRUTH
    contract_id for the filter, so it never tests the production resolver.
    evaluate.py injects item["contract_id"] straight into the MetadataFilter
    (evaluate.py:50-56). But in production, generate.route() DERIVES the
@@ -363,9 +444,15 @@ F1 - MEDIUM-HIGH (eval validity): the recall gate uses the GROUND-TRUTH
    break is not the thing being measured. Add a resolver-level check (route the
    `query` and assert it yields the expected contract_id) so the gate covers the
    NL-to-filter step, not just retrieval past it.
+   RESOLVED: added resolver_check() + a resolver GATE printed before the retrieval
+   eval. It routes each item's human `query` through the SAME resolver production
+   uses (route_contract_id, now module-level in generate.py) and asserts it yields
+   the item's contract_id (None for cross-contract broad/complex); a mismatch
+   sys.exits non-zero. Model-free (manifest + resolver, no LLM), so it stays inside
+   the no-Ollama gate. Verified: 40/40 queries resolve to the correct filter.
 
-F2 - MEDIUM (eval validity): broad/complex hit_rate is "any expected chunk in
-   top-k", which overstates what those questions need.
+F2 - MEDIUM (eval validity) [FIXED]: broad/complex hit_rate is "any expected chunk
+   in top-k", which overstates what those questions need.
    For a broad probe like all_district_engineers (6 names across 6 contracts,
    build_retrieval_eval.py:95-97), retrieving ONE of the six scores hit_rate=1.
    So broad/complex reading 1.000 does NOT mean the corpus-spanning answer was
@@ -376,17 +463,29 @@ F2 - MEDIUM (eval validity): broad/complex hit_rate is "any expected chunk in
    are weak retrieval probes that mainly pad the blended headline. Either score
    broad/complex by per-anchor recall (did all N appear?) or label them clearly
    as non-gating.
+   RESOLVED: added a per-anchor COVERAGE column (_anchor_coverage =
+   |retrieved ∩ expected| / |expected|) to the per-row table and the per-type
+   summary, and labelled broad/complex "[lenient: any-hit; coverage = full-answer
+   recall]". The gap is now visible, e.g. broad all_winning_bidders reads
+   hit_rate=1.00 but coverage=0.02 (top-k retrieves ~1 of many anchors; the real
+   broad answer comes from the injected manifest, not top-k). single stays the gate.
 
-F3 - MEDIUM (methodology): the ablation conflates reranking with a bigger k.
+F3 - MEDIUM (methodology) [FIXED — reporting]: the ablation conflates reranking
+   with a bigger k.
    baseline/filtered retrieve and score at TOP_K=5; rerank scores at
    RERANK_TOP_N=10 (evaluate.py:40, 84). So "rerank > filtered" reflects BOTH
    the cross-encoder reorder AND a doubled result window. To isolate the
    reranker's contribution, filtered should also be measured at k=10 (or rerank
    narrowed to 5). The printed `top_k` discloses the difference, but the modes
    are not an apples-to-apples comparison as written.
+   RESOLVED (reporting, not retrieval): the runner now prints a NOTE when
+   RERANK_TOP_N != TOP_K spelling out the k asymmetry and how to run an equal-k
+   comparison (`RAG_FILTER_BY_CONTRACT=1 RAG_TOP_K=10 make eval MODE=filtered`).
+   Default k's are unchanged so historical baseline/filtered numbers and the gate
+   value are stable; the caveat removes the misread.
 
-F4 - MEDIUM (divergence): evaluate.py reconstructs the retriever instead of
-   calling the production path.
+F4 - MEDIUM (divergence) [FIXED]: evaluate.py reconstructs the retriever instead
+   of calling the production path.
    evaluate.py builds index.as_retriever(...) + RerankingRetriever(...)
    (evaluate.py:56-60) -- a hand-copy of generate._retriever (generate.py:
    130-139). Equivalent TODAY, but the gate measures a replica: a future change
@@ -394,33 +493,75 @@ F4 - MEDIUM (divergence): evaluate.py reconstructs the retriever instead of
    processor, or changing the filter) would not be reflected in `make eval`.
    Have evaluate.py call the same retriever-construction helper generate uses,
    so the gate and production cannot drift.
+   RESOLVED: extracted a module-level build_retriever(index, contract_id,
+   candidate_k, reranker, trace) in generate.py; BOTH RagAnswerer._retriever and
+   evaluate.py now call it (evaluate imports it), so there is one construction and
+   the gate cannot drift from production. Verified: _retriever still returns 10
+   filtered hits; recall unchanged.
 
-F5 - LOW (headline metric): the printed headline blends strict and lenient
-   probes. The top-line hit_rate is the mean over single+broad+complex
+F5 - LOW (headline metric) [FIXED — reporting]: the printed headline blends strict
+   and lenient probes. The top-line hit_rate is the mean over single+broad+complex
    (evaluate.py:78), while CLAUDE.md names `single` as THE recall gate. Because
    broad/complex are lenient (F2), the blended number is less meaningful than
    the per-type line -- read the `single` row, not the headline.
+   RESOLVED: the headline is now "GATE (single recall) hit_rate=..." -- the single
+   type alone, matching CLAUDE.md; the strict+lenient blend was dropped so the
+   pass/fail number is unambiguous.
 
-F6 - LOW (efficiency): get_reranker() loads the cross-encoder on every call
-   (rerank.py:21-22) with no caching. Fine for evaluate (called once) and
+F6 - LOW (efficiency) [FIXED]: get_reranker() loads the cross-encoder on every
+   call (rerank.py:21-22) with no caching. Fine for evaluate (called once) and
    generate (cached in self._reranker), but any caller that calls it per attempt
    -- e.g. the agent's widen-k retry (Partition 5) -- reloads the model each
    time on CPU.
+   CORRECTION + RESOLVED: the cited caller doesn't actually reload -- the agent
+   caches get_reranker(AGENT_WIDE_TOP_N) once in __init__ (agent.py:136), so there
+   is no per-attempt reloader today; the fix is defensive. get_reranker is now
+   @lru_cache'd by top_n, so any future per-call site reuses the loaded model.
 
-F7 - NIT: RetrieverEvaluator.from_metric_names is rebuilt inside the per-item
-   loop (evaluate.py:64). Harmless at 30 items; hoist it out of the loop.
+F7 - NIT [FIXED]: RetrieverEvaluator.from_metric_names is rebuilt inside the
+   per-item loop (evaluate.py:64). Harmless at 30 items; hoist it out of the loop.
+   RESOLVED: the metric objects are resolved ONCE (first iteration) and reused via
+   RetrieverEvaluator(metrics=..., retriever=...); the evaluator wrapper stays
+   per-item because the contract filter (hence the retriever) is per-item -- a full
+   hoist isn't possible, so the per-item cost is now just the light wrapper.
 
 
 BOTTOM LINE
 -----------
 
-rerank.py is clean and needs nothing. The substance is in what the recall gate
-CERTIFIES: F1 (1.000 assumes perfect routing the gate never tests), F2 (broad/
-complex "any-hit" inflates the blend), and F3 (rerank vs filtered isn't equal-k)
-together mean the headline over-claims relative to the real, NL-driven, all-
-anchors-needed task. F4 keeps the gate from drifting away from production. None
-of these change retrieval itself -- they change how much trust "1.000" earns.
-F1 and F4 are the ones worth closing.
+rerank.py is clean. The substance was in what the recall gate CERTIFIES, and all
+of it is now closed: the gate tests the NL->filter resolver (F1), reports honest
+per-anchor coverage next to the lenient any-hit hit_rate (F2), flags the unequal-k
+ablation (F3), and shares ONE retriever builder with production so it can't drift
+(F4); the headline is now the single-type gate (F5); reranker is cached (F6);
+metrics resolved once (F7). None of these changed retrieval -- they changed how
+much trust "1.000" earns, and the gate now says exactly what it means.
+
+
+RESOLUTION — what was implemented (2026-09-22)
+----------------------------------------------
+Files touched: rag/generate.py, rag/rerank.py, rag/evaluate.py.
+
+F1 [FIXED] rag/evaluate.py resolver_check() + a resolver GATE (40/40) printed
+   before the retrieval eval; routes each human query through the production
+   resolver (route_contract_id, now module-level in generate.py). Model-free.
+F2 [FIXED] rag/evaluate.py _anchor_coverage() -- per-anchor recall column + per-type
+   coverage; broad/complex labelled lenient.
+F3 [FIXED-reporting] rag/evaluate.py prints an unequal-k NOTE + how to run equal-k.
+F4 [FIXED] rag/generate.py build_retriever() shared by RagAnswerer._retriever and
+   evaluate.py -- one construction, no gate/prod drift.
+F5 [FIXED-reporting] rag/evaluate.py headline is now "GATE (single recall)".
+F6 [FIXED] rag/rerank.py get_reranker() is @lru_cache'd by top_n. (Correction: the
+   agent already caches its wide reranker; the fix is defensive.)
+F7 [FIXED] rag/evaluate.py resolves metric objects once, reuses them per item.
+
+Verification
+   - Model-free smoke: resolver_check 40/40; route_contract_id twin matches
+     RagAnswerer.route; _retriever (via build_retriever) returns 10 filtered hits;
+     get_reranker(10) is get_reranker(10) (cached).
+   - make eval (rerank): resolver gate 40/40; GATE (single recall) hit_rate=1.000;
+     0 MISS -- recall unmoved (no change touches retrieval). Coverage now visible,
+     e.g. broad all_winning_bidders hit_rate=1.00 but coverage=0.02.
 
 
 PARTITION 4 — GENERATION & VERIFICATION CORE

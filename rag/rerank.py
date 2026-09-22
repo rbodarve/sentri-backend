@@ -11,6 +11,8 @@ retrieve RERANK_CANDIDATES by vector similarity, then rerank down to RERANK_TOP_
 
 from __future__ import annotations
 
+from functools import lru_cache
+
 from llama_index.core.postprocessor import SentenceTransformerRerank
 from llama_index.core.retrievers import BaseRetriever
 from llama_index.core.schema import NodeWithScore, QueryBundle
@@ -18,7 +20,11 @@ from llama_index.core.schema import NodeWithScore, QueryBundle
 from rag.config import RERANK_MODEL, RERANK_TOP_N
 
 
+@lru_cache(maxsize=None)
 def get_reranker(top_n: int = RERANK_TOP_N) -> SentenceTransformerRerank:
+    """Cached per top_n: loading the cross-encoder is the expensive part, so any per-call site
+    (e.g. a widen-k retry) reuses the loaded model instead of reloading it on CPU. The reranker is
+    stateless across postprocess_nodes calls, so sharing one instance is safe."""
     return SentenceTransformerRerank(model=RERANK_MODEL, top_n=top_n)
 
 

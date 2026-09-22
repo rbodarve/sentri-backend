@@ -100,6 +100,51 @@ def _resolver_index(manifest: list[dict]) -> tuple[dict[str, set[str]], dict[str
     return tokens, phrases
 
 
+def build_retriever(index, contract_id, candidate_k, reranker=None, trace=None):
+    """Filtered vector retriever, optionally rerank-wrapped -- the SINGLE construction shared by
+    generation (RagAnswerer._retriever) and the recall gate (rag.evaluate), so the two cannot
+    drift. contract_id None => unfiltered; reranker None => bare vector retriever (the ablation
+    modes). Keeping one builder means a change to the production retriever is measured by the gate
+    automatically, instead of the gate scoring a hand-copied replica."""
+    filters = None
+    if contract_id:
+        filters = MetadataFilters(
+            filters=[MetadataFilter(key="contract_id", operator=FilterOperator.EQ,
+                                    value=contract_id)]
+        )
+    base = index.as_retriever(similarity_top_k=candidate_k, filters=filters)
+    if reranker is None:
+        return base
+    return RerankingRetriever(base, reranker, trace=trace)
+
+
+def resolve_contract_ids(question, resolver, resolver_phrases) -> set[str]:
+    """All contracts a question names by a distinctive location/name token. Module-level so the
+    recall gate can test the NL->filter step with the SAME logic production uses (not a hand-copy);
+    matching is diacritic/spacing-robust (see _resolver_index)."""
+    norm = _norm(question)
+    ids: set[str] = set()
+    for tok, owners in resolver.items():
+        if re.search(rf"\b{re.escape(tok)}\b", norm):
+            ids |= owners
+    despaced = re.sub(r"[^a-z]", "", norm)
+    for phrase, owners in resolver_phrases.items():
+        if phrase in despaced:
+            ids |= owners
+    return ids
+
+
+def route_contract_id(question, resolver, resolver_phrases) -> str | None:
+    """The single contract a question filters to in production: explicit id wins, else exactly one
+    distinctive resolved token, else None. The id-resolution half of RagAnswerer.route, module-
+    level so rag.evaluate can gate the NL->filter step without loading the model."""
+    match = CONTRACT_ID_RE.search(question)
+    if match:
+        return match.group(0).upper()
+    ids = resolve_contract_ids(question, resolver, resolver_phrases)
+    return next(iter(ids)) if len(ids) == 1 else None
+
+
 class RagAnswerer:
     """Full RAG: retrieve+rerank the context, then generate a grounded answer."""
 
@@ -139,14 +184,8 @@ class RagAnswerer:
 
     def _retriever(self, contract_id: str | None, trace: QueryTrace | None = None,
                    reranker=None):
-        filters = None
-        if contract_id:
-            filters = MetadataFilters(
-                filters=[MetadataFilter(key="contract_id", operator=FilterOperator.EQ,
-                                        value=contract_id)]
-            )
-        base = self._index.as_retriever(similarity_top_k=RERANK_CANDIDATES, filters=filters)
-        return RerankingRetriever(base, reranker or self._reranker, trace=trace)
+        return build_retriever(self._index, contract_id, RERANK_CANDIDATES,
+                               reranker or self._reranker, trace)
 
     def _id_node(self, contract_id: str) -> NodeWithScore:
         """An authoritative context note carrying the resolved contract id, so the answer prints
@@ -167,17 +206,9 @@ class RagAnswerer:
         Matching is diacritic- and spacing-robust: single tokens are matched by word boundary
         against the normalized question, and despaced multi-word place phrases ("launion") as a
         substring of the despaced question, so a missing space or dropped tilde still resolves
-        instead of leaving the filter to fail open to the whole corpus."""
-        norm = _norm(question)
-        ids: set[str] = set()
-        for tok, owners in self._resolver.items():
-            if re.search(rf"\b{re.escape(tok)}\b", norm):
-                ids |= owners
-        despaced = re.sub(r"[^a-z]", "", norm)
-        for phrase, owners in self._resolver_phrases.items():
-            if phrase in despaced:
-                ids |= owners
-        return ids
+        instead of leaving the filter to fail open to the whole corpus. Delegates to the
+        module-level resolve_contract_ids so the recall gate shares this exact logic."""
+        return resolve_contract_ids(question, self._resolver, self._resolver_phrases)
 
     def _resolve_contract_id(self, question: str) -> str | None:
         """The single contract a question names by location/name, or None if zero or several.

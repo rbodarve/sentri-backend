@@ -97,6 +97,9 @@ def _signatory_summaries(nodes: list) -> list[TextNode]:
         entries = "\n".join(f"- {entry}" for entry in persons.values())
         text = f"All signatories for contract {cid}:\n{entries}"
         summaries.append(TextNode(
+            # Deterministic id (not a fresh UUID per build) so these synthetic nodes are
+            # byte-reproducible across rebuilds; reuses the same key as their pdf_source.
+            id_=f"{cid.lower()}_signatories_summary",
             text=text,
             metadata={
                 "category": "signature_summary",
@@ -152,6 +155,10 @@ if __name__ == "__main__":
         m = h.node.metadata
         print(f"  {h.score:.3f}  {m['contract_id']}/{m['doc_type']}  {h.node.text[:60]!r}")
 
+    # NB: this assertion is coupled to the DEFAULT embed model's ranking. It is a persistence
+    # smoke test (does a reloaded index retrieve?), NOT the recall gate. Swapping RAG_EMBED_* can
+    # legitimately change the top hit -- if this fails after a model swap, confirm with `make eval`
+    # (the real recall gate) before treating it as a retrieval regression.
     top = hits[0].node.metadata
     assert top["contract_id"] == "24CC0265", f"expected 24CC0265, got {top['contract_id']}"
     print("\nOK: top hit is from contract 24CC0265")

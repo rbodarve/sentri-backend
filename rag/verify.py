@@ -265,3 +265,33 @@ def format_report(report: Report) -> str:
              "(failed the manifest grounding check):"]
     lines += [f"    - {r}" for r in report.blocks + report.flags]
     return "\n".join(lines)
+
+
+if __name__ == "__main__":
+    # Pin the two independent signatory parsers together (Partition-2 F1): the summary BUILDER
+    # (rag.index._person_from_chunk, via _signatory_summaries) chooses which names appear in each
+    # per-contract signatory_summary; the answer POLICER here (_extract_sig_names, fed by
+    # generate._build_person_names) decides which names an answer may legitimately contain. They
+    # share no code. If the policer cannot recover a name the builder emitted, the verifier can
+    # reject a correct signatory answer -- so assert every listed name is recoverable, over the
+    # real database/ signature chunks.
+    from rag.enrich import enrich_nodes
+    from rag.index import _signatory_summaries
+    from rag.loader import load_nodes
+
+    nodes = load_nodes()
+    enrich_nodes(nodes)
+    summaries = _signatory_summaries(nodes)
+    bullets = 0
+    for node in summaries:
+        cid = node.metadata["contract_id"]
+        for line in node.text.splitlines():
+            if not line.startswith("- "):
+                continue
+            bullets += 1
+            assert _extract_sig_names(line), (
+                f"signatory parser drift ({cid}): the verifier cannot recover a name from "
+                f"summary line {line!r} that the builder emitted"
+            )
+    print(f"OK: {len(summaries)} signatory summaries, {bullets} listed names all recoverable "
+          "by the verifier's parser (index._person_from_chunk <-> verify._extract_sig_names)")
