@@ -17,7 +17,7 @@ env/
 .claude/
 
 # Session query traces (disk-backed, 7-day retention; regenerated at runtime)
-fastapi/traces.jsonl
+service/traces.jsonl
 
 # OS/editor
 .DS_Store

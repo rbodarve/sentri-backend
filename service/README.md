@@ -1,4 +1,4 @@
-# fastapi — streaming API for the ragtest agentic RAG pipeline
+# service — streaming API for the ragtest agentic RAG pipeline
 
 Wires this workspace into the reusable SSE transport in
 [`streaming_transport/`](streaming_transport/). That package is domain-neutral and
@@ -25,9 +25,9 @@ the single-pass RAG), streamed over HTTP as Server-Sent Events.
 ## Run
 
 ```bash
-pip install -r fastapi/requirements.txt   # once, into the ragtest conda env
+pip install -r service/requirements.txt   # once, into the ragtest conda env
 ollama serve                              # generation needs a running Ollama
-bash fastapi/serve.sh                      # -> http://0.0.0.0:8000
+bash service/serve.sh                      # -> http://0.0.0.0:8000
 ```
 
 (`make serve [HOST=.. PORT=..]` and `make serve-ngrok` are aliases for `serve.sh` /
@@ -41,9 +41,9 @@ curl -N -X POST localhost:8000/query \
   -d '{"query": "Which contractor was awarded contract 24AJ0052?", "session_id": "s1"}'
 ```
 
-> Run via `serve.sh` (or `cd fastapi && python -m uvicorn app:app`). Starting from
-> the repo root would let this folder's name shadow the installed `fastapi`
-> library; `app.py` adds the repo root back onto `sys.path` for `import rag.*`.
+> Run via `serve.sh` (or `cd service && python -m uvicorn app:app`) — the modules here
+> import each other flat; `app.py` adds the repo root back onto `sys.path` for `import rag.*`.
+> (The folder was renamed from `fastapi/`, which shadowed the installed `fastapi` library.)
 
 ## How the seams map to this workspace
 
@@ -67,12 +67,14 @@ written against that API consumes this stream unchanged. See the parity notes be
 `subanswer` `{contract_id, ok, citations, issues}`, `combine` `{ok}`.
 
 `sources`: `[{name, page, score, chunk_id, bbox}]` — same shape as the external API plus
-`bbox: [x, y, width, height]` in PDF-space pixels from the OCR database (`null` for manifest
+`bbox: [x, y, width, height]` in page-image pixels from the OCR database — image space, origin
+top-left, y growing downward (NOT PDF user space, which is bottom-left in points; `null` for manifest
 nodes). `name` is the source-file stem (e.g. `"24aj0052_contract_agreement"`).
 `graph`: `{nodes: [{id, label, pages}], edges: []}` — nodes are the cited documents; edges are
 always empty (no knowledge-graph store here).
 `parts`: `[{question, contract_id, answer, ok, blocks, flags, citations, evidence}]` — one entry
-per sub-question; `evidence` carries the same `{name, page, score, chunk_id, bbox}` shape as
+per sub-question; `answer` is `""` when that part's `ok` is false (a withheld sub-answer never goes on
+the wire — `blocks`/`flags` say why); `evidence` carries the same `{name, page, score, chunk_id, bbox}` shape as
 `sources` but scoped to that sub-question only. Empty array for `analytical` queries (no sub-questions).
 `done`: `{confidence, uncertain, tokens, cost_usd, files, compose_backend, compose_model, response_text, notice}`.
 
@@ -99,10 +101,11 @@ location/contractor). Streaming raw generation live would put text on the wire
 that the verifier might then withhold. So `run_stream` runs the full
 route → decompose → verify loop, emits progress as `stage` events, and only
 replays the **verified** answer as `token` events. A withheld answer streams no
-tokens — `done` carries `withheld: true` and the grounding-check `notice`
+tokens — `done` carries `uncertain: true` and the grounding-check `notice`
 instead. This is the honest adaptation of the streaming seam to a
 withhold-before-display pipeline, not a shortcut.
 
-Recall and answer content are unchanged from `make agent`: the adapter reuses
-`AgenticRag`'s own router, decomposition, retry ladder, combine prompt, and
-verifier — it adds only the stage records, the token replay, and cancel polling.
+Recall and answer content are unchanged from `make agent`: the adapter calls
+`AgenticRag.answer()` itself — one orchestration, not a copy — observing it through
+its `on_stage` hook. It adds only the stage records, the token replay, and cancel
+polling (a cancel raises out of the hook).

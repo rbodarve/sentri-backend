@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Serve the ragtest agentic RAG SSE API (fastapi/app.py -> rag.agent, i.e. the
+# Serve the ragtest agentic RAG SSE API (service/app.py -> rag.agent, i.e. the
 # same pipeline as `make chat-agentic`) and expose it publicly via an ngrok
 # tunnel. Prints the public https URL once both the server and the tunnel are up.
 #
-# Usage: bash fastapi/serve_ngrok.sh          (defaults: PORT=8000)
-#        PORT=9000 bash fastapi/serve_ngrok.sh
+# Usage: bash service/serve_ngrok.sh          (defaults: PORT=8000)
+#        PORT=9000 bash service/serve_ngrok.sh
 #
 # Requires: the `ragtest` conda env with fastapi/uvicorn installed
-#   (pip install -r fastapi/requirements.txt), a running Ollama server, and
+#   (pip install -r service/requirements.txt), a running Ollama server, and
 #   ngrok with an authtoken configured (ngrok config add-authtoken <token>).
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

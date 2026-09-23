@@ -31,6 +31,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from typing import Any, Callable
 
 from llama_index.core import Settings
 from llama_index.core.prompts import PromptTemplate
@@ -85,7 +86,8 @@ _COMBINE_TEMPLATE = PromptTemplate(
     "You are answering a multi-part question about DPWH procurement documents.\n"
     "Below are answers to its sub-questions. Compose ONE concise, direct answer to the original "
     "question using ONLY these sub-answers -- add no new facts, and do NOT compute sums or "
-    "totals. Name the source document(s).\n"
+    "totals. State each fact in its own sentence that names the contract id it belongs to, so "
+    "no fact reads as belonging to another contract. Name the source document(s).\n"
     "---------------------\n{context_str}\n---------------------\n"
     "Original question: {query_str}\nAnswer: "
 )
@@ -111,6 +113,9 @@ class Part:
     question: str
     answer: str
     report: Report
+    contract_id: str | None = None   # the contract the sub-question was routed (filtered) to
+    route: str = ""                  # how it was routed: "explicit_id" | "resolved_token" | "none"
+    response: Any = None             # the accepted attempt's retrieval Response (source_nodes -> citations)
 
 
 @dataclass
@@ -120,7 +125,7 @@ class AgentResult:
     CONTRACT: ``text`` is always the raw model output, even when the answer was WITHHELD -- it is
     NOT blanked on a grounding failure. A consumer MUST gate display on ``.ok`` (report.ok) and
     show a withhold notice instead of ``text`` when it is False. Internal callers (format_result,
-    evaluate_agentic, the fastapi pipeline) already do; any new renderer must too."""
+    evaluate_agentic, the service/ API) already do; any new renderer must too."""
 
     question: str
     kind: str
@@ -142,6 +147,11 @@ class AgenticRag:
         self._known = self._rag.contract_ids    # real contract ids -- guards against filtering on an invented one
         self._wide_reranker = get_reranker(AGENT_WIDE_TOP_N)
         self._max_attempts = max_attempts
+
+    @property
+    def rag(self) -> RagAnswerer:
+        """The shared RagAnswerer the agent answers through (public for the service/ API)."""
+        return self._rag
 
     # -- routing -------------------------------------------------------------------------
     def classify(self, question: str) -> tuple[str, list[str]]:
@@ -180,7 +190,7 @@ class AgenticRag:
 
     # -- self-correction -----------------------------------------------------------------
     def _answer_verified(self, question: str, contract_id: str | None,
-                         search_query: str) -> tuple[str, Report]:
+                         search_query: str) -> tuple[str, Report, Any]:
         """answer_once wrapped in the retry ladder.
 
         Invented id (not in the corpus): can't filter on it (an empty filter makes the vector
@@ -219,12 +229,14 @@ class AgenticRag:
                     break
             elif not _needs_retry(resp, report):
                 break
-        return str(resp).strip(), report
+        return str(resp).strip(), report, resp
 
-    def _answer_subquestion(self, subq: str) -> Part:
-        contract_id, search_query, _ = self._rag.route(subq)
-        answer, report = self._answer_verified(subq, contract_id, search_query)
-        return Part(subq, answer, report)
+    def _answer_subquestion(self, subq: str, stage: Callable[[str, dict], None]) -> Part:
+        contract_id, search_query, route = self._rag.route(subq)
+        answer, report, resp = self._answer_verified(subq, contract_id, search_query)
+        part = Part(subq, answer, report, contract_id, route, resp)
+        stage("subanswer", {"part": part})
+        return part
 
     # -- decomposition -------------------------------------------------------------------
     def _fanout_subquestions(self, question: str, ids: list[str]) -> list[str]:
@@ -248,17 +260,25 @@ class AgenticRag:
         return subs or [question]
 
     # -- top-level -----------------------------------------------------------------------
-    def answer(self, question: str) -> AgentResult:
+    def answer(self, question: str,
+               on_stage: Callable[[str, dict], None] | None = None) -> AgentResult:
+        """Route, answer, verify. ``on_stage(stage, data)`` is an optional observer called as each
+        stage completes ("route" | "decompose" | "subanswer" | "combine") -- the service/ API
+        streams progress through it, so there is ONE orchestration shared by the CLI and the API.
+        It may raise to abort (the service does so on client cancel); the agent never catches."""
+        stage = on_stage or (lambda name, data: None)
         kind, ids = self.classify(question)
+        stage("route", {"kind": kind, "contract_ids": ids})
         if kind == "enumerate":
             # The complete answer IS the manifest: enumerate it deterministically (no LLM, no
             # retrieval), so the answer is complete and identical every run. Grounded by
             # construction -- built straight from the oracle -- so the report is clean.
             text = format_enumeration(self._rag.manifest)
+            stage("combine", {"strategy": "enumerate", "ok": True})
             return AgentResult(question, kind, text, Report(blocks=[], flags=[]), [])
 
         if kind == "simple":
-            part = self._answer_subquestion(question)
+            part = self._answer_subquestion(question, stage)
             return AgentResult(question, kind, part.answer, part.report, [part])
 
         if kind == "analytical":
@@ -271,17 +291,20 @@ class AgenticRag:
             text = str(Settings.llm.complete(
                 _ANALYTICAL_TEMPLATE.format(manifest_str=manifest_str, query_str=question))).strip()
             report = self._verifier.check(text, check_bindings=False)
+            stage("combine", {"strategy": "analytical", "ok": report.ok})
             return AgentResult(question, kind, text, report, [])
 
         subqs = self._fanout_subquestions(question, ids) if kind == "fanout" \
             else self._decompose(question)
-        parts = [self._answer_subquestion(s) for s in subqs]
+        stage("decompose", {"strategy": kind, "subquestions": subqs})
+        parts = [self._answer_subquestion(s, stage) for s in subqs]
 
         if kind == "fanout":
             # Per-contract listing: the combined report is ok only if every part cleared.
             text = "\n".join(f"- {p.answer}" for p in parts)
             report = Report(blocks=[b for p in parts for b in p.report.blocks],
                             flags=[f for p in parts for f in p.report.flags])
+            stage("combine", {"strategy": "fanout", "ok": report.ok})
             return AgentResult(question, kind, text, report, parts)
 
         # semantic: combine the (already verified) sub-answers with the LLM, then verify the join.
@@ -289,6 +312,7 @@ class AgenticRag:
         combined = str(Settings.llm.complete(
             _COMBINE_TEMPLATE.format(context_str=context, query_str=question))).strip()
         report = self._verifier.check(combined)
+        stage("combine", {"strategy": "semantic", "ok": report.ok})
         return AgentResult(question, kind, combined, report, parts)
 
 

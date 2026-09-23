@@ -26,6 +26,11 @@ HF_HUB_CACHE = os.path.join(os.environ.get("HF_HOME", os.path.expanduser("~/.cac
 RERANK_MODEL = os.getenv("RAG_RERANK_MODEL", "BAAI/bge-reranker-base")
 RERANK_CANDIDATES = int(os.getenv("RAG_RERANK_CANDIDATES", "40"))
 RERANK_TOP_N = int(os.getenv("RAG_RERANK_TOP_N", "10"))
+# Reading-order neighbour expansion (rag.generate) is applied to at most the top NEIGHBOR_TOP_N
+# reranked hits, and only while the whole context still fits ONE GEN_NUM_CTX window. Expanding all
+# 10 roughly doubled the context past 4096 tokens, which made the synthesizer split into a 2-call
+# refine whose second pass overwrote correct answers with a punt.
+NEIGHBOR_TOP_N = int(os.getenv("RAG_NEIGHBOR_TOP_N", "3"))
 
 # Agentic controller (rag.agent): self-correction retry budget and the widened rerank top_n
 # it falls back to. Deterministic router + verifier drive the loop; the LLM is used only for

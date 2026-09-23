@@ -21,12 +21,14 @@ import re
 import unicodedata
 
 from llama_index.core import Settings, get_response_synthesizer
+from llama_index.core.indices.prompt_helper import PromptHelper
 from llama_index.core.postprocessor import PrevNextNodePostprocessor
+from llama_index.core.prompts.prompt_utils import get_biggest_prompt
 from llama_index.core.prompts import PromptTemplate
-from llama_index.core.schema import NodeWithScore, TextNode
+from llama_index.core.schema import MetadataMode, NodeWithScore, TextNode
 from llama_index.core.vector_stores import FilterOperator, MetadataFilter, MetadataFilters
 
-from rag.config import GEN_MODEL, RERANK_CANDIDATES, RERANK_TOP_N, get_llm
+from rag.config import GEN_MODEL, NEIGHBOR_TOP_N, RERANK_CANDIDATES, RERANK_TOP_N, get_llm
 from rag.enrich import CONTRACT_ID_RE, strip_contract_phrase
 from rag.index import load_index
 from rag.manifest import format_manifest, load_manifest
@@ -157,13 +159,17 @@ class RagAnswerer:
         # mid-block (a table row without its header, an answer split across two chunks) reaches
         # the LLM with its adjacent context. mode="both"/num_nodes=1 is the minimal expansion;
         # the postprocessor dedups shared neighbours and re-sorts into reading order. Applied only
-        # on the generation path (not the recall retriever), so `make eval` is unaffected.
+        # on the generation path (not the recall retriever), so `make eval` is unaffected -- and
+        # only to the top hits that still fit one GEN_NUM_CTX window (see _expand_neighbors).
         self._neighbors = PrevNextNodePostprocessor(
             docstore=self._index.storage_context.docstore, num_nodes=1, mode="both"
         )
         self._synthesizer = get_response_synthesizer(
             response_mode="compact", text_qa_template=_QA_TEMPLATE
         )
+        # Same window/output reservation the compact synthesizer packs against, so _fits_one_call
+        # predicts its split exactly.
+        self._prompt_helper = PromptHelper.from_llm_metadata(Settings.llm.metadata)
         # The manifest (complete list of contracts) is injected into every query's context, so
         # global questions ("how many / list all / add the amounts") see the whole corpus, which
         # top-k retrieval alone never supplies. No intent classification -- it is always present.
@@ -213,6 +219,11 @@ class RagAnswerer:
         """All contracts a question names by a distinctive location/name token (see route())."""
         return self._resolve_contract_ids(question)
 
+    @property
+    def docstore(self):
+        """The index's node store (the service/ API expands signature summaries to their chunks)."""
+        return self._index.storage_context.docstore
+
     def _retriever(self, contract_id: str | None, trace: QueryTrace | None = None,
                    reranker=None):
         return build_retriever(self._index, contract_id, RERANK_CANDIDATES,
@@ -222,10 +233,13 @@ class RagAnswerer:
         """An authoritative context note carrying the resolved contract id, so the answer prints
         the real id (known from routing) instead of fabricating a 'Contract ID' from the project
         title. Flagged is_manifest so it is excluded from citations/evidence like the manifest."""
+        # Worded as a context fact, not a command: the earlier "AUTHORITATIVE: ... Use exactly X
+        # for any Contract ID field" made the 3b model answer with the bare id (e.g. a signatories
+        # question -> "24A00153"), so it now also says to answer the question fully.
         node = TextNode(
-            text=(f"AUTHORITATIVE: the contract in question is contract id {contract_id}. "
-                  f'Use exactly "{contract_id}" for any Contract ID field; never use the '
-                  "project name, location, or title as the contract id."),
+            text=(f"Note: the contract in question has id {contract_id}. Answer the question "
+                  "fully from the context; wherever you refer to the contract by its ID, use "
+                  f"{contract_id} (not its project name or title)."),
             metadata={"is_manifest": True},
         )
         node.excluded_llm_metadata_keys = ["is_manifest"]
@@ -261,6 +275,40 @@ class RagAnswerer:
         contract_id = self._resolve_contract_id(question)
         return contract_id, question, "resolved_token" if contract_id else "none"
 
+    def _fits_one_call(self, question: str, context: list[NodeWithScore]) -> bool:
+        """True when the compact synthesizer would answer ``context`` in ONE LLM call -- the same
+        repack it performs (biggest of its QA/refine prompts, LLM-visible node text)."""
+        prompts = self._synthesizer.get_prompts()
+        biggest = get_biggest_prompt([prompts[k].partial_format(query_str=question)
+                                      for k in ("text_qa_template", "refine_template")])
+        chunks = [n.node.get_content(metadata_mode=MetadataMode.LLM) for n in context]
+        return len(self._prompt_helper.repack(biggest, chunks, llm=Settings.llm)) <= 1
+
+    def _trim_to_window(self, question: str, head: list[NodeWithScore],
+                        nodes: list[NodeWithScore]) -> list[NodeWithScore]:
+        """Drop the lowest-ranked hits until ``head`` + hits fit one GEN_NUM_CTX window. A no-op on
+        the standard top-10; it bounds the agent's widened retry (AGENT_WIDE_TOP_N=20), whose
+        context otherwise overflows into the same answer-losing 2-call refine."""
+        while len(nodes) > 1 and not self._fits_one_call(question, head + nodes):
+            nodes = nodes[:-1]
+        return nodes
+
+    def _expand_neighbors(self, question: str, head: list[NodeWithScore],
+                          nodes: list[NodeWithScore]) -> list[NodeWithScore]:
+        """Neighbour-expand the reranked hits in rank order -- at most the top NEIGHBOR_TOP_N, and
+        only while ``head`` + the expanded hits still fit one GEN_NUM_CTX window. Remaining hits
+        are kept unexpanded (minus any the expansion already pulled in). Overflowing the window
+        makes the synthesizer refine across 2 calls, whose second pass loses the answer."""
+        best = nodes
+        for k in range(1, min(NEIGHBOR_TOP_N, len(nodes)) + 1):
+            expanded = self._neighbors.postprocess_nodes(nodes[:k])
+            seen = {n.node.node_id for n in expanded}
+            candidate = expanded + [n for n in nodes[k:] if n.node.node_id not in seen]
+            if not self._fits_one_call(question, head + candidate):
+                break
+            best = candidate
+        return best
+
     def answer_once(self, question: str, contract_id: str | None, search_query: str,
                     reranker=None, trace: QueryTrace | None = None):
         """Single filtered+reranked retrieval pass, manifest-injected, then synthesized.
@@ -268,11 +316,12 @@ class RagAnswerer:
         The reusable core of answer(): the agent (rag.agent) calls it per sub-question and can
         pass a wider ``reranker`` to widen k during self-correction."""
         nodes = self._retriever(contract_id, trace, reranker).retrieve(search_query)
-        nodes = self._neighbors.postprocess_nodes(nodes)
-        context = [self._manifest_node, *nodes]
+        head = [self._manifest_node]
         if contract_id:
             # Surface the resolved id to generation so the answer cites it, not the project title.
-            context = [self._id_node(contract_id), *context]
+            head = [self._id_node(contract_id), *head]
+        nodes = self._trim_to_window(question, head, nodes)
+        context = head + self._expand_neighbors(question, head, nodes)
         if trace is not None:
             trace.emit("context", nodes=context, manifest_included=True)
         response = self._synthesizer.synthesize(question, context)

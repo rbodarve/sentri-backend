@@ -43,7 +43,7 @@ Use `make` (details in [scripts/README.md](scripts/README.md)):
 - `make eval-agentic` — answer-level eval of the agent (routing/fan-out/decomposition/
   withholding) against `eval/eval_agentic.json`; needs Ollama. `make eval` stays the recall gate.
 - `make serve [HOST=.. PORT=..]` — serve the agent as a streaming (SSE) HTTP API via
-  [fastapi/](fastapi/) (needs Ollama, plus `pip install -r fastapi/requirements.txt`).
+  [service/](service/) (needs Ollama, plus `pip install -r service/requirements.txt`).
 - `make serve-ngrok` — same SSE API, exposed through an ngrok public tunnel (needs Ollama +
   `ngrok` with an authtoken configured).
 - `make clean` — remove the regenerable `index_store/` + caches.

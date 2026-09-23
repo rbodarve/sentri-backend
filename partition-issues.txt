@@ -70,6 +70,11 @@ F1 - HIGH (architecture) [FIXED — wired up]: Step 3's output is never consumed
    in evaluate.py, so make eval is untouched by construction. The neighbour edges
    themselves are regenerated on the next `make build` (they live in the
    docstore); the wiring consumes whatever edges the last build persisted.
+   CORRECTION (2026-09-23, see POST-REVIEW REGRESSION CHECK R1): expanding ALL 10
+   hits overflowed num_ctx 4096 into a 2-call refine that replaced correct answers
+   with punts -- the real cause of 1 of the 3 eval-agentic fails P5 called
+   "pre-existing". Now bounded: top NEIGHBOR_TOP_N=3 hits, only while the context
+   fits one call.
 
 F2 - MEDIUM (integrity/logic) [FIXED]: UNKNOWN enrichment degrades silently and
    is not gated by `make build`.
@@ -190,7 +195,8 @@ Verification
      pairs, NEXT/PREV 383 each, reading-order eyeball chain correct; enrich
      raise did not false-fire.
    - F1 smoke test (no Ollama): a resolved-token query's 10 reranked nodes
-     expand to 20 with neighbours, zero duplicate node ids.
+     expand to 20 with neighbours, zero duplicate node ids. (Gap: nothing checked
+     the ANSWER -- the recall gate runs before expansion. See R1.)
    - make eval (rerank): hit_rate 1.000, no MISS — recall gate unchanged (the F1
      change is generation-only; F2/F4/F5 don't touch retrieval).
    - NOT re-run: make build (needs Ollama; only regenerates the docstore edges
@@ -752,7 +758,11 @@ PARTITION 5 — AGENTIC LAYER & CLIs
 Files: rag/agent.py, rag/evaluate_agentic.py, rag/chat.py, rag/chat_agentic.py
 
 STATUS (2026-09-23): F1-F7 ALL implemented (F4 as a documented contract). See
-RESOLUTION at the end of this partition. NOTE on the eval-agentic gate: it is RED
+RESOLUTION at the end of this partition. CORRECTION (2026-09-23): the "pre-existing"
+claim below is WRONG -- its baseline already included P1-F1. Of the 3 red rows, the
+District Engineer punt was caused by P1-F1's context overflow (R1), the semantic row by a
+verifier sentence-split bug (R4), and only 24CM0001's contractor is a model limit (R5).
+eval-agentic is now 8/9. Original note, kept for the record: the eval-agentic gate is RED
 on 3 rows (2 fanout + 1 semantic) where the local granite 3b model PUNTS on a
 sub-answer ("does not include information ..."). This is PRE-EXISTING and proven
 independent of these fixes: a pre-F1 baseline fails the identical 3 rows (4/7).
@@ -906,7 +916,7 @@ five routes) and F2 (the reuse rides a public contract, not private attributes)
 were the two worth acting on; F3 (withhold now confirms the specific trap), F5
 (enumerate documented), F6 (chat loops survive an error), F7 (resolve once) done;
 F4 documented as a contract (enforcement is Partition 6's). The one thing NOT
-fixable here is the eval-agentic gate's 3 red rows -- the 3b model punting on some
+fixable here [CORRECTED 2026-09-23 -- see R1/R4/R5; now 1 red row] is the eval-agentic gate's 3 red rows -- the 3b model punting on some
 fanout/semantic sub-answers, a model/hardware limit independent of these changes.
 
 
@@ -932,7 +942,7 @@ Verification
    - make check green (F2 refactor didn't break the import chain).
    - make eval-agentic (3b): F1 gate and F3 gate both pass_rate 6/9 -- enumerate,
      analytical, both withhold rows (F3 specific-trap) PASS; the only fails are the
-     3 pre-existing fanout/semantic 3b-model punts (baseline was 4/7). 8b tried and
+     3 pre-existing [CORRECTED: see R1/R4/R5] fanout/semantic 3b-model punts (baseline was 4/7). 8b tried and
      ruled out (too slow / request timeouts on the 4GB/CPU box).
 
 
@@ -940,6 +950,10 @@ PARTITION 6 — FASTAPI SERVICE
 =============================
 Files: fastapi/app.py, fastapi/seams.py, fastapi/pipeline.py,
        fastapi/trace_recorder.py, fastapi/streaming_transport/* (VENDORED)
+
+STATUS (2026-09-23): F1-F5 implemented, F6 left as-is (NIT), plus one NEW finding
+(N1, withheld text leaked via the `parts` event) fixed first. The folder is now
+service/ (F3). See RESOLUTION at the end of this partition.
 
 Same constraints as before, plus: streaming_transport/ is explicitly vendored and
 domain-neutral -- its own docstrings say "you never edit this file." I reviewed it
@@ -1053,6 +1067,139 @@ on fan-out, so the streamed API silently disagrees with the CLI it claims to
 mirror. F2/F4 are the same root -- the service is glued to rag/ internals with no
 contract -- and fixing F1 by giving the agent a streaming hook resolves all three.
 F3 is a cheap, high-value cleanup (rename the folder).
+
+
+RESOLUTION — what was implemented (2026-09-23)
+----------------------------------------------
+Files touched: service/ (renamed from fastapi/: seams.py, pipeline.py, app.py,
+README.md, serve.sh, serve_ngrok.sh, requirements.txt), rag/agent.py,
+rag/generate.py, Makefile, .gitignore, CLAUDE.md.
+
+N1 [FIXED, NEW -- missed by the review above] HIGH: withheld sub-answer text leaked.
+   finalize emitted parts[].answer regardless of report.ok, so a withheld answer
+   (e.g. a simple question naming invented 24ZZ9999) went on the wire in `parts`
+   -- and into traces.jsonl -- while tokens/done correctly withheld it. This was
+   the P5-F4 risk "to be verified in Partition 6". Root cause: verify-before-
+   display was applied to the final answer, never per part. Fix: parts[].answer
+   is "" when that part's ok is False (blocks/flags still carry the reason).
+F1 [FIXED] One orchestration. NOTE: the fan-out divergence was DELIBERATE, not
+   drift -- commit f6a4abf changed serve-side fan-out (drop failed parts + LLM
+   combine + re-verify) without touching the agent. Decision: the AGENT's
+   bullet-join is canonical (rule-based, no LLM; serve's variant silently shipped
+   partial answers as ok and re-ran the binding FLAG tier on multi-contract text,
+   which P5 found mis-reads legitimate syntheses). AgenticRag.answer() gained an
+   optional on_stage(stage, data) observer; run_stream now calls agent.answer()
+   itself and only records stages / polls cancel (raise _Cancelled out of the
+   hook) / replays tokens. The sentinel (no_context / transform) paths remain
+   service-only as they precede the agent. pipeline.py -100 lines net.
+F2 [FIXED] No rag/ privates left in service/: uses agent.rag, rag.verifier,
+   rag.resolve_contract_ids, rag.route() (replaces explicit-id + _resolve_contract_id
+   in seams._current_subject -- identical logic), and a new public
+   RagAnswerer.docstore. No private prompt imports.
+F4 [FIXED via F1] Part now carries contract_id, route and the accepted attempt's
+   retrieval `response`; citations come from it. The answer_once monkey-patch
+   and thread-local capture are deleted.
+F3 [FIXED] fastapi/ -> service/ (git mv). The shadowing workaround comments are
+   gone; the RAG_PERSIST_DIR pin stays (uvicorn still runs from inside the folder
+   for its flat sibling imports -- a separate, still-real reason).
+F5 [FIXED, reframed] Origin was settled by P1-F4 (image space, top-left). The
+   real defect was the label: README + pipeline comment said "PDF-space pixels"
+   (bottom-left, points) -- a client trusting it would flip boxes. Relabeled.
+F6 [NOT CHANGED] NIT, as reviewed.
+Also: pipeline docstring ("mirrors step for step") and StreamFinal.kind comment
+   corrected. Initially flagged, since FIXED (2026-09-23): service/README said `done`
+   carries `withheld: true` -> now `uncertain: true`; in-band sentinels -- a client
+   query starting with a sentinel steered run_stream (forged "previous answer", or
+   ValueError on a missing separator) -> passthrough_query now strips the leading
+   underscores so it routes as an ordinary question (no transport change needed).
+   Stale rag/manifest.py comment ("the fastapi checker") corrected.
+
+Verification
+   - N1: model-free finalize test -- a withheld part's answer is "", an ok part's
+     is kept, done.response_text "". Live /query on 24ZZ9999: parts[].answer "",
+     no tokens, notice present.
+   - F1: stream vs agent.answer() on enumerate / simple / fanout -- identical text
+     and ok, tokens == verified text, sources non-empty (33/59) for retrieval
+     routes; cancel after route -> no output. (One cross-process simple-route
+     text mismatch traced to LLM run-to-run variance: same-process agent/stream/
+     agent runs are identical.)
+   - make check green; make eval hit_rate 1.000 (unchanged).
+   - make eval-agentic: 6/9 at the time -- then 8/9 after the regression-check
+     fixes below (R1-R4); the 3 rows were NOT all pre-existing (see R1/R4/R5).
+   - Sentinel fix: model-free -- forged __PRIOR_CONTEXT_TRANSFORM__ (with/without
+     separator) and __NO_PRIOR_CONTEXT__ no longer match a sentinel; normal
+     queries pass through unchanged.
+   - F3: make-serve path (service/serve.sh) boots and answers from service/.
+
+
+================================================================================
+POST-REVIEW REGRESSION CHECK (2026-09-23) -- did P1-P6 break or change anything?
+================================================================================
+Method. service/traces.jsonl held only the day's smoke test (7-day retention prunes
+on server start; gitignored, no copy), so the traced history was recovered from
+earlier Claude session transcripts: 4 distinct traced queries, 3 with full recorded
+SSE streams (08-27 x2, 09-15). Those + the smoke query + eval_agentic.json (12
+queries) were replayed through the pre-partition code (26ada86, git worktree) and the
+current code, same index/manifest/model, comparing route, contract_ids, withhold,
+text, sources and parts. A scratch `make build` was diffed against index_store/.
+
+Unchanged (nothing broken)
+   - Rebuild under current code: index identical to index_store/ (407 nodes; same
+     ids, text, metadata, PREV/NEXT, embeddings); fresh manifest extraction field-
+     identical; old vs new _parse_extraction agree on all 6; eval_retrieval.json
+     byte-identical on regeneration.
+   - All make targets run: check, coverage, eval (rerank 1.000; baseline 0.100 and
+     filtered 0.750 single recall = same as pre-partition), ask, agent, chat,
+     chat-agentic, eval-agentic, serve. serve-ngrok not run (public tunnel).
+   - Replay: routing, contract ids and stage sequence identical on all 12; enumerate
+     and analytical text identical.
+
+R1 [FIXED] HIGH -- P1-F1 neighbour expansion overflowed num_ctx 4096.
+   Expanding all 10 hits grew context 12 -> 23-27 nodes (~3.6-3.8k prompt tokens),
+   so the compact synthesizer split into 2 calls and the refine pass overwrote a
+   correct answer with "context does not include ...". A/B (expansion on/off) on
+   the 3 regressed sub-questions: off -> 1 call, correct (24CC0265 DE HENRY C.
+   ALCANTARA, 24AJ0052 JHI, 24BG0272 JWU). The recall gate cannot see this (it
+   measures retrieval before expansion). Fix (rag/generate.py, rag/config.py):
+   expand at most the top NEIGHBOR_TOP_N=3 hits (RAG_NEIGHBOR_TOP_N), each only
+   while RagAnswerer._fits_one_call -- the synthesizer's own repack via public
+   llama_index API -- says the context is ONE call. A fixed cap alone was measured
+   insufficient (an 18-node, 3,798-token context still split).
+R2 [FIXED] MEDIUM -- the agent's wide retry (AGENT_WIDE_TOP_N=20) overflowed the
+   same way even with no neighbours (pre-existing, pre-partition). Fix:
+   _trim_to_window drops the lowest-ranked hits until the context fits one call
+   (a no-op on the standard top-10). Measured: 16/16 answer_once calls across the
+   agent eval incl. wide retries in ONE call, max prompt 3,709 tokens (was 4
+   multi-call).
+R3 [FIXED] HIGH (pre-partition, ee60202 09-17) -- the "AUTHORITATIVE: ... Use exactly
+   X for any Contract ID field" id note made the 3b model answer with the bare id:
+   the traced 08-27 signatories question -> "24A00153" (was the full list), the
+   issue-4 "details" query -> "24A00153", Macanao signatures -> "24BG0272". Id note
+   off -> full answers. Fix: reworded as a context fact that also says to answer
+   fully ("Note: the contract in question has id X. Answer the question fully ...;
+   wherever you refer to the contract by its ID, use X"). A/B on the issue-4
+   queries (#5 #7 #11 #13) + both signatory queries: full answers, real ids, no
+   fabricated "Contract ID: <title>".
+R4 [FIXED] MEDIUM -- verifier false positive on a correct semantic answer.
+   verify._sentences only split after 2 letters + [.!?] (to protect initials), so
+   "...awarded contract 24BG0272. The District Engineer ... GONZALES" stayed ONE
+   sentence and the person check tied Gonzales to 24BG0272. Fix: also split after
+   a digit + [.!?] + whitespace (decimals like 428.64 unaffected). Also the combine
+   prompt now asks for one sentence per fact naming its contract id. Model-free
+   checks: correct answer passes; one-sentence person mis-binding, the Bulacan lure
+   and an invented id are still caught.
+R5 [NOT FIXED] -- 24CM0001 contractor ("JAMJLE PROPERTIES (SUBIC) AND DEVELOPMENT
+   CORPORATION") IS in database/ (the NTP addressee + signature block) and in the
+   extraction input, but the 3b extractor returns "not stated" (not a data
+   ceiling, as first assumed). A prompt rule ("the NTP/NOA addressee is the
+   contractor") did not recover it AND drifted 5 other manifest fields, so it was
+   reverted; the live manifest is unchanged. Options: a stronger extraction model,
+   or a deterministic NTP-addressee fallback. This is the one remaining red row.
+Also: P6-N1's leak was confirmed in the pre-partition replay (withheld text for
+   24ZZ9999 and the Bulacan lure in `parts`), absent in the current code.
+
+Result: make eval-agentic 6/9 -> 8/9 (only R5 red); make eval rerank 1.000; make
+check green.
 
 
 ================================================================================

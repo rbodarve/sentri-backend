@@ -5,43 +5,36 @@ contract the transport expects: `run_stream(query, tracer, cancel_check)`
 yielding `("thinking"|"token"|"final_output", payload)` and calling
 `tracer.record(stage, data)` as each stage completes (Seam 3).
 
-Two workspace facts shape this adapter and are why it re-drives the agent's own
-helper methods instead of just calling `AgenticRag.answer()`:
+There is ONE orchestration: run_stream calls `AgenticRag.answer()` itself --
+the same code path as `make agent` -- so the streamed answer cannot drift from
+the CLI. Streaming is an aspect layered on through answer()'s `on_stage` hook:
+each completed stage is recorded to the tracer (Seam 3), and a client cancel
+aborts the run by raising out of that hook. Citations come from each Part's
+retrieval `response`.
 
-  * This pipeline VERIFIES BEFORE IT DISPLAYS. `AgenticRag` withholds any answer
-    that fails the manifest grounding check. Streaming raw LLM tokens as they
-    generate would put un-verified (possibly withheld) text on the wire, so we
-    do NOT stream generation live. We run the full route -> decompose -> verify
-    loop, emitting per-stage progress, and only replay the *verified* answer as
-    `token` events. A withheld answer streams no tokens — `done` carries the
-    notice instead.
-  * The agent keeps only `(text, report)` per sub-answer and discards the
-    retrieval `Response` (with its `source_nodes`). We shim `answer_once` on our
-    private `RagAnswerer` instance to capture that `Response` so `finalize` can
-    project real citations. `rag/` is left untouched.
+This pipeline VERIFIES BEFORE IT DISPLAYS. `AgenticRag` withholds any answer
+that fails the manifest grounding check. Streaming raw LLM tokens as they
+generate would put un-verified (possibly withheld) text on the wire, so we do
+NOT stream generation live. We run the full route -> decompose -> verify loop,
+emitting per-stage progress, and only replay the *verified* answer as `token`
+events. A withheld answer streams no tokens — `done` carries the notice instead.
 
-The orchestration below mirrors `AgenticRag.answer()` step for step (same
-router, same fan-out/decompose, same combine prompt, same verifier), so the
-answer matches `make agent` exactly; the only additions are the stage records,
-the token replay, and the cancel-check polling the transport requires.
+The only service-only paths are the two anaphora sentinels from
+`passthrough_query` (no prior context / reformat the previous answer), which
+precede the agent entirely.
 """
 from __future__ import annotations
 
 import re
-import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
 from llama_index.core import Settings
 
-# `_COMBINE_TEMPLATE` is module-private in rag.agent, but reusing it verbatim is
-# what keeps the semantic-combine answer identical to the CLI agent — worth the
-# private import rather than duplicating (and drifting from) the prompt.
-from rag.agent import AgenticRag, _ANALYTICAL_TEMPLATE, _COMBINE_TEMPLATE
+from rag.agent import AgenticRag, Part
 from rag.enrich import CONTRACT_ID_RE
 from rag.generate import format_sources
-from rag.manifest import format_enumeration
 from rag.verify import Report
 
 # Seam 4 stage vocabulary — the stage names this pipeline reports.
@@ -133,7 +126,8 @@ def _node_evidence(response: Any, docstore=None) -> list[dict]:
             # the SSE layer's json.dumps can serialize it.
             "score": float(n.score) if n.score is not None else None,
             "chunk_id": n.node.node_id,
-            # [x, y, width, height] in PDF-space pixels, straight from the OCR database.
+            # [x, y, width, height] in page-image pixels (origin top-left, y down -- see
+            # rag/relationships.py _reading_order_key), straight from the OCR database.
             # None for manifest-injected nodes (they have no coordinate).
             "bbox": md.get("coordinate"),
         })
@@ -145,7 +139,8 @@ class StreamFinal:
     """The terminal object handed to `finalize` (Seam 5)."""
 
     question: str
-    kind: str                    # "simple" | "fanout" | "semantic" | "analytical"
+    kind: str                    # an agent route (simple|fanout|semantic|analytical|enumerate),
+                                 # or "transform" | "no_context" for the anaphora sentinels
     contract_ids: list[str]      # contracts the router bound the question to
     text: str                    # combined answer (displayable only if report.ok)
     report: Report               # final grounding outcome
@@ -158,6 +153,10 @@ def _word_tokens(text: str) -> Iterator[str]:
     return iter(re.findall(r"\S+\s*", text))
 
 
+class _Cancelled(Exception):
+    """Raised from the on_stage hook to abort AgenticRag.answer() on client cancel."""
+
+
 class StreamingAgenticRag:
     """Streaming adapter over AgenticRag. Built once at startup (Seam 1)."""
 
@@ -165,46 +164,13 @@ class StreamingAgenticRag:
         # Blocking, load-once: index + reranker + LLM handle (sets Settings.llm).
         # The transport already runs build_pipeline in a threadpool — do NOT wrap.
         self.agent = AgenticRag()
-        self._rag = self.agent._rag  # the shared RagAnswerer the agent answers through
+        self._docstore = self.agent.rag.docstore
 
-        # Adapter: capture the Response of each answer_once call so we can emit
-        # citations (the agent itself keeps only text + report). Shimming the
-        # bound attribute on our own instance leaves rag/ untouched; the accepted
-        # attempt is always the last call before the retry ladder breaks.
-        #
-        # This instance is a startup singleton the transport drives from a
-        # threadpool, so concurrent /query requests share it. The captured
-        # Response therefore lives in thread-local storage -- otherwise request A
-        # could read the chunks request B just wrote and cite the wrong sources.
-        # The whole route -> answer_once -> read runs in one worker thread, so a
-        # thread-local slot isolates each request cleanly.
-        self._docstore = self._rag._index.storage_context.docstore
-        self._captured = threading.local()
-        _original = self._rag.answer_once
-
-        def _capturing_answer_once(question, contract_id, search_query,
-                                   reranker=None, trace=None):
-            resp = _original(question, contract_id, search_query,
-                             reranker=reranker, trace=trace)
-            self._captured.response = resp
-            return resp
-
-        self._rag.answer_once = _capturing_answer_once
-
-    def _answer_part(self, subq: str, tracer) -> StreamPart:
-        """Route + self-correct one sub-question (reusing the agent's ladder),
-        then record the stage with its citations."""
-        contract_id, search_query, route = self._rag.route(subq)
-        answer, report = self.agent._answer_verified(subq, contract_id, search_query)
-        resp = getattr(self._captured, "response", None)
-        sources = format_sources(resp) if resp is not None else ""
-        evidence = _node_evidence(resp, self._docstore)
-        tracer.record(STAGE_SUBANSWER, {
-            "question": subq, "route": route, "contract_id": contract_id,
-            "ok": report.ok, "blocks": report.blocks, "flags": report.flags,
-            "sources": sources,
-        })
-        return StreamPart(subq, answer, report, contract_id, sources, evidence)
+    def _stream_part(self, p: Part) -> StreamPart:
+        """Project an agent Part into its cited StreamPart (citations from its own Response)."""
+        return StreamPart(p.question, p.answer, p.report, p.contract_id,
+                          format_sources(p.response) if p.response is not None else "",
+                          _node_evidence(p.response, self._docstore))
 
     def run_stream(
         self,
@@ -212,8 +178,6 @@ class StreamingAgenticRag:
         tracer,
         cancel_check: Callable[[], bool],
     ) -> Iterator[tuple[str, Any]]:
-        agent = self.agent
-
         if query.startswith(_NO_CONTEXT_SENTINEL):
             # Anaphoric query with no session history — ask the user to rephrase.
             original = query[len(_NO_CONTEXT_SENTINEL) + 2:]
@@ -237,10 +201,9 @@ class StreamingAgenticRag:
             )).strip()
             # check_bindings=False: this is a reformatting of an already-verified
             # answer, not a fresh retrieval, so location mis-binding flags don't apply.
-            report = agent._verifier.check(text, check_bindings=False)
+            report = self.agent.rag.verifier.check(text, check_bindings=False)
             result = StreamFinal(follow_up, "transform", [], text, report, [])
         else:
-            kind, ids = agent.classify(query)
             # Only emit contract IDs that the user explicitly typed in the query.
             # Location-resolved IDs (inferred from place names like "La Union") are used
             # internally for routing but must not appear in the output stream — the client
@@ -248,75 +211,30 @@ class StreamingAgenticRag:
             explicit_ids = list(dict.fromkeys(
                 m.upper() for m in CONTRACT_ID_RE.findall(query)
             ))
-            tracer.record(STAGE_ROUTE, {"kind": kind, "contract_ids": explicit_ids})
-            if cancel_check():
+
+            def on_stage(stage: str, data: dict) -> None:
+                # Record each completed agent stage (Seam 3), then poll for cancel so a
+                # disconnected client stops the run before the next sub-question.
+                if stage == STAGE_ROUTE:
+                    data = {"kind": data["kind"], "contract_ids": explicit_ids}
+                elif stage == STAGE_SUBANSWER:
+                    part = data["part"]
+                    data = {
+                        "question": part.question, "route": part.route,
+                        "contract_id": part.contract_id, "ok": part.report.ok,
+                        "blocks": part.report.blocks, "flags": part.report.flags,
+                        "sources": self._stream_part(part).sources,
+                    }
+                tracer.record(stage, data)
+                if cancel_check():
+                    raise _Cancelled
+
+            try:
+                ar = self.agent.answer(query, on_stage=on_stage)
+            except _Cancelled:
                 return
-
-            if kind == "enumerate":
-                # Corpus-wide "list all projects/locations": the complete answer IS the manifest.
-                # Enumerate it deterministically -- no retrieval, no sub-questions, grounded by
-                # construction (mirrors AgenticRag.answer()'s enumerate branch).
-                text = format_enumeration(self._rag._manifest)
-                report = Report(blocks=[], flags=[])
-                tracer.record(STAGE_COMBINE, {"strategy": "enumerate", "ok": True})
-                result = StreamFinal(query, kind, explicit_ids, text, report, [])
-            elif kind == "simple":
-                part = self._answer_part(query, tracer)
-                result = StreamFinal(query, kind, explicit_ids, part.answer, part.report, [part])
-            elif kind == "analytical":
-                # Corpus-wide pattern/anomaly: one pass over the COMPLETE manifest -- no retrieval,
-                # no sub-questions, so there are no per-chunk citations. Verified with the BLOCK
-                # tier only (check_bindings=False) so a legitimate multi-contract synthesis isn't
-                # false-withheld. Mirrors AgenticRag.answer()'s analytical branch.
-                manifest_str = self._rag._manifest_node.node.text
-                text = str(Settings.llm.complete(
-                    _ANALYTICAL_TEMPLATE.format(manifest_str=manifest_str, query_str=query)
-                )).strip()
-                report = agent._verifier.check(text, check_bindings=False)
-                tracer.record(STAGE_COMBINE, {"strategy": "analytical", "ok": report.ok})
-                result = StreamFinal(query, kind, explicit_ids, text, report, [])
-            else:
-                subqs = (agent._fanout_subquestions(query, ids) if kind == "fanout"
-                         else agent._decompose(query))
-                tracer.record(STAGE_DECOMPOSE, {"strategy": kind, "subquestions": subqs})
-
-                parts: list[StreamPart] = []
-                for subq in subqs:
-                    if cancel_check():
-                        return
-                    parts.append(self._answer_part(subq, tracer))
-
-                if kind == "fanout":
-                    ok_parts = [p for p in parts if p.report.ok]
-                    if not ok_parts:
-                        # Every sub-answer failed grounding — withhold entirely.
-                        report = Report(blocks=[b for p in parts for b in p.report.blocks],
-                                        flags=[f for p in parts for f in p.report.flags])
-                        result = StreamFinal(query, kind, explicit_ids, "", report, parts)
-                    else:
-                        # Synthesize from verified parts only, then re-verify the join.
-                        # This prevents failed sub-answers (e.g. a hallucinated location)
-                        # from poisoning the composed text and triggering false Verifier flags.
-                        context = "\n\n".join(
-                            f"Sub-question: {p.question}\nAnswer: {p.answer}" for p in ok_parts
-                        )
-                        combined = str(Settings.llm.complete(
-                            _COMBINE_TEMPLATE.format(context_str=context, query_str=query)
-                        )).strip()
-                        report = agent._verifier.check(combined)
-                        tracer.record(STAGE_COMBINE, {"ok": report.ok})
-                        result = StreamFinal(query, kind, explicit_ids, combined, report, parts)
-                else:
-                    # semantic: combine the (already verified) sub-answers, then verify the join.
-                    context = "\n\n".join(
-                        f"Sub-question: {p.question}\nAnswer: {p.answer}" for p in parts
-                    )
-                    combined = str(Settings.llm.complete(
-                        _COMBINE_TEMPLATE.format(context_str=context, query_str=query)
-                    )).strip()
-                    report = agent._verifier.check(combined)
-                    tracer.record(STAGE_COMBINE, {"ok": report.ok})
-                    result = StreamFinal(query, kind, explicit_ids, combined, report, parts)
+            result = StreamFinal(query, ar.kind, explicit_ids, ar.text, ar.report,
+                                 [self._stream_part(p) for p in ar.parts])
 
         # Replay the verified answer as tokens. A withheld answer (failed the
         # grounding check) streams nothing — the withheld notice rides on `done`.

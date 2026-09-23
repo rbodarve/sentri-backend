@@ -87,8 +87,12 @@ def _extract_sig_names(text: str) -> set[str]:
 def _sentences(text: str) -> list[str]:
     """Split an answer into sentences/lines; attribution is checked per sentence.
     Requires ≥2 letter chars before the sentence-ending punctuation so single-letter
-    initials like 'D.' in 'Brandy D. Abeya' are not treated as sentence boundaries."""
-    return [s for s in re.split(r"(?<=[A-Za-z]{2}[.!?])\s+|\n+", text) if s.strip()]
+    initials like 'D.' in 'Brandy D. Abeya' are not treated as sentence boundaries -- or a
+    digit, so a sentence ending in a contract id ('...contract 24BG0272. The ...') still ends
+    there instead of merging into the next sentence's attribution scope. Decimals ('428.64')
+    are unaffected: the split needs whitespace after the punctuation."""
+    return [s for s in re.split(r"(?:(?<=[A-Za-z]{2}[.!?])|(?<=\d[.!?]))\s+|\n+", text)
+            if s.strip()]
 
 
 def _attribution_units(text: str) -> list[str]:

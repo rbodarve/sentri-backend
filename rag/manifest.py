@@ -82,7 +82,7 @@ def _extraction_input(nodes) -> str:
     return "\n".join(parts)
 
 
-# A display-only label for humanizing contract ids in answer text (the fastapi checker). It is
+# A display-only short label for each contract (used by format_enumeration's listing). It is
 # DERIVED deterministically from fields already extracted -- never invented: an LLM asked to
 # "name the structure" hallucinated a "Dam" / "Coastal Barrier" for the two contracts whose name
 # is generic, which is exactly the confident fabrication the rest of the pipeline guards against.

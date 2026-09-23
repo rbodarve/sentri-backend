@@ -56,14 +56,14 @@ eval-agentic:
 
 # Serve the agentic controller as a streaming SSE HTTP API (needs Ollama).
 serve:
-	bash fastapi/serve.sh
+	bash service/serve.sh
 
 # Same SSE API, exposed through an ngrok public tunnel (needs Ollama + ngrok).
 serve-ngrok:
-	bash fastapi/serve_ngrok.sh
+	bash service/serve_ngrok.sh
 
 all: check build eval
 
 # Remove the regenerable vector index (rebuild with `make build`) and caches.
 clean:
-	rm -rf index_store __pycache__ rag/__pycache__ fastapi/__pycache__ fastapi/streaming_transport/__pycache__
+	rm -rf index_store __pycache__ rag/__pycache__ service/__pycache__ service/streaming_transport/__pycache__

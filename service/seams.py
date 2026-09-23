@@ -105,7 +105,7 @@ def finalize(final: StreamFinal, _context: Any) -> "list[tuple[str, dict[str, An
     """Project the verified result into terminal SSE events, `done` last.
 
     Shaped to match the external API's `sources` / `graph` / `done` payloads so a
-    client written against that API consumes this stream unchanged (see fastapi/README).
+    client written against that API consumes this stream unchanged (see service/README).
     Fields the external API derives from data this pipeline doesn't have carry honest
     stand-ins: `confidence` is binary (this pipeline withholds instead of
     scoring), and `tokens`/`cost_usd` are 0 (local Ollama, no accounting)."""
@@ -127,14 +127,16 @@ def finalize(final: StreamFinal, _context: Any) -> "list[tuple[str, dict[str, An
         ("contract_ids", {"contract_ids": final.contract_ids}),
         ("sources", {"sources": sources}),
         ("graph", _document_graph(sources)),
-        # Per-sub-question breakdown: question text, bound contract, verified answer,
+        # Per-sub-question breakdown: question text, bound contract, verified answer ("" if withheld),
         # grounding outcome (blocks/flags), formatted citation string, and per-chunk
         # evidence with bounding boxes. Empty for "analytical" queries (no sub-questions).
         ("parts", [
             {
                 "question": p.question,
                 "contract_id": p.contract_id,
-                "answer": p.answer,
+                # Verify-before-display applies per part too: a withheld sub-answer's raw
+                # text never goes on the wire (blocks/flags carry the reason instead).
+                "answer": p.answer if p.report.ok else "",
                 "ok": p.report.ok,
                 "blocks": p.report.blocks,
                 "flags": p.report.flags,
@@ -192,7 +194,7 @@ def _is_anaphoric(query: str, rag) -> bool:
         return False
     if CONTRACT_ID_RE.search(query):
         return False
-    if rag is not None and rag._resolve_contract_ids(query):
+    if rag is not None and rag.resolve_contract_ids(query):
         return False  # query has a distinctive location/name anchor
     return True
 
@@ -213,10 +215,8 @@ def _current_subject(history: list[ChatMessage], rag) -> str | None:
     for m in reversed(history):
         if m.role != "user":
             continue
-        explicit = CONTRACT_ID_RE.search(m.content)
-        if explicit:
-            return explicit.group(0).upper()
-        cid = rag._resolve_contract_id(m.content)
+        # route(): explicit id first, else the single contract a location/name token binds.
+        cid = rag.route(m.content)[0]
         if cid:
             return cid
     return None
@@ -241,7 +241,13 @@ def passthrough_query(query: str, history: list[ChatMessage]) -> str:
 
     When no history is available, the no-context sentinel is returned instead.
     """
-    rag = _pipeline_ref.agent._rag if _pipeline_ref is not None else None
+    # The sentinels are this function's own in-band output. A client query that already starts
+    # with one would otherwise steer run_stream directly -- a forged "previous answer" to
+    # transform, or a ValueError when the separator is missing -- so strip the leading
+    # underscores: it no longer matches a sentinel and is routed as the ordinary question it is.
+    if query.startswith((_NO_CONTEXT_SENTINEL, _TRANSFORM_SENTINEL)):
+        query = query.lstrip("_")
+    rag = _pipeline_ref.agent.rag if _pipeline_ref is not None else None
     if not _is_anaphoric(query, rag):
         return query
     last_assistant = next(
