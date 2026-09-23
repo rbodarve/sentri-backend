@@ -12,8 +12,7 @@ env/
 .mypy_cache/
 .ipynb_checkpoints/
 
-# Claude Code workspace config. Note: verify.sh + settings.json were committed
-# before this rule and stay tracked until removed with `git rm --cached`.
+# Local workspace config (kept on disk, not tracked).
 .claude/
 
 # Session query traces (disk-backed, 7-day retention; regenerated at runtime)

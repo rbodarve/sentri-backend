@@ -63,7 +63,7 @@ ROOT CAUSE, TRACED THROUGH EACH LAYER
 
 5. Startup and the verify gate are full-corpus scans.
    _build_person_names (rag/generate.py:47-63) iterates the entire docstore
-   into RAM on every RagAnswerer() construction; .claude/verify.sh re-parses
+   into RAM on every RagAnswerer() construction; the verify-gate script re-parses
    every database/*.json on every turn — minutes per turn at 100k files.
 
 

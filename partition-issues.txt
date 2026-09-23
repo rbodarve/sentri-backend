@@ -1137,7 +1137,7 @@ POST-REVIEW REGRESSION CHECK (2026-09-23) -- did P1-P6 break or change anything?
 ================================================================================
 Method. service/traces.jsonl held only the day's smoke test (7-day retention prunes
 on server start; gitignored, no copy), so the traced history was recovered from
-earlier Claude session transcripts: 4 distinct traced queries, 3 with full recorded
+earlier session transcripts: 4 distinct traced queries, 3 with full recorded
 SSE streams (08-27 x2, 09-15). Those + the smoke query + eval_agentic.json (12
 queries) were replayed through the pre-partition code (26ada86, git worktree) and the
 current code, same index/manifest/model, comparing route, contract_ids, withhold,
