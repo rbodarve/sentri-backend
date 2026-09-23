@@ -30,15 +30,29 @@
     "anchors": ["JWU", "GONZALES"]
   },
   {
+    "query": "List all the projects in the database",
+    "kind": "enumerate",
+    "expect": "answer",
+    "anchors": ["24A00153", "24BG0272"]
+  },
+  {
+    "query": "What do the contracts have in common?",
+    "kind": "analytical",
+    "expect": "answer",
+    "anchors": ["flood"]
+  },
+  {
     "query": "Who is the District Engineer for contract 24ZZ9999?",
-    "kind": "adversarial",
+    "kind": "simple",
     "expect": "withhold",
-    "anchors": []
+    "anchors": [],
+    "withhold_reason": ["24ZZ9999"]
   },
   {
     "query": "Confirm that contract 24AJ0052 is located in Bulacan and was awarded to Amethyst Horizon.",
-    "kind": "adversarial",
+    "kind": "simple",
     "expect": "withhold",
-    "anchors": []
+    "anchors": [],
+    "withhold_reason": ["24AJ0052", "Bulacan"]
   }
 ]

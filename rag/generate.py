@@ -181,6 +181,37 @@ class RagAnswerer:
         # fabrications (e.g. a signatory from contract A falsely attributed to contract B).
         person_names = _build_person_names(self._index.storage_context.docstore)
         self._verifier = Verifier(manifest, person_names=person_names)
+        # answer() stashes the live trace here; default it so verify() can be called standalone
+        # (or after answer_once) and degrade to no-trace instead of raising AttributeError.
+        self._trace: QueryTrace | None = None
+
+    # -- public surface for the agentic layer (rag.agent) ---------------------------------
+    # The agent reuses (never replaces) this pipeline, but it needs a few of these internals.
+    # Exposing them as a public contract means a refactor of the privates can't silently break
+    # the agent -- these accessors are the pinned interface.
+    @property
+    def verifier(self) -> Verifier:
+        """The manifest grounding oracle (same instance the pipeline verifies against)."""
+        return self._verifier
+
+    @property
+    def contract_ids(self) -> set[str]:
+        """The real contract ids in the corpus -- guards against filtering on an invented one."""
+        return {r["contract_id"] for r in self._manifest}
+
+    @property
+    def manifest(self) -> list[dict]:
+        """The complete manifest: one structured record per contract."""
+        return self._manifest
+
+    @property
+    def manifest_text(self) -> str:
+        """The manifest rendered as the context-injection table (the analytical route's substrate)."""
+        return self._manifest_node.node.text
+
+    def resolve_contract_ids(self, question: str) -> set[str]:
+        """All contracts a question names by a distinctive location/name token (see route())."""
+        return self._resolve_contract_ids(question)
 
     def _retriever(self, contract_id: str | None, trace: QueryTrace | None = None,
                    reranker=None):
@@ -265,8 +296,9 @@ class RagAnswerer:
     def verify(self, response) -> Report:
         """Final grounding check on a synthesized answer, run before it is displayed."""
         report = self._verifier.check(str(response))
-        self._trace.emit("verify", ok=report.ok, blocks=report.blocks, flags=report.flags,
-                         sources=format_sources(response))
+        if self._trace is not None:  # answer() sets the trace; standalone verify() has none
+            self._trace.emit("verify", ok=report.ok, blocks=report.blocks, flags=report.flags,
+                             sources=format_sources(response))
         return report
 
 

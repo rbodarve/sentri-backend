@@ -26,6 +26,7 @@ are the job of a stronger entailment check on the handoff hardware. No values ar
 from __future__ import annotations
 
 import re
+import sys
 from dataclasses import dataclass, field
 
 from rag.enrich import CONTRACT_ID_RE
@@ -81,14 +82,6 @@ def _extract_sig_names(text: str) -> set[str]:
         if len(qualified) >= 2:
             names.add(candidate.lower())
     return names
-
-
-_GEO_STOP = {
-    "barangay", "brgy", "city", "phase", "north", "south", "east", "west", "norte", "sur",
-    "luzon", "street", "road", "river", "creek", "along", "construction", "rehabilitation",
-    "flood", "mitigation", "control", "structure", "protection", "slope", "reinforced",
-    "concrete", "facilities", "within", "major", "basins", "principal", "rivers", "project",
-}
 
 
 def _sentences(text: str) -> list[str]:
@@ -159,6 +152,11 @@ class Verifier:
         # Inverse map: person name (lowercase) → set of contract_ids whose signature
         # corpus contains that name. Built from signature chunks at startup; empty when
         # the caller does not provide the map (e.g. tests that construct Verifier directly).
+        # None (not provided) silently disables the whole person-fabrication tier, so signal it;
+        # a caller that means "no person checking" passes an explicit {} to stay quiet.
+        if person_names is None:
+            print("Verifier: no person_names map -- the person-fabrication grounding tier is "
+                  "DISABLED (pass {} explicitly to silence this).", file=sys.stderr)
         self._person_owners: dict[str, set[str]] = {}
         for cid, names in (person_names or {}).items():
             for name in names:

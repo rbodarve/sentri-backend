@@ -22,7 +22,10 @@ def main() -> None:
             break
         if not question or question.lower() in {"exit", "quit"}:
             break
-        print(f"\n{format_result(agent.answer(question))}")
+        try:
+            print(f"\n{format_result(agent.answer(question))}")
+        except Exception as exc:  # a generation/Ollama error must not end the session
+            print(f"\n[error answering that question: {exc}] -- try again or ask another.")
 
 
 if __name__ == "__main__":

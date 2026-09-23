@@ -7,7 +7,7 @@ and quiet. Gated by ``RAG_TRACE=1``: off means zero records and near-zero overhe
 
 The payoff is *stage-of-death*: given a question's ground-truth chunk ids (``eval_retrieval.json``
 ``expected_ids``, the same UUID space as ``node.node_id``), :func:`stage_of_death` reports the
-first stage where the gold chunk disappears -- retrieval miss vs rerank drop vs generation --
+first stage where the gold chunk disappears -- retrieval miss vs rerank drop vs grounding --
 so a failing eval question points straight at the component to fix.
 
 Set ``RAG_TRACE_CONTENT=1`` to also record a truncated text snippet per node.
@@ -104,7 +104,15 @@ def stage_of_death(records: list[dict]) -> dict:
     """Diagnose the first stage where the gold chunk disappears from a query's records.
 
     Returns ``{"query_id", "gold": bool, "verdict", "last_gold_stage"}``. ``verdict`` is one of:
-    retrieval-miss, rerank-drop, generation, grounding, or ok.
+    retrieval-miss, rerank-drop, grounding, or ok.
+
+    There is deliberately NO "generation" verdict: after rerank the pipeline only ADDS nodes
+    (manifest/id/neighbours) to build the context, and synthesis sets ``source_nodes`` to the
+    full context (nothing is pruned), so a gold chunk that survives rerank always reaches the
+    answer's sources -- the generate stage can never be the first place gold disappears. A
+    post-rerank failure is the answer being ungrounded despite having gold in context, which is
+    the ``grounding`` verdict (read off the verify record). This diagnostic checks node survival
+    only, never answer text, so "did the model use the gold chunk" is out of scope by design.
     """
     by_stage = {r["stage"]: r for r in records}
     query_id = records[0]["query_id"] if records else None

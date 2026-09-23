@@ -2,7 +2,9 @@
 
 Composes three behaviors on top of the deterministic pipeline, without replacing it:
 
-  router       -- classify a question: "simple" | "fanout" | "semantic" | "analytical".
+  router       -- classify a question: "simple" | "fanout" | "semantic" | "analytical" |
+                  "enumerate" (a corpus-wide "list all projects/locations" answered straight
+                  from the manifest, deterministically -- no LLM, no retrieval).
   fan-out      -- a multi-contract question asking one intent of several contracts -- an
                   explicit id list, or a distributive "each/all projects" over the whole corpus
                   -- is split, by rule, into one single-contract sub-question each (no LLM).
@@ -113,11 +115,16 @@ class Part:
 
 @dataclass
 class AgentResult:
-    """What the controller returns: the final answer plus its per-sub-question trail."""
+    """What the controller returns: the final answer plus its per-sub-question trail.
+
+    CONTRACT: ``text`` is always the raw model output, even when the answer was WITHHELD -- it is
+    NOT blanked on a grounding failure. A consumer MUST gate display on ``.ok`` (report.ok) and
+    show a withhold notice instead of ``text`` when it is False. Internal callers (format_result,
+    evaluate_agentic, the fastapi pipeline) already do; any new renderer must too."""
 
     question: str
     kind: str
-    text: str          # combined answer to display (or a withheld notice)
+    text: str          # RAW model output -- display only when .ok is True (see CONTRACT above)
     report: Report     # final grounding outcome; report.ok => text is displayable
     parts: list[Part]
 
@@ -131,22 +138,23 @@ class AgenticRag:
 
     def __init__(self, max_attempts: int = AGENT_MAX_ATTEMPTS):
         self._rag = RagAnswerer()               # loads index + reranker + LLM once; sets Settings.llm
-        self._verifier = self._rag._verifier    # the same manifest oracle the pipeline verifies against
-        self._known = self._verifier._contracts  # real contract ids -- guards against filtering on an invented one
+        self._verifier = self._rag.verifier     # the same manifest oracle the pipeline verifies against
+        self._known = self._rag.contract_ids    # real contract ids -- guards against filtering on an invented one
         self._wide_reranker = get_reranker(AGENT_WIDE_TOP_N)
         self._max_attempts = max_attempts
 
     # -- routing -------------------------------------------------------------------------
     def classify(self, question: str) -> tuple[str, list[str]]:
-        """(kind, ordered contract ids). kind in {"simple","fanout","semantic","analytical"}."""
+        """(kind, ordered contract ids). kind in {"simple","fanout","semantic","analytical",
+        "enumerate"}."""
         explicit = list(dict.fromkeys(m.upper() for m in CONTRACT_ID_RE.findall(question)))
+        resolved = self._rag.resolve_contract_ids(question)  # resolve once, reuse (was up to 3x)
         # Corpus-wide enumeration: a "list the projects/contracts/locations" question with no
         # explicit id and no resolvable location -- its complete answer IS the manifest, so answer
         # by deterministic enumeration (see answer()), not lossy/nondeterministic summarization or
         # a whole-corpus fan-out. A location-scoped "list all projects in X" resolves an id here
         # and so falls through to the scoped simple/fan-out route below.
-        if not explicit and _LIST_CORPUS_RE.search(question) \
-                and not self._rag._resolve_contract_ids(question):
+        if not explicit and _LIST_CORPUS_RE.search(question) and not resolved:
             return "enumerate", sorted(self._known)
         # Analytical (corpus-wide pattern/anomaly) reasons over the whole manifest at once, so it
         # precedes the fan-out/each rules. A question comparing >=2 *named* contracts is left to
@@ -157,10 +165,9 @@ class AgenticRag:
             # "list/for each project ...": one intent asked of some or all contracts.
             # If the question also names a location, restrict to matching contracts so a
             # location-scoped "all projects in X" doesn't fan out over the whole corpus.
-            location_ids = self._rag._resolve_contract_ids(question)
-            scope = sorted(location_ids) if location_ids else sorted(self._known)
+            scope = sorted(resolved) if resolved else sorted(self._known)
             return ("simple" if len(scope) <= 1 else "fanout"), scope
-        ids = explicit or sorted(self._rag._resolve_contract_ids(question))
+        ids = explicit or sorted(resolved)
         if len(set(ids)) <= 1:
             return "simple", ids
         m = _MULTI_ID_RE.search(question)
@@ -247,7 +254,7 @@ class AgenticRag:
             # The complete answer IS the manifest: enumerate it deterministically (no LLM, no
             # retrieval), so the answer is complete and identical every run. Grounded by
             # construction -- built straight from the oracle -- so the report is clean.
-            text = format_enumeration(self._rag._manifest)
+            text = format_enumeration(self._rag.manifest)
             return AgentResult(question, kind, text, Report(blocks=[], flags=[]), [])
 
         if kind == "simple":
@@ -260,7 +267,7 @@ class AgenticRag:
             # BLOCK tier only: the per-contract mis-binding FLAG heuristic mis-reads a legitimate
             # multi-contract synthesis, so the analytical route relaxes it (check_bindings=False)
             # while still withholding any answer that invents a contract.
-            manifest_str = self._rag._manifest_node.node.text
+            manifest_str = self._rag.manifest_text
             text = str(Settings.llm.complete(
                 _ANALYTICAL_TEMPLATE.format(manifest_str=manifest_str, query_str=question))).strip()
             report = self._verifier.check(text, check_bindings=False)

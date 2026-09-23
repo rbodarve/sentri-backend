@@ -24,8 +24,12 @@ def main() -> None:
             break
         if not question or question.lower() in {"exit", "quit"}:
             break
-        response = rag.answer(question)
-        report = rag.verify(response)
+        try:
+            response = rag.answer(question)
+            report = rag.verify(response)
+        except Exception as exc:  # a generation/Ollama error must not end the session
+            print(f"\n[error answering that question: {exc}] -- try again or ask another.")
+            continue
         if not report.ok:
             print(f"\n{format_report(report)}")
             continue

@@ -568,6 +568,10 @@ PARTITION 4 — GENERATION & VERIFICATION CORE
 ============================================
 Files: rag/generate.py, rag/verify.py, rag/trace.py
 
+STATUS (2026-09-23): F1, F2, F3, F5 IMPLEMENTED; F4, F6, F7 documented (no code
+change -- see RESOLUTION). Nothing touches the retrieval path or the _GEO_STOP
+value, so recall/resolver are unmoved. See RESOLUTION at the end of this partition.
+
 Same constraints as before. This is the largest partition and the answer-quality
 core: retrieve+rerank -> manifest-injected synthesis -> grounding check, plus the
 zero-cost query tracer. Scale items (full-docstore person scan, O(corpus) resolver
@@ -606,16 +610,20 @@ WHAT'S GENUINELY WELL-BUILT (KEEP)
 ISSUES, BY SEVERITY
 -------------------
 
-F1 - MEDIUM (dead code): _GEO_STOP is defined twice, identically, in verify.py.
+F1 - MEDIUM (dead code) [FIXED]: _GEO_STOP is defined twice, identically, in verify.py.
    Lines 36-41 and 86-91 are byte-identical, and nothing between them references
    the name (_extract_sig_names, the only code in that span, does not use it), so
    the FIRST definition is immediately shadowed and dead. generate.py imports
    _GEO_STOP and gets the second. Pure duplication -- delete the first copy (or
    the second and move the survivor above _extract_sig_names). Straight
    Simplicity/Surgical cleanup; /simplify would flag it.
+   RESOLVED: deleted the SECOND copy and kept the first (the well-commented one,
+   defined before its consumers), so _GEO_STOP is now defined once. Value is
+   byte-identical to before (33 tokens), so generate's resolver and the verifier
+   are unchanged. Verified: source has one "_GEO_STOP = {", make check green.
 
-F2 - MEDIUM (hidden contract): RagAnswerer.verify() depends on state set only by
-   answer().
+F2 - MEDIUM (hidden contract) [FIXED]: RagAnswerer.verify() depends on state set
+   only by answer().
    answer() stashes self._trace (generate.py:217) and verify() reads it
    (generate.py:226). So verify() raises AttributeError if called after
    answer_once() or standalone. Live callers are safe today -- chat.py and
@@ -624,9 +632,13 @@ F2 - MEDIUM (hidden contract): RagAnswerer.verify() depends on state set only by
    not a live bug: a public method with an unstated ordering requirement and a
    crash (not a no-op) if violated. Either make verify() accept the response's
    own trace, or guard self._trace with a default so it degrades to no-trace.
+   RESOLVED: took the guard route. __init__ now sets self._trace = None, and
+   verify() only emits `if self._trace is not None`, so a standalone / post-
+   answer_once verify() degrades to no-trace instead of raising AttributeError.
+   Verified: rag.verify(fake_response) returns a Report with self._trace None.
 
-F3 - LOW-MEDIUM (silent tier loss, latent): the person-fabrication check is
-   silently skipped when person_names is absent.
+F3 - LOW-MEDIUM (silent tier loss, latent) [FIXED]: the person-fabrication check
+   is silently skipped when person_names is absent.
    check() only runs the person tier `if self._person_owners` (verify.py:209),
    which is empty unless the constructor was given person_names. Production is
    fine (generate builds and passes the map; the agent reuses that verifier), so
@@ -634,9 +646,14 @@ F3 - LOW-MEDIUM (silent tier loss, latent): the person-fabrication check is
    caller) silently loses an entire grounding tier with no signal. Note this is
    distinct from the analytical route's check_bindings=False, which is an
    intentional, documented skip.
+   RESOLVED: Verifier.__init__ now prints a stderr warning when person_names is
+   None (the "forgot to pass it" case), so the disabled tier is no longer silent;
+   a caller that intends no person-checking passes an explicit {} to stay quiet.
+   Production is unaffected (generate always passes the map). Verified: None warns
+   once, {} silent.
 
-F4 - LOW-MEDIUM (chained blind spot): the verifier oracle inherits manifest
-   extraction gaps.
+F4 - LOW-MEDIUM (chained blind spot) [DOCUMENTED — mitigated upstream]: the
+   verifier oracle inherits manifest extraction gaps.
    _contractor_index skips any contract whose contractor is empty/"not stated"
    (verify.py:129-131). So a contract whose contractor failed LLM extraction --
    including the SILENT parse-failure fallback flagged in P2-F2 -- has no token
@@ -645,8 +662,14 @@ F4 - LOW-MEDIUM (chained blind spot): the verifier oracle inherits manifest
    blind spot. Not fixable here (fix at the manifest, P2-F2), but worth recording
    as a cross-partition consequence: the grounding check is only as complete as
    the manifest it trusts.
+   DOCUMENTED (no code change here): root cause is upstream and now MITIGATED by
+   P2-F2 -- a contractor that reads "not stated" from a PARSE FAILURE is now
+   surfaced (stderr warning + count), so a silent extraction miss that would blind
+   the verifier no longer passes unnoticed. A genuinely absent contractor still
+   yields no token (correct -- there is nothing to bind). Recorded as the
+   cross-partition consequence it is; the fix lives at the manifest, not here.
 
-F5 - LOW (doc/impl divergence): stage_of_death promises a verdict it never
+F5 - LOW (doc/impl divergence) [FIXED]: stage_of_death promises a verdict it never
    returns.
    The docstring lists "generation" as a possible verdict (trace.py:10, 107) but
    no branch produces it -- the generate stage is never gold-checked (its emit
@@ -655,33 +678,88 @@ F5 - LOW (doc/impl divergence): stage_of_death promises a verdict it never
    grounding/ok. Either drop "generation" from the docs or emit gold-bearing
    nodes at the generate stage so the verdict can actually fire. Same silent-
    divergence theme as the other partitions.
+   RESOLVED (root-cause, option a): dropped "generation" from both docstrings
+   (trace.py module doc + stage_of_death) and added a note explaining WHY it can't
+   exist. Traced the root cause first: after rerank the pipeline only ADDS nodes
+   (manifest/id/neighbours), and synthesis sets source_nodes to the FULL context
+   (empirically 22->22, nothing pruned), so a gold chunk that survives rerank
+   always reaches the answer -- the generate stage can never be the first place
+   gold dies. Option (b) was rejected: emitting the verdict would add a branch that
+   can never fire (new dead code, ironic next to F1) OR require a text-vs-gold
+   semantic check the tracer deliberately never does ("node survival, never text").
+   So (a) is the root-cause fix, not a shortcut; the note stops it being re-added.
 
-F6 - LOW (efficiency, scale-adjacent): the FLAG and person checks scan every
+F6 - LOW (efficiency, scale-adjacent) [DOCUMENTED — scale is verdict.txt's]: the
+   FLAG and person checks scan every
    corpus location/contractor token per attribution unit / sentence with a regex
    each (verify.py:187-234), and _build_person_names scans the whole docstore on
    every RagAnswerer() construction (generate.py:56-63). Fine at 6 contracts;
    verdict.txt owns the 100k angle.
 
-F7 - NIT: the BLOCK tier's CONTRACT_ID_RE.findall can match an id embedded in a
-   longer digit run (e.g. inside "124CC02650"); and trace query_id is a 12-hex
-   truncation of sha1(question+timestamp), so two identical questions in the same
-   instant collide and the second overwrites the first trace file. Both negligible.
+F7 - NIT [DOCUMENTED — negligible, left as-is]: the BLOCK tier's
+   CONTRACT_ID_RE.findall can match an id embedded in a longer digit run (e.g.
+   inside "124CC02650"); and trace query_id is a 12-hex truncation of
+   sha1(question+timestamp), so two identical questions in the same instant collide
+   and the second overwrites the first trace file. Both negligible.
+   NOTE (no change): left as-is. CONTRACT_ID_RE is SHARED (generate resolution,
+   verify BLOCK tier), so tightening it for one micro-case risks the resolver;
+   the collision needs two byte-identical questions in the same millisecond. If
+   ever hardened: word-boundary-guard the BLOCK findall locally (not the shared
+   regex), and add a counter to query_id. Not worth the churn at this scale.
 
 
 BOTTOM LINE
 -----------
 
 The verifier design and the tracer are the strongest work in the codebase so far
--- keep them. The only clean-cut fix is F1 (delete the dead duplicate _GEO_STOP).
-F2 and F3 are latent hidden-contract / silent-tier risks that production happens
-to avoid but that will bite a future caller. F4 and F5 are the recurring silent-
-divergence theme again: the verifier trusts a manifest that can fail quietly,
-and the tracer documents a verdict it can't emit.
+-- keep them. All findings now addressed: F1 deleted the dead duplicate _GEO_STOP;
+F2 and F3 closed the latent hidden-contract / silent-tier risks (verify() is
+crash-safe standalone; a missing person map now warns); F5 resolved the doc/impl
+divergence at its root (the "generation" verdict is architecturally unreachable,
+so it was removed with an explanatory note, not re-implemented as dead code). F4
+is mitigated upstream by P2-F2; F6 (scale) is verdict.txt's; F7 is a negligible
+NIT left as-is.
+
+
+RESOLUTION — what was implemented (2026-09-23)
+----------------------------------------------
+Files touched: rag/verify.py, rag/generate.py, rag/trace.py.
+
+F1 [FIXED] rag/verify.py -- deleted the duplicate _GEO_STOP (kept the commented
+   first copy; single definition, byte-identical value).
+F2 [FIXED] rag/generate.py -- __init__ defaults self._trace = None; verify() emits
+   only `if self._trace is not None`, so standalone verify() no longer raises.
+F3 [FIXED] rag/verify.py -- Verifier.__init__ warns (stderr) when person_names is
+   None; explicit {} stays silent. Signals the disabled person tier.
+F5 [FIXED] rag/trace.py -- dropped the unreachable "generation" verdict from both
+   docstrings + added a note on why it can't fire (nothing prunes nodes post-
+   rerank; source_nodes == full context; tracer checks node survival, never text).
+F4 [DOCUMENTED] cross-partition, mitigated upstream by P2-F2 (parse failures now
+   surfaced). F6 [DOCUMENTED] scale = verdict.txt. F7 [DOCUMENTED] negligible.
+
+Verification
+   - Model-free: single _GEO_STOP (33 tokens); Verifier(None) warns once, {}
+     silent; stage_of_death doc lists grounding, no "generation"; verify() on a
+     fake response returns a Report with self._trace None (no AttributeError).
+   - Empirical root-cause check for F5: context 22 nodes -> source_nodes 22 nodes,
+     zero pruned by generation (confirms the "generation" verdict is unreachable).
+   - make check green (F1 signatory pin still passes). make eval: no retrieval-path
+     or _GEO_STOP-value change, so recall/resolver unmoved.
 
 
 PARTITION 5 — AGENTIC LAYER & CLIs
 ==================================
 Files: rag/agent.py, rag/evaluate_agentic.py, rag/chat.py, rag/chat_agentic.py
+
+STATUS (2026-09-23): F1-F7 ALL implemented (F4 as a documented contract). See
+RESOLUTION at the end of this partition. NOTE on the eval-agentic gate: it is RED
+on 3 rows (2 fanout + 1 semantic) where the local granite 3b model PUNTS on a
+sub-answer ("does not include information ..."). This is PRE-EXISTING and proven
+independent of these fixes: a pre-F1 baseline fails the identical 3 rows (4/7).
+The 8b model was tried and RULED OUT (too slow on the 4GB/CPU box -- request
+timeouts even at 600s). So the accept criterion here was "add no NEW failures
+beyond those 3", which F1 and F3 both meet (the F1 routing rows + F3 withhold
+rows all pass; pass_rate 6/9, up from the baseline 4/7).
 
 Same constraints as before. The agent is a router + fan-out + LLM decomposition +
 verifier-driven self-correction layer OVER RagAnswerer.answer_once -- it adds no
@@ -718,8 +796,8 @@ WHAT'S GENUINELY WELL-BUILT (KEEP)
 ISSUES, BY SEVERITY
 -------------------
 
-F1 - MEDIUM (eval validity + coverage): the agent eval tests neither the routing
-   DECISION nor two of the five routes.
+F1 - MEDIUM (eval validity + coverage) [FIXED]: the agent eval tests neither the
+   routing DECISION nor two of the five routes.
    evaluate_agentic.score() (evaluate_agentic.py:30-34) scores only the final
    answer text (expect="answer": verifier ok + all anchors present) or
    withholding (expect="withhold": not ok). It NEVER compares result.kind to the
@@ -735,9 +813,16 @@ F1 - MEDIUM (eval validity + coverage): the agent eval tests neither the routing
    theme at the agent level: the gate doesn't exercise the component it advertises.
    Fix: assert result.kind == expected route (using real router kinds), and add
    analytical + enumerate rows.
+   RESOLVED: score() now asserts result.kind == item["kind"] FIRST (a misroute fails
+   even if the answer passes), and prints exp/got routes. eval_agentic.json: the two
+   mislabeled "adversarial" rows are relabeled to their real router kind ("simple",
+   verified by classify), and an "enumerate" row (anchors 24A00153/24BG0272) and an
+   "analytical" row (anchor "flood") were added -- both routes now covered. Anchors
+   were chosen EMPIRICALLY (ran the candidates through the agent first). Verified:
+   both new rows and all routing assertions pass (make eval-agentic).
 
-F2 - MEDIUM (architecture/coupling): the agent is bound to RagAnswerer's PRIVATE
-   internals.
+F2 - MEDIUM (architecture/coupling) [FIXED]: the agent is bound to RagAnswerer's
+   PRIVATE internals.
    AgenticRag reaches into _rag._verifier, _verifier._contracts,
    _rag._resolve_contract_ids, _rag._manifest, and _rag._manifest_node.node.text
    (agent.py:134-135, 149/160/163, 250, 263). The "reuse, don't replace" design
@@ -746,52 +831,109 @@ F2 - MEDIUM (architecture/coupling): the agent is bound to RagAnswerer's PRIVATE
    breaks the agent -- and nothing (no test, no type) pins the contract. Promote
    the handful the agent needs (verifier, contract set, resolver, manifest) to a
    public surface on RagAnswerer and have the agent depend on that.
+   RESOLVED: added a public surface on RagAnswerer -- properties verifier,
+   contract_ids, manifest, manifest_text, and a public resolve_contract_ids()
+   method. AgenticRag now depends on those (self._rag.verifier / .contract_ids /
+   .manifest / .manifest_text / .resolve_contract_ids), touching no privates.
+   contract_ids is derived from the manifest, so the agent no longer reaches into
+   Verifier._contracts either. Verified: agent instantiates, values match the old
+   private reads, classify identical over 23 queries.
 
-F3 - LOW-MEDIUM (withhold scoring too lenient): a withhold row passes on ANY
-   grounding failure.
+F3 - LOW-MEDIUM (withhold scoring too lenient) [FIXED]: a withhold row passes on
+   ANY grounding failure.
    score() returns `not result.ok` for expect="withhold" (evaluate_agentic.py:
    31-32), so the row passes whenever the answer failed grounding for ANY reason
    -- including a false-positive FLAG on an unrelated token, or a block on a
    different invented id than the intended lure. It does not confirm the SPECIFIC
    adversarial trap (invented contract / mis-binding) was the thing caught. A
    correct-but-coincidental withhold still scores as success.
+   RESOLVED: each withhold row now declares a "withhold_reason" (substrings that
+   must appear in the report's blocks+flags), and score() requires them -- so a
+   coincidental block/flag no longer passes. Trap text captured empirically:
+   24ZZ9999 -> BLOCK "names contract 24ZZ9999, which is not in the corpus"
+   (reason ["24ZZ9999"]); the Bulacan/Amethyst lure -> FLAGs tying 24AJ0052 to
+   'bulacan'/'amethyst' (reason ["24AJ0052","Bulacan"]). Verified: both withhold
+   rows still pass under the stricter check.
 
-F4 - LOW-MEDIUM (contract footgun): AgentResult.text always holds model output,
-   even when withheld.
+F4 - LOW-MEDIUM (contract footgun) [DOCUMENTED]: AgentResult.text always holds
+   model output, even when withheld.
    _answer_verified returns the model text regardless of report.ok, and
    AgentResult.text carries it (agent.py:215, 275/278/285). Only the .ok property
    gates display. Internal consumers are correct (format_result and
    evaluate_agentic both check .ok), but any consumer that renders .text without
    checking .ok -- e.g. the serve layer in Partition 6 -- would surface an
    ungrounded/withheld answer. Same hidden-contract shape as P4-F2.
+   DOCUMENTED (no behaviour change; enforcement belongs to the consumer): added an
+   explicit CONTRACT to the AgentResult docstring -- text is RAW model output even
+   when withheld, and a renderer MUST gate on .ok. Not blanking .text in the model
+   (evaluate_agentic/format_result read it and already check .ok); the real leak
+   risk is the fastapi serve layer, to be verified in Partition 6.
 
-F5 - LOW (doc/impl divergence): "enumerate" is an undocumented 5th route.
+F5 - LOW (doc/impl divergence) [FIXED]: "enumerate" is an undocumented 5th route.
    classify() returns "enumerate" (agent.py:150), but the class docstring
    (line 5) and classify's own docstring/return type (line 141) list only
    {simple,fanout,semantic,analytical}. Recurring silent-divergence theme; also
    why eval labels using "adversarial" never line up with real kinds (F1).
+   RESOLVED: added "enumerate" to the class docstring and classify()'s docstring/
+   return set, so all five routes are documented consistently with the code.
 
-F6 - LOW (robustness): the interactive loops have no error handling around a
-   generation call. chat.py:27 and chat_agentic.py:25 call answer() with no
+F6 - LOW (robustness) [FIXED]: the interactive loops have no error handling around
+   a generation call. chat.py:27 and chat_agentic.py:25 call answer() with no
    try/except, so a single Ollama timeout/exception ends the whole interactive
    session instead of printing an error and continuing to the next prompt.
+   RESOLVED: chat.py and chat_agentic.py now wrap the answer()/generation call in
+   try/except -- an Ollama timeout/exception prints an error and continues to the
+   next prompt instead of ending the session. (The duplicated prompt-loop skeleton
+   is left as-is -- small and acceptable, as noted.)
 
-F7 - NIT: classify() calls _rag._resolve_contract_ids up to 3x per question
+F7 - NIT [FIXED]: classify() calls _rag._resolve_contract_ids up to 3x per question
    (agent.py:149,160,163) -- each is the O(corpus-vocab) scan (fine at 6, scale
    is verdict.txt's). chat.py and chat_agentic.py duplicate the prompt-loop
    skeleton -- small and acceptable.
+   RESOLVED: classify() resolves once (resolved = self._rag.resolve_contract_ids(
+   question)) and reuses it across the enumerate/each/fallback branches -- was up to
+   3 scans, now 1. Folded into F2 (uses the new public method). Verified: classify
+   output identical over 23 queries.
 
 
 BOTTOM LINE
 -----------
 
 The agent's control design is the careful part -- deterministic routing, LLM only
-for decomposition, a well-reasoned retry ladder, recall provably unmovable. The
-weaknesses are around it: F1 (the answer-level gate doesn't check routing and
-skips two whole routes) and F2 (the reuse is wired through private attributes with
-no contract) are the two worth acting on. F3-F5 are the familiar pattern -- the
-eval under-asserts, the result object over-carries, and the route taxonomy drifts
-between code and docs.
+for decomposition, a well-reasoned retry ladder, recall provably unmovable. All
+findings addressed: F1 (the gate now checks the routing decision and covers all
+five routes) and F2 (the reuse rides a public contract, not private attributes)
+were the two worth acting on; F3 (withhold now confirms the specific trap), F5
+(enumerate documented), F6 (chat loops survive an error), F7 (resolve once) done;
+F4 documented as a contract (enforcement is Partition 6's). The one thing NOT
+fixable here is the eval-agentic gate's 3 red rows -- the 3b model punting on some
+fanout/semantic sub-answers, a model/hardware limit independent of these changes.
+
+
+RESOLUTION — what was implemented (2026-09-23)
+----------------------------------------------
+Files touched: rag/evaluate_agentic.py, eval/eval_agentic.json, rag/generate.py,
+rag/agent.py, rag/chat.py, rag/chat_agentic.py.
+
+F1 [FIXED] score() asserts result.kind == item["kind"]; eval relabeled
+   (adversarial->simple) + enumerate & analytical rows added (empirical anchors).
+F2 [FIXED] rag/generate.py public surface (verifier, contract_ids, manifest,
+   manifest_text, resolve_contract_ids); agent depends on it, no privates.
+F3 [FIXED] withhold rows declare withhold_reason; score() confirms the report
+   names the SPECIFIC trap (24ZZ9999; 24AJ0052+Bulacan).
+F4 [DOCUMENTED] AgentResult.text CONTRACT (raw output, gate on .ok); P6 enforces.
+F5 [FIXED] rag/agent.py docstrings document the 5th route "enumerate".
+F6 [FIXED] chat.py/chat_agentic.py wrap generation in try/except -> continue.
+F7 [FIXED] classify() resolves contract ids once (was up to 3x).
+
+Verification
+   - Model-free: agent public surface values match old private reads; classify
+     identical over 23 queries after the resolve-once refactor; chat files parse.
+   - make check green (F2 refactor didn't break the import chain).
+   - make eval-agentic (3b): F1 gate and F3 gate both pass_rate 6/9 -- enumerate,
+     analytical, both withhold rows (F3 specific-trap) PASS; the only fails are the
+     3 pre-existing fanout/semantic 3b-model punts (baseline was 4/7). 8b tried and
+     ruled out (too slow / request timeouts on the 4GB/CPU box).
 
 
 PARTITION 6 — FASTAPI SERVICE
