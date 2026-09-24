@@ -46,6 +46,9 @@ Use `make` (details in [scripts/README.md](scripts/README.md)):
   [service/](service/) (needs Ollama, plus `pip install -r service/requirements.txt`).
 - `make serve-ngrok` — same SSE API, exposed through an ngrok public tunnel (needs Ollama +
   `ngrok` with an authtoken configured).
+- `make simulate-remote [Q="..."]` — `serve-ngrok` plus a simulated third-party client
+  ([service/remote_client.py](service/remote_client.py)) that queries the public URL, prints the
+  streamed events and checks the stream contract; exits 1 on a bad stream.
 - `make clean` — remove the regenerable `index_store/` + caches.
 
 ## Architecture
@@ -92,4 +95,5 @@ embedding/reranker/LLM for better hardware without touching pipeline code. Defau
   only if the agent correctly withholds. It needs Ollama and is separate from the recall gate.
 - **Verify gate:** `.claude/verify.sh` (a Stop hook) validates `database/` OCR integrity on
   every turn. It must exit 0. It only checks JSON structure — it never re-OCRs.
+  `.claude/` is gitignored, so this gate is local-only: a fresh clone has no verify.sh or hook.
 - Match existing style; keep changes surgical. `PYTHONWARNINGS=ignore` is set by the scripts.

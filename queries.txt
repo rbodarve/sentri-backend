@@ -1,0 +1,488 @@
+# queries.txt -- grouped by dependency. Every question is verbatim from the original list.
+
+##############################################################################
+# PART 1 -- CONNECTED (follow-ups that only make sense after an earlier turn).
+# Each session is in asking order; its first line is the question that sets the context.
+##############################################################################
+
+# -- session 1: 24AJ0052 (opened by a named contract)
+Within the documents for project 24AJ0052, what is the Contract ID for Construction of Slope Protection Structure (Phase 2) Barangay San Juan, Mestizo Norte, San Carlos City, Pangasinan, Location of the Contract: San Carlos City, Pangasinan?
+Who are the bidders for this Contract ID?
+When was the contract agreement issued?
+
+# -- session 2: 24cm0001_ntp
+In document 24cm0001_ntp, what is the total contract amount?
+What materials are required??
+What is the total number of calendar days?
+What are the milestones?
+Who are the assigned Project Engineers?
+
+# -- session 3: 24aj0052_notice_to_proceed
+In document 24aj0052_notice_to_proceed, what is the total contract amount?
+Are there milestones dates?
+What materials are being used?
+Who is the Project Engineer?
+
+# -- session 4: 24bj0005_ntp
+In document 24bj0005_ntp, what is the design of the flood control structure?
+What are the station limits?
+How many days does the contractor have to finish?
+What are the critical path milestones?
+
+# -- session 5: 24bj0005_ntp
+In document 24bj0005_ntp, what is the Total Contract Price?
+What is the "ABC" (Approved Budget for the Contract)?
+Who is the designated Project Engineer?
+What are the environmental safeguards?
+Who are the bidders for this project?
+What construction materials are being used?
+How long is the construction period?
+What is the minimum equipment list?
+What are the unit prices for the items of work?
+What are the specific site hazards?
+
+# -- session 6: 24bj0005_coa
+In document 24bj0005_coa, what is the total number of calendar days allowed?
+Where exactly does the project start and end?
+What are the unit costs for specific tasks?
+How much is the mobilization advance?
+What equipment is being used?
+Who are the project's key personnel?
+What specific safety protocols are in place?
+
+# -- session 7: 24bg0272-notice_to_proceed
+In document 24bg0272-notice_to_proceed, what are the specific dimensions or materials of the flood mitigation structure?
+What is the exact GPS coordinate or "Stationing" of the project site?
+What is the specific "Date of Receipt" of this notice?
+What are the specific project milestones?
+Who is the designated Project Engineer for the DPWH or the Contractor?
+What is the Contractor's contact number?
+What environmental permits were required for the Macanao Creek project?
+What are the specific pay items and quantities for this project?
+What is the specific design of the "flood mitigation structure"?
+When is the specific start date and expected completion date?
+How many engineers and laborers will be working on-site?
+
+# -- session 8: 'List one project in the database' -> Tabang River / 24CC0265, session A (turns 1-10)
+List one project in the database.
+Where is that project located?
+Which contractor was awarded the said project?
+What is the total contract price awarded to that contractor?
+On what date was the Notice of Award for that contract issued?
+And on what date was the contract agreement itself executed?
+What date did the contractor receive the Notice to Proceed for it?
+How many calendar days were allowed to complete the works under that contract?
+Who signed the contract agreement as president of that contractor?
+And who signed on behalf of the DPWH as its district engineer?
+
+# -- session 9: same opening, session B -- turns 1-3 are the first three questions of session A;
+# turn 10 repeats session A's last question (see the history-embedded form below)
+What is the awarded contract amount for that project, and how many calendar days are allowed to complete it?
+On what date did the contractor receive the Notice to Proceed for it?
+On what dates was the Notice of Award issued and the contract agreement executed for that project?
+Who are all the signatories on that project's contract agreement?
+What is the total amount of the Part A (Facilities for the Engineer) items in that project's Bill of Quantities?
+Who signed as president of that contractor?
+
+# -- session 10: 24CC0265
+Which contractor was awarded contract 24CC0265?
+What is the budget for the contract 24CC0265?
+List five documents the contractor must submit as conditions for signing the contract 24CC0265.
+Who is the district engineer that is in charge for this project?
+Who signed in the contract agreement of this project?
+Who are the witnesses during the signing of the contract agreement?
+Who represented in behalf of the contractor?
+Give two documents that form part of the contract agreement as an attachment.
+
+# -- session 11: 'List one project in Isabela' -> 24CC0265
+List one project in Isabela
+What is the project title of contract id 24CC0265?
+Where was this project located?
+Who signed the contract agreement of this project?
+when does this project start?
+
+# -- session 12: 'List one project in La Union'
+List one project in La Union.
+What is the total approved budget of the said project?
+
+# -- session 13: 24A00153
+What is the total approved budget of contract ID 24A00153?
+Who signed on the contract ID 24A00153?
+who signed on the contract agreement on the contract ID 24A00153?
+where is this project located?
+
+# -- session 14: 24BG0272
+Can you provide the GPS coordinates or the nearest barangay for the construction site of the flood mitigation structure under Contract ID 24BG0272?
+What is the scheduled start and completion dates for the flood mitigation structure under Contract ID 24BG0272?
+Who is the awarded contractor of the said project?
+
+# -- follow-ups whose opening question is missing: the openers of sessions 2-7 and the
+#    two '24a00153_coa' standalone questions, with the document name stripped
+Total Contract Amount?
+What is the specific duration of the project?
+What is the total contract amount?
+What is the design of the flood control structure?
+What is the Total Contract Price?
+What is the total number of calendar days allowed?
+What are the specific dimensions or materials of the flood mitigation structure?
+
+# -- sessions 8 (A) and 9 (B) again, with the chat history embedded in each question (turn order)
+# session A, turns 2-10
+CURRENT QUESTION: Where is that project located? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig [End of session history]
+CURRENT QUESTION: Which contractor was awarded the said project? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan [End of session history]
+CURRENT QUESTION: What is the total contract price awarded to that contractor? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan Turn 3 — Q: Which contractor was awarded the said project? Turn 3 — A: AMETHYST HORIZON BUILDERS AND GEN. CONTRACTOR AND DEVELOPMENT CORP. [End of session history]
+CURRENT QUESTION: On what date was the Notice of Award for that contract issued? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan Turn 3 — Q: Which contractor was awarded the said project? Turn 3 — A: AMETHYST HORIZON BUILDERS AND GEN. CONTRACTOR AND DEVELOPMENT CORP. Turn 4 — Q: What is the total contract price awarded to that contractor? Turn 4 — A: 69,479,428.64 [End of session history]
+CURRENT QUESTION: And on what date was the contract agreement itself executed? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan Turn 3 — Q: Which contractor was awarded the said project? Turn 3 — A: AMETHYST HORIZON BUILDERS AND GEN. CONTRACTOR AND DEVELOPMENT CORP. Turn 4 — Q: What is the total contract price awarded to that contractor? Turn 4 — A: 69,479,428.64 Turn 5 — Q: On what date was the Notice of Award for that contract issued? Turn 5 — A: MAR 22 2024 [End of session history]
+CURRENT QUESTION: What date did the contractor receive the Notice to Proceed for it? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan Turn 3 — Q: Which contractor was awarded the said project? Turn 3 — A: AMETHYST HORIZON BUILDERS AND GEN. CONTRACTOR AND DEVELOPMENT CORP. Turn 4 — Q: What is the total contract price awarded to that contractor? Turn 4 — A: 69,479,428.64 Turn 5 — Q: On what date was the Notice of Award for that contract issued? Turn 5 — A: MAR 22 2024 Turn 6 — Q: And on what date was the contract agreement itself executed? Turn 6 — A: APR 01 2024 [End of session history]
+CURRENT QUESTION: How many calendar days were allowed to complete the works under that contract? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan Turn 3 — Q: Which contractor was awarded the said project? Turn 3 — A: AMETHYST HORIZON BUILDERS AND GEN. CONTRACTOR AND DEVELOPMENT CORP. Turn 4 — Q: What is the total contract price awarded to that contractor? Turn 4 — A: 69,479,428.64 Turn 5 — Q: On what date was the Notice of Award for that contract issued? Turn 5 — A: MAR 22 2024 Turn 6 — Q: And on what date was the contract agreement itself executed? Turn 6 — A: APR 01 2024 Turn 7 — Q: What date did the contractor receive the Notice to Proceed for it? Turn 7 — A: APR 02 2024 [End of session history]
+CURRENT QUESTION: Who signed the contract agreement as president of that contractor? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan Turn 3 — Q: Which contractor was awarded the said project? Turn 3 — A: AMETHYST HORIZON BUILDERS AND GEN. CONTRACTOR AND DEVELOPMENT CORP. Turn 4 — Q: What is the total contract price awarded to that contractor? Turn 4 — A: 69,479,428.64 Turn 5 — Q: On what date was the Notice of Award for that contract issued? Turn 5 — A: MAR 22 2024 Turn 6 — Q: And on what date was the contract agreement itself executed? Turn 6 — A: APR 01 2024 Turn 7 — Q: What date did the contractor receive the Notice to Proceed for it? Turn 7 — A: APR 02 2024 Turn 8 — Q: How many calendar days were allowed to complete the works under that contract? Turn 8 — A: 240 (two hundred forty) calendar-days [End of session history]
+CURRENT QUESTION: And who signed on behalf of the DPWH as its district engineer? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan Turn 3 — Q: Which contractor was awarded the said project? Turn 3 — A: AMETHYST HORIZON BUILDERS AND GEN. CONTRACTOR AND DEVELOPMENT CORP. Turn 4 — Q: What is the total contract price awarded to that contractor? Turn 4 — A: 69,479,428.64 Turn 5 — Q: On what date was the Notice of Award for that contract issued? Turn 5 — A: MAR 22 2024 Turn 6 — Q: And on what date was the contract agreement itself executed? Turn 6 — A: APR 01 2024 Turn 7 — Q: What date did the contractor receive the Notice to Proceed for it? Turn 7 — A: APR 02 2024 Turn 8 — Q: How many calendar days were allowed to complete the works under that contract? Turn 8 — A: 240 (two hundred forty) calendar-days Turn 9 — Q: Who signed the contract agreement as president of that contractor? Turn 9 — A: ROCHELLE R. CAMPOS [End of session history]
+# session B, turns 4-10
+CURRENT QUESTION: What is the awarded contract amount for that project, and how many calendar days are allowed to complete it? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan Turn 3 — Q: Which contractor was awarded the said project? Turn 3 — A: AMETHYST HORIZON BUILDERS AND GEN. CONTRACTOR AND DEVELOPMENT CORP. [End of session history]
+CURRENT QUESTION: On what date did the contractor receive the Notice to Proceed for it? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan Turn 3 — Q: Which contractor was awarded the said project? Turn 3 — A: AMETHYST HORIZON BUILDERS AND GEN. CONTRACTOR AND DEVELOPMENT CORP. Turn 4 — Q: What is the awarded contract amount for that project, and how many calendar days are allowed to complete it? Turn 4 — A: 69,479,428.64; 240 (two hundred forty) calendar-days [End of session history]
+CURRENT QUESTION: On what dates was the Notice of Award issued and the contract agreement executed for that project? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan Turn 3 — Q: Which contractor was awarded the said project? Turn 3 — A: AMETHYST HORIZON BUILDERS AND GEN. CONTRACTOR AND DEVELOPMENT CORP. Turn 4 — Q: What is the awarded contract amount for that project, and how many calendar days are allowed to complete it? Turn 4 — A: 69,479,428.64; 240 (two hundred forty) calendar-days Turn 5 — Q: On what date did the contractor receive the Notice to Proceed for it? Turn 5 — A: APR 02 2024 [End of session history]
+CURRENT QUESTION: Who are all the signatories on that project's contract agreement? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan Turn 3 — Q: Which contractor was awarded the said project? Turn 3 — A: AMETHYST HORIZON BUILDERS AND GEN. CONTRACTOR AND DEVELOPMENT CORP. Turn 4 — Q: What is the awarded contract amount for that project, and how many calendar days are allowed to complete it? Turn 4 — A: 69,479,428.64; 240 (two hundred forty) calendar-days Turn 5 — Q: On what date did the contractor receive the Notice to Proceed for it? Turn 5 — A: APR 02 2024 Turn 6 — Q: On what dates was the Notice of Award issued and the contract agreement executed for that project? Turn 6 — A: MAR 22 2024; APR 01 2024 [End of session history]
+CURRENT QUESTION: What is the total amount of the Part A (Facilities for the Engineer) items in that project's Bill of Quantities? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan Turn 3 — Q: Which contractor was awarded the said project? Turn 3 — A: AMETHYST HORIZON BUILDERS AND GEN. CONTRACTOR AND DEVELOPMENT CORP. Turn 4 — Q: What is the awarded contract amount for that project, and how many calendar days are allowed to complete it? Turn 4 — A: 69,479,428.64; 240 (two hundred forty) calendar-days Turn 5 — Q: On what date did the contractor receive the Notice to Proceed for it? Turn 5 — A: APR 02 2024 Turn 6 — Q: On what dates was the Notice of Award issued and the contract agreement executed for that project? Turn 6 — A: MAR 22 2024; APR 01 2024 Turn 7 — Q: Who are all the signatories on that project's contract agreement? Turn 7 — A: JUANITO C. MENDOZA; ROCHELLE R. CAMPOS; HENRY C. ALCANTARA; JAYPEE D. MENDOZA [End of session history]
+CURRENT QUESTION: Who signed as president of that contractor? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan Turn 3 — Q: Which contractor was awarded the said project? Turn 3 — A: AMETHYST HORIZON BUILDERS AND GEN. CONTRACTOR AND DEVELOPMENT CORP. Turn 4 — Q: What is the awarded contract amount for that project, and how many calendar days are allowed to complete it? Turn 4 — A: 69,479,428.64; 240 (two hundred forty) calendar-days Turn 5 — Q: On what date did the contractor receive the Notice to Proceed for it? Turn 5 — A: APR 02 2024 Turn 6 — Q: On what dates was the Notice of Award issued and the contract agreement executed for that project? Turn 6 — A: MAR 22 2024; APR 01 2024 Turn 7 — Q: Who are all the signatories on that project's contract agreement? Turn 7 — A: JUANITO C. MENDOZA; ROCHELLE R. CAMPOS; HENRY C. ALCANTARA; JAYPEE D. MENDOZA Turn 8 — Q: What is the total amount of the Part A (Facilities for the Engineer) items in that project's Bill of Quantities? Turn 8 — A: 643,352.50 [End of session history]
+CURRENT QUESTION: And who signed on behalf of the DPWH as its district engineer? PREVIOUS CONTEXT (for reference only — classify and answer based on CURRENT QUESTION): [Session history from this interactive session] Turn 1 — Q: List one project in the database. Turn 1 — A: Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig Turn 2 — Q: Where is that project located? Turn 2 — A: Bulakan, Bulacan Turn 3 — Q: Which contractor was awarded the said project? Turn 3 — A: AMETHYST HORIZON BUILDERS AND GEN. CONTRACTOR AND DEVELOPMENT CORP. Turn 4 — Q: What is the awarded contract amount for that project, and how many calendar days are allowed to complete it? Turn 4 — A: 69,479,428.64; 240 (two hundred forty) calendar-days Turn 5 — Q: On what date did the contractor receive the Notice to Proceed for it? Turn 5 — A: APR 02 2024 Turn 6 — Q: On what dates was the Notice of Award issued and the contract agreement executed for that project? Turn 6 — A: MAR 22 2024; APR 01 2024 Turn 7 — Q: Who are all the signatories on that project's contract agreement? Turn 7 — A: JUANITO C. MENDOZA; ROCHELLE R. CAMPOS; HENRY C. ALCANTARA; JAYPEE D. MENDOZA Turn 8 — Q: What is the total amount of the Part A (Facilities for the Engineer) items in that project's Bill of Quantities? Turn 8 — A: 643,352.50 Turn 9 — Q: Who signed as president of that contractor? Turn 9 — A: ROCHELLE R. CAMPOS [End of session history]
+
+##############################################################################
+# PART 2 -- STANDALONE (self-contained; not related to other questions in the file).
+##############################################################################
+
+In the advertisement for 24CC0265, what contract ID is officially stated?
+What is one of the publication-related dates listed in the advertisement for 24CC0265?
+In contract 24CC0265, what is the Contract Name?
+For contract 24CC0265, what is the total calculated bid amount?
+In the advertisement for 24AJ0052, what contract ID is officially stated?
+What is the approved budget for the contract in 24AJ0052?
+What is one of the publication-related dates listed in the advertisement for 24AJ0052?
+In contract 24AJ0052, what is the bid opening date and time?
+For contract 24AJ0052, who is the BAC Chairperson?
+In contract 24AJ0052, when is the bid opening scheduled?
+For contract 24AJ0052, what is the contact email for further information?
+In the contract agreement for 24CC0265, what contract ID is officially stated?
+On what date was the contract agreement for 24CC0265 executed?
+For contract 24CC0265, what is the total Contract price in Pesos?
+For contract 24CC0265, what is the Location of the Contract?
+In contract 24CC0265, what is the Contract ID?
+For contract 24CC0265, what is the location?
+What is the contract amount stipulated in 24A00153?
+On what date was the contract agreement for 24A00153 executed?
+For 24A00153, what is the Contract ID?
+In contract 24A00153, what is the Contract ID?
+In the contract agreement for 24AJ0052, what contract ID is officially stated?
+For contract 24AJ0052, what is the Location of the Contract?
+In the contract agreement for 24BG0272, what contract ID is officially stated?
+In contract 24BG0272, what is the Contract ID?
+For contract 24BG0272, who is the contractor?
+For 24BG0272, who is the contractor?
+In the contract agreement for 24BJ0005, what contract ID is officially stated?
+In contract 24BJ0005, what is the Contract Name?
+For 24BJ0005, what is the Location of the Contract?
+In contract 24BJ0005, what is the Contract ID?
+For contract 24BJ0005, what is the Contract Name?
+In the notice of award for 24CC0265, what contract ID is officially stated?
+For contract 24CC0265, who is the contractor?
+What is the awarded contract amount stated in 24A00153?
+For contract 24A00153, who is the General Manager?
+What date is stated on the notice of award for 24A00153?
+In contract 24A00153, what is the total bid amount of Rodekom General Construction and Enterprise?
+In contract 24A00153, which Bidder was declared as the one with the Lowest Calculated Responsive Bid?
+In the notice of award for 24AJ0052, what contract ID is officially stated?
+What date is stated on the notice of award for 24AJ0052?
+In the notice of award for 24BG0272, what contract ID is officially stated?
+In the notice of award for 24BJ0005, what contract ID is officially stated?
+What date is stated on the notice of award for 24BJ0005?
+In the notice to proceed for 24CC0265, what contract ID is officially stated?
+In the notice to proceed for 24CM0001, what contract ID is officially stated?
+For contract 24CM0001, what is the Location?
+What date is stated on the notice to proceed for 24BG0272?
+In the notice to proceed for 24BG0272, what contract ID is officially stated?
+In the notice to proceed for 24BJ0005, what contract ID is officially stated?
+For 24BJ0005, who is the contractor?
+What contract IDs are found in the database?
+What contract amounts are mentioned across the documents?
+What dates are cited across the database documents?
+What is the project name for contract ID 24CC0265?
+What is the name of the project 24CC0265?
+Where is the location of the contract for project 24CC0265?
+On what date was project 24CC0265 executed?
+Who is the contractor in project 24CC0265?
+What is the contract amount stipulated in project 24CC0265?
+What is the completion period for the works comprised in project 24CC0265?
+Who represents the Procuring Entity in the contract agreement for 24CC0265?
+Who is the authorized representative for the Contractor in project 24CC0265?
+Who is the Accountant III that signed project 24CC0265?
+Who is the Engineer III who witnessed and signed project 24CC0265?
+What is the volume of surplus unclassified excavation for project 24CC0265?
+What is the unit cost for Structural Steel Sheet Piles, Furnished in project 24CC0265?
+What is the letter a of the other documents of number 2 for the contract agreement of project 24cc0265?
+What is the unit used for clearing and grubbing from the contract agreement of project 24cc0265?
+For the flood control project 24CC0265 (document 24cc0265_coa.pdf), what is the combined total cost for the two line items listed under Part A: Facilities for the Engineer?
+Regarding project 24CC0265 (document 24cc0265_coa.pdf), what is the specific length in linear meters of the concrete slope protection structure to be constructed, and who is the District Engineer representing the Procuring Entity?
+For the flood mitigation project in document file 24a00153_coa__contract_agreement.24a00153.1776837570202, what is the contract price in both words and figures as stated in the preamble, and who is the Notary Public that witnessed the acknowledgement on page 3?
+For project document file 24a00153_noa_bac_reso__notice_of_award.24a00153.1776837587418, what is the Approved Budget for the Contract (ABC) specified in the BAC Resolution, and what is the final awarded contract price as stated in the Notice of Award issued on March 5, 2024?
+For project 24AJ0052 in document file 24aj0052_coa__contract_agreement.24aj0052.1992837460101, what is the total contract price in figures as stated in the preamble, and who is the specific Manager representing the contractor JHI Construction & Supply?
+For project 24BG0272 in document file 24bg0272_coa__contract_agreement.24bg0272.1662837460101, what is the total contract price in figures as stated in the witnesseth section, and what is the specific PCAB License number of the contractor JWU Construction and Supply as noted in the acknowledgment on page 4?
+For the flood control project with ID 24BJ0005 in document file 24bj0005_coa__contract_agreement.24bj0005.1776926153949, what is the total contract price in figures as stated in the witnesseth section, and what are the Doc. No. and Page No. recorded by the Notary Public in the acknowledgment?
+For the flood control project in document file 24CC0265 ROA , what is the combined total of the 'Total Calculated Bid' for all three bidders listed in the table on the second page, and on what specific date was the resolution finally approved by the Head of Procuring Entity?
+In document 24a00153_coa, total Contract Amount?
+In document 24a00153_coa, what is the specific duration of the project?
+For project 24cc0265_coa.pdf, what is the combined total cost of the three Earthwork sub-items listed in Part C: Removal of Structures and Obstruction (Concrete), Clearing and Grubbing, and Embankment (from Borrow)?
+For the contract 24cc0265_coa.pdf, what is the full main office address of the contractor Amethyst Horizon Builders and Gen. Contractor and Development Corp. listed on page 1, and who is the specific Accountant III that signed as a witness on page 4?
+For the Aringay River flood control project under contract 24a00153_coa.pdf, what is the principal office address of the contractor Rodekom General Construction and Enterprise, and what is the CTC Number for its representative, Brandy D. Abeya, as listed in the acknowledgment section?
+Regarding contract 24a00153_coa.pdf, who is the Chief of the Construction Division that signed as a witness on page 2, and what is the specific Doc. No. assigned to this instrument by the Notary Public in the acknowledgment on page 3?
+For project 24a00153_noa_bac_reso.pdf, what is the total combined 'Total Bid Amount As Calculated' for bidders Grace Construction Corporation and R.U. Aquino Construction & Dev't. Corp. as recorded in the resolution table on page 3?
+Regarding the flood control project 24a00153_noa_bac_reso.pdf, what is the specific percentage variance from the ABC for the winning bidder Rodekom General Construction and Enterprise, and what is the official email address for this contractor as stated in the Notice of Award?
+For the contract agreement 24aj0052_contract_agreement.pdf, who is the Accountant III that signed as a witness on page 2, and what is the specific Doc. No. recorded by the Notary Public in the acknowledgment section on page 3?
+Regarding project 24aj0052_contract_agreement.pdf, what is the total contract price in figures as stated on page 1, and what was the specific issuance date of the residence certificate for OIC District Engineer Mel Harvey A. Gonzales as mentioned on page 3?
+For project 24bg0272-contract_agreement.pdf, what is the specific main office address of the DPWH-Isabela 3rd District Engineering Office mentioned in the preamble, and what is the full name of the Engineer III listed as a witness on page 3?
+Regarding the agreement for project 24bg0272-contract_agreement.pdf, what is the PRC ID Number of the representative for the Procuring Entity as noted in the acknowledgment on page 4, and on what day in February 2025 was the contract officially made?
+For contract 24bj0005_coa.pdf, what is the full main office address of the contractor BRG Construction as listed in the preamble, and what is the Roll No. of the Notary Public who signed the acknowledgment on page 4?
+Regarding the agreement for project 24bj0005_coa.pdf, what is the specific main office address of the Procuring Entity listed on page 1, and what is the registration number for the Professional Identification Card of its representative, Marlyn G. Inguillo?
+What contract names are recorded across the documents in the database?
+What contract locations are mentioned across the documents in the database?
+What total contract prices are recorded across the documents in the database?
+What Approved Budget for the Contract (ABC) amounts are mentioned across the documents in the database?
+What contract durations in calendar days are stated across the documents in the database?
+Who are the contractors found in the database?
+Who are the contractor representatives (managers/presidents) named across the documents in the database?
+Who are the District Engineers named across the documents in the database?
+Who are the Regional Directors named across the documents in the database?
+Who are the Accountants III named across the documents in the database?
+Who are the project witnesses named across the documents in the database?
+Who are the Notary Public officers named across the documents in the database?
+What notary Doc. Numbers are recorded across the documents in the database?
+What notary Page Numbers are recorded across the documents in the database?
+What notary Book Numbers are recorded across the documents in the database?
+What notary Series years are recorded across the documents in the database?
+What Roll Numbers of notarial commissions are recorded across the documents in the database?
+What PTR numbers are mentioned across the documents in the database?
+What PRC ID numbers are recorded across the documents in the database?
+What CTC numbers are recorded across the documents in the database?
+What email addresses are mentioned across the documents in the database?
+What contractor office addresses are stated across the documents in the database?
+What DPWH district and regional engineering offices are referenced across the documents in the database?
+What provinces are mentioned across the documents in the database?
+What cities and municipalities are mentioned across the documents in the database?
+What barangays are mentioned across the documents in the database?
+What rivers and waterways are referenced across the documents in the database?
+Who are the OIC District Engineers named across the documents in the database?
+Who are the Chiefs of Construction Section/Division named across the documents in the database?
+Who are the Chiefs of Administrative Section named across the documents in the database?
+Who are the Chiefs of Finance Section named across the documents in the database?
+What advertisement publication date ranges are stated across the documents in the database?
+What pre-bid conference dates are stated across the documents in the database?
+What bid submission deadlines are stated across the documents in the database?
+What bid opening dates are stated across the documents in the database?
+What Notice to Proceed issue dates are recorded across the documents in the database?
+What conforme acceptance dates are recorded across the Notice of Award documents in the database?
+What BAC resolution approval dates are recorded across the documents in the database?
+What contract agreement signing dates are recorded across the documents in the database?
+Who are the bidders named across the BAC resolution documents in the database?
+What bidding document fees are stated across the advertisements in the database?
+What Invitation to Bid project titles are stated across the advertisements in the database?
+What project descriptions are stated across the Notice to Proceed documents in the database?
+What percentage variances from the ABC are recorded across the BAC resolution documents in the database?
+What total bid amounts (as calculated) are recorded across the BAC resolution table in the database?
+What contractor email addresses are recorded across the documents in the database?
+What government office (dpwh.gov.ph) email addresses are referenced across the documents in the database?
+What official URLs are referenced across the documents in the database?
+What General Appropriations Act funding years are referenced across the documents in the database?
+Who are the BAC Chairpersons named across the documents in the database?
+For project 24cc0265_coa.pdf, what is the combined total cost of the three Part B 'Other General Requirements' line items (Project Billboard/Signboard, Occupational Safety and Health Program, and Mobilization/Demobilization) in the Bill of Quantities?
+For project 24cc0265_coa.pdf, what is the combined total cost of the two Part F 'Bridge Construction' line items (Reinforcing Steel Grade 40 and Structural Concrete 20.68 Mpa) in the Bill of Quantities?
+For project 24CC0265 ROA.pdf, what is the combined total of the Total Bid as Read values for all three bidders (Amethyst Horizon Builders, Sto. Cristo Construction, and 5 Jewel's Construction) on page 1?
+For project 24cc0265_coa.pdf, on what date was the contract executed and who signed as President for the contractor on page 4?
+For project 24cc0265_coa.pdf, who is the District Engineer representing the Procuring Entity and who signed as the Accountant III on page 4?
+For project 24cc0265_coa.pdf, what is the total contract price in figures and the project completion period in calendar days?
+For project 24cc0265_coa.pdf, what is the full company name and main office address of the contractor as stated on page 1?
+For the documents 24cc0265_coa.pdf and 24cc0265_ntp.pdf, who is the District Engineer signing as Head of Procuring Entity in both documents?
+For the documents 24cc0265_coa.pdf, 24CC0265 NOA.pdf and 24cc0265_ntp.pdf, what contractor company name appears consistently as the contracting party?
+For the documents 24CC0265 NOA.pdf and 24cc0265_ntp.pdf, who signed as President representing the contractor's conforme in both notices?
+For project 24a00153_noa_bac_reso.pdf, what is the combined total of the 'Total Bid Amount As Calculated' for all three bidders (Rodekom General Construction and Enterprise, Grace Construction Corporation, and R.U. Aquino Construction & Dev't. Corp.) in the resolution table on page 3?
+For project 24a00153_noa_bac_reso.pdf, what is the combined total of the 'Total Bid Amount As Calculated' values for Rodekom General Construction and Enterprise and R.U. Aquino Construction & Dev't. Corp. in the resolution table on page 3?
+For project 24a00153_coa.pdf, on what date was the agreement made and who signed as the Regional Director representing the Procuring Entity on page 2?
+For project 24a00153_coa.pdf, what is the contractor's company name and the name of its General Manager as cited in the signature block on page 1?
+For project 24a00153_noa_bac_reso.pdf, what is the Approved Budget for the Contract (ABC) and the winning bid amount accepted in the Notice of Award?
+For project 24a00153_coa.pdf, what is the total contract price both in words and in figures as stated in the preamble on page 1?
+For the documents 24a00153_coa.pdf, 24a00153_noa_bac_reso.pdf and 24a00153_ntp.pdf, which contractor company name appears consistently as the contracting party?
+For the documents 24a00153_coa.pdf, 24a00153_noa_bac_reso.pdf and 24a00153_ntp.pdf, who is the Regional Director signing for the Procuring Entity across all three documents?
+For the documents 24a00153_coa.pdf, 24a00153_noa_bac_reso.pdf and 24a00153_ntp.pdf, who is named as the General Manager of the contractor across all three documents?
+For project 24a00153_noa_bac_reso.pdf, what is the Total Bid Amount As Calculated for Rodekom General Construction and Enterprise and its corresponding percentage variance from the ABC as recorded in the resolution table on page 3?
+For project 24aj0052_contract_agreement.pdf, on what date was the agreement made and what is the total contract price in figures?
+For project 24aj0052_contract_agreement.pdf, who signed as OIC District Engineer for DPWH Pangasinan IV DEO and who signed as Manager for the contractor on page 2?
+For project 24aj0052_contract_agreement.pdf, who signed as Accountant III and who signed as Chief, Administrative Section among the witnesses on page 2?
+For project 24aj0052_contract_agreement.pdf, what is the Doc. No. and Book No. recorded by the Notary Public on page 3?
+For project 24aj0052_contract_agreement.pdf, what is the Page No. and Series year recorded by the Notary Public on page 3?
+For project 24aj0052_notice_of_award.pdf, what is the contractor company name and its business address as stated on page 1?
+For the documents 24aj0052_contract_agreement.pdf and 24aj0052_notice_of_award.pdf, who signed as OIC District Engineer of DPWH Pangasinan IV DEO in both documents?
+For the documents 24aj0052_contract_agreement.pdf and 24aj0052_notice_of_award.pdf, who signed as Manager of JHI Construction & Supply in both documents?
+For the documents 24aj0052_contract_agreement.pdf and 24aj0052_notice_of_award.pdf, what contractor company is named in both documents?
+For project 24aj0052_contract_agreement.pdf, what is the Doc. No. recorded by the Notary Public and the Roll No. of the notary commission as stated on page 3?
+For project 24bg0272-contract_agreement.pdf, on what day was the agreement made and what is the contractor company name as stated in the preamble on page 1?
+For project 24bg0272-contract_agreement.pdf, what is the total contract price in figures and the project duration in calendar days as stated on page 1?
+For project 24bg0272-contract_agreement.pdf, who signed as District Engineer representing the Procuring Entity and who is named as General Manager representing the contractor on page 3?
+For project 24bg0272-contract_agreement.pdf, what is the main office address of the DPWH-Isabela 3rd District Engineering Office and the business address of the contractor JWU CONSTRUCTION AND SUPPLY as stated on page 1?
+For project 24bg0272-notice_to_proceed.pdf, what is the Project Description and the Contract Cost listed in the project details table on page 1?
+For the documents 24bg0272-contract_agreement.pdf, 24bg0272-noa.pdf and 24bg0272-notice_to_proceed.pdf, who signed as District Engineer of the DPWH Isabela 3rd DEO in all three documents?
+For the documents 24bg0272-contract_agreement.pdf, 24bg0272-noa.pdf and 24bg0272-notice_to_proceed.pdf, who is named as the General Manager of the contractor in all three documents?
+For the documents 24bg0272-contract_agreement.pdf, 24bg0272-noa.pdf and 24bg0272-notice_to_proceed.pdf, what contractor company name appears consistently as the contracting party?
+For the documents 24bg0272-contract_agreement.pdf, 24bg0272-noa.pdf and 24bg0272-notice_to_proceed.pdf, which DPWH district engineering office is identified as the procuring entity in all three documents?
+For the documents 24bg0272-contract_agreement.pdf, 24bg0272-noa.pdf and 24bg0272-notice_to_proceed.pdf, what specific project location (creek and barangay) is consistently named as the work site?
+For project 24bj0005_coa.pdf, on what day was the agreement made and what is the total contract price as stated in the witnesseth clause on page 1?
+For project 24bj0005_coa.pdf, who is the District Engineer representing the Procuring Entity and who signed as Manager of BRG CONSTRUCTION as listed on page 3?
+For project 24bj0005_coa.pdf, what is the main office address of the Procuring Entity and the main office address of the contractor BRG Construction as stated on page 1?
+For project 24bj0005_coa.pdf, what is the Doc. No. and Book No. recorded by the Notary Public on page 4?
+For project 24bj0005_ntp.pdf, on what date was the Notice to Proceed issued and on what date did the contractor's representative acknowledge receipt?
+For the documents 24bj0005_coa.pdf, 24bj0005_noa.pdf and 24bj0005_ntp.pdf, who signed as District Engineer of DPWH Nueva Vizcaya 2nd DEO across all three documents?
+For the documents 24bj0005_coa.pdf, 24bj0005_noa.pdf and 24bj0005_ntp.pdf, who is named as the Manager of BRG CONSTRUCTION across all three documents?
+For the documents 24bj0005_coa.pdf, 24bj0005_noa.pdf and 24bj0005_ntp.pdf, what contractor company name appears consistently as the contracting party?
+For the documents 24bj0005_coa.pdf, 24bj0005_noa.pdf and 24bj0005_ntp.pdf, which DPWH district engineering office is identified as the procuring entity in all three documents?
+For the documents 24bj0005_coa.pdf, 24bj0005_noa.pdf and 24bj0005_ntp.pdf, what river and section is consistently identified as the location of the flood control project?
+What is the contract ID of 24CC0265 ROA?
+What date is noted in 24CC0265 ROA?
+What is the contract ID of I24AJ0052 - ADS - TB 24AJ0052?
+What is the approved budget for the contract in I24AJ0052 - ADS - TB 24AJ0052?
+What date is noted in I24AJ0052 - ADS - TB 24AJ0052?
+In contract 24AJ0052, what is the date of bid opening?
+For contract 24AJ0052, who is the Head of the BAC Secretariat?
+What is the contract ID of 24AJ0052 - ADS - Revised_6th Edition PBDs_Infrastructure Projects (Repaired)?
+What is the approved budget for the contract in 24AJ0052 - ADS - Revised_6th Edition PBDs_Infrastructure Projects (Repaired)?
+What date is noted in 24AJ0052 - ADS - Revised_6th Edition PBDs_Infrastructure Projects (Repaired)?
+What is the contract ID of 24cc0265_coa?
+On what date was 24cc0265_coa executed?
+For contract 24CC0265, who is the Procuring Entity?
+In contract 24CC0265, what is the total amount of the project?
+For contract 24CC0265, what is the location of the construction?
+What is the contract amount stipulated in 24a00153_coa?
+On what date was 24a00153_coa executed?
+What is the contract ID of 24aj0052_contract_agreement?
+On what date was 24aj0052_contract_agreement executed?
+What is the contract ID of 24bg0272-contract_agreement?
+On what date was 24bg0272-contract_agreement executed?
+In contract 24BG0272, what is the Contract Name?
+For contract 24BG0272, who is the general manager representing the contractor?
+What is the contract ID of 24bj0005_coa?
+In contract 24BJ0005, what is the location of the construction/maintenance work?
+For 24BJ0005, what is the contract name?
+On what date was 24bj0005_coa executed?
+In contract 24BJ0005, what is the location?
+What is the contract ID of 24CC0265 NOA?
+On what date was the notice of award 24CC0265 NOA issued?
+On what date was the notice of award 24a00153_noa_bac_reso issued?
+What is the awarded contract amount stated in 24a00153_noa_bac_reso?
+For contract 24A00153, what is the Approved Budget of the Contract (ABC)?
+On what date was the notice of award 24aj0052_notice_of_award issued?
+What is the contract ID of 24aj0052_notice_of_award?
+What is the contract ID of 24bg0272-noa?
+On what date was the notice of award 24bg0272-noa issued?
+On what date was the notice of award 24bj0005_noa issued?
+What is the contract ID of 24bj0005_noa?
+In contract 24BJ0005, what is the location of the construction project?
+For 24BJ0005, what is the total contract price awarded?
+For contract 24BJ0005, what is the location?
+What is the effectivity date stated in 24cc0265_ntp?
+What is the contract ID of 24cc0265_ntp?
+In contract 24CC0265, what is the name of the construction project?
+What is the effectivity date stated in 24cm0001_ntp?
+What is the contract ID of 24cm0001_ntp?
+For 24CM0001, who is the Department of Public Works and Highways office?
+What is the effectivity date stated in 24a00153_ntp?
+In contract 24A00153, who is the General Manager?
+What is the effectivity date stated in 24bg0272-notice_to_proceed?
+What is the contract ID of 24bg0272-notice_to_proceed?
+What is the contract ID of 24bj0005_ntp?
+What is the effectivity date stated in 24bj0005_ntp?
+What is the contract name mentioned in 24a00153_coa__contract_agreement.24a00153.1776837570202?
+Who is the Chief of the Construction Division that witnessed 24a00153_coa__contract_agreement.24a00153.1776837570202?
+What is the CTC No. issued to the Contractor representative in 24a00153_coa__contract_agreement.24a00153.1776837570202?
+Who is the Notary Public for 24a00153_coa__contract_agreement.24a00153.1776837570202?
+What is the address of the Entity (DPWH-RO1) in 24a00153_coa__contract_agreement.24a00153.1776837570202?
+What is the business address of the Contractor in 24a00153_coa__contract_agreement.24a00153.1776837570202?
+Who is the Accountant IV identified in 24a00153_coa__contract_agreement.24a00153.1776837570202?
+On what date was the Contractor's representative CTC issued in 24a00153_coa__contract_agreement.24a00153.1776837570202?
+In what city was 24a00153_coa__contract_agreement.24a00153.1776837570202 acknowledged by the Notary Public?
+What is the contract ID of ntp_24af0094_noticetoproceed_sipag?
+Which contractor is addressed in ntp_24af0094_noticetoproceed_sipag?
+What is the effectivity date stated in ntp_24af0094_noticetoproceed_sipag?
+What is the location of the contract specified in ntp_24af0094_noticetoproceed_sipag?
+Who is the District Engineer that signed ntp_24af0094_noticetoproceed_sipag?
+What is the position of the contractor representative who acknowledged ntp_24af0094_noticetoproceed_sipag?
+What is the full contract name for ntp_24af0094_noticetoproceed_sipag?
+What dates are cited in 24AF0094 (ntp_24af0094_noticetoproceed_sipag)?
+What is the contract ID of 24CC0265-NOA?
+What is the awarded contract amount stated in 24CC0265-NOA?
+On what date was the notice of award 24CC0265-NOA issued?
+Who is the winning bidder named in 24CC0265-NOA?
+What is the contract name mentioned in 24CC0265-NOA?
+What is the location of the contract specified in 24CC0265-NOA?
+Which engineering office issued 24CC0265-NOA?
+Who is the District Engineer who signed 24CC0265-NOA?
+Who is the President of the contractor who signed the conforme in 24CC0265-NOA?
+What is the address of the contractor in 24CC0265-NOA?
+What contract IDs are found in the 24a00153_ntp__notice_to_proceed.24a00153.1776837606652 file?
+Who are the contractors found in the 24a00153_ntp__notice_to_proceed.24a00153.1776837606652 file?
+What dates are cited across the 24a00153_ntp__notice_to_proceed.24a00153.1776837606652 file?
+What contract IDs are found in the24AJ0052_-_ADS_-_Revised_6th_Edition_PBDs_Infrastructure_Projects__Repaired___advertisement.24aj0052.1776847913334 file?
+What contract amounts are mentioned across the24AJ0052_-_ADS_-_Revised_6th_Edition_PBDs_Infrastructure_Projects__Repaired___advertisement.24aj0052.1776847913334 file?
+What dates are cited across the 24AJ0052_-_ADS_-_Revised_6th_Edition_PBDs_Infrastructure_Projects__Repaired___advertisement.24aj0052.1776847913334 file?
+What contract IDs are found in the ntp_24af0094_noticetoproceed_sipag file (NTP for contract 24AF0094)?
+Who are the contractors found in the ntp_24af0094_noticetoproceed_sipag file (contract 24AF0094)?
+What dates are cited across the ntp_24af0094_noticetoproceed_sipag file (contract 24AF0094)?
+Who are the BAC Members found in the 24CC0265-ROA file?
+What DPWH office is named in the 24CC0265-ROA file?
+Who is the Regional Director that signed the 24A00153-ntp in the 24a00153_ntp__notice_to_proceed.24a00153.1776837606652 file?
+What is the contract name stated in the 24a00153_ntp__notice_to_proceed.24a00153.1776837606652 file?
+What is the approved budget for the contract in 24AJ0052_-_ADS_-_Revised_6th_Edition_PBDs_Infrastructure_Projects__Repaired___advertisement.24aj0052.1776847913334 file?
+What is the contract ID of 24AJ0052-itb in the 24AJ0052_-_ADS_-_Revised_6th_Edition_PBDs_Infrastructure_Projects__Repaired___advertisement.24aj0052.1776847913334 file?
+What is the submission deadline specified in 24AJ0052_-_ADS_-_Revised_6th_Edition_PBDs_Infrastructure_Projects__Repaired___advertisement.24aj0052.1776847913334 file?
+What is the contract ID printed inside the ntp_24af0094_noticetoproceed_sipag file (NTP 24AF0094)?
+What is the effectivity date stated in the ntp_24af0094_noticetoproceed_sipag file (contract 24AF0094)?
+Which contractor is addressed in the ntp_24af0094_noticetoproceed_sipag file (contract 24AF0094)?
+Who is the District Engineer that signed the ntp_24af0094_noticetoproceed_sipag file (contract 24AF0094)?
+Where is the location of the contract for 24CC0265-ROA file?
+What is the % Variance of TCB from ABC for Sto. Cristo Construction and Trading Inc. in 24CC0265-ROA file?
+Who is the Head of Procuring Entity that approved the 24CC0265-bac_resolution i in the 24CC0265-ROA file?
+Who is the District Engineer that signed the Notice To Proceed document in 24aj0052_notice_to_proceed__notice_to_proceed.24aj0052.1776847787376?
+What date was the 24aj0052 Notice To Proceed signed?
+What is the Manager name in the 24aj0052 Contract Agreement? Did he sign?
+What is the contract ID of the project “PROTECT LIVES & PROPERTIES AGAINST MAJOR FLOODS-FLOOD MANAGEMENT PROGRAM-CONSTRUCTION/ REHABILITATION OF FLOOD MITIGATION FACILITIES W/N MAJOR RIVER BASINS & PRINCIPAL RIVERS-CONSTRUCTION OF FLOOD CONTROL PROJECT AT MACANAO CREEK, PHASE I, BRGY. LUZON” (project 24BG0272)?
+What is the contract amount stipulated in 24bg0272’s Contract Agreement?
+On what date was the contract agreement of 24BG0272 executed?
+Who is the awarded contractor in 24bg0272?
+Who represents the Procuring Entity in the contract agreement for 24BG0272?
+Who are the individuals that signed or witnessed the contract in the Contract Agreement of Project 24bg0272?
+What documents form part of the Contract Agreement of 24BG0272 according to the order of priority?
+On what date was the notice of award of project 24A00153 issued?
+What is the awarded contract amount stated in the notice of award of Project 24A00153?
+Who is the winning bidder named in for the project 24A00153?
+What is the contract ID of the project Construction/Rehabilitation of Flood Mitigation Facilities within Major River Basins and Principal Rivers, Construction of Flood Control Structure along Aringay River, Barangay Halog East, Tubao, La Union (contract 24A00153)?
+Who is the Regional Director that signed the notice of award of project 24A00153?
+What is the Approved Budget of the Contract (ABC) mentioned in 24a00153's Notice of Award?
+On what date was the BAC Resolution in 24A00153's Notice of Award approved?
+Who is the BAC Chairman named in 24a00153's Notice of Award?
+Who are the bidders found in 24A00153's Notice of Award (24a00153_noa_bac_reso)?
+Who are all the signatories found in 24a00153_noa_bac_reso__notice_of_award.24a00153.1776837587418.pdf?
+Give one project in La Union.
+Give all the projects in Quezon
+What is the total budget allocated for the 24AF0094 project within the La Union Second District?
+List all projects in La Union
+What is the total approved budget for the SIPAG - Flood Mitigation Structures project in Barangay Urayong, Bauang, La Union?
+List one flood control project in Bulacan.
+Give one project from La Union.
+What is the total approved budget and cost breakdown for Contract ID 24A00153?
+What is the name of the project with the contract ID 24A00153?
+What is the official project title associated with Contract ID 24A00153?
+What is the official project title for Contract ID 24A00153 as stated in the contract agreement?
+what is the contract name for the contract id 24A00153?
+List one project in Bulacan
+What is the total budget of Construction of Reinforced Concrete Flood Control Structure along Tabang River, Barangay Tibig?
+Can you provide the detailed cost breakdown of the P 69,479,428.64 budget for the Tabang River flood control structure, showing amounts allocated for civil works, steel sheet piles, and excavation?
+Who are the authorized signatories listed in the Contract Agreement for Contract ID 24CC0265 and what are their official positions?
+Who is the awarded contractor of the said project that has the contract ID 24CC0265?
+What is the total contract price for Contract ID 24CC0265?
+Who signed in the contract agreement of contract ID 24CC0265?
+What is the total approved budget of the flood control project in Macañao Creek, Phase 1 Isabela
+Who is the designated contractor for the Macañao Creek Phase 1 flood mitigation structure and what is their official address or corporate registration details?

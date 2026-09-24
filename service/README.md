@@ -20,6 +20,8 @@ the single-pass RAG), streamed over HTTP as Server-Sent Events.
 | `trace_recorder.py` | Session-history replay (`SessionStore`) + query tracing: `TracingMiddleware` taps `POST /query` and appends each finished record to `traces.jsonl` (gitignored, 7-day retention, survives a restart). Read back at `GET /trace` (all) or `GET /trace/{n}` (one). |
 | `serve.sh` | Activates the `ragtest` env and launches uvicorn (mirrors `scripts/*.sh`). |
 | `serve_ngrok.sh` | Same as `serve.sh`, but also exposes the API over an ngrok tunnel and prints the public https URL. Optional — needs `ngrok` with an authtoken configured. |
+| `simulate_remote.sh` | `serve_ngrok.sh` + `remote_client.py`: a simulated third-party device queries the **public** ngrok URL, prints each streamed event, checks the stream, then tears everything down. |
+| `remote_client.py` | The simulated device (stdlib only). Runs alone against an existing tunnel: `python service/remote_client.py [--url URL] [-q "..."]` (URL defaults to ngrok's `:4040` API). |
 | `requirements.txt` | `fastapi`, `uvicorn`, `pydantic`, `starlette` — install into the `ragtest` env. |
 
 ## Run
@@ -32,6 +34,12 @@ bash service/serve.sh                      # -> http://0.0.0.0:8000
 
 (`make serve [HOST=.. PORT=..]` and `make serve-ngrok` are aliases for `serve.sh` /
 `serve_ngrok.sh`.)
+
+To check what a remote device receives without one, `make simulate-remote [Q="..."]` runs the
+full ngrok → FastAPI → agent → FastAPI → ngrok round trip against the public URL. Per query it
+checks: `meta` first, no `error`, all terminal events with `done` last, and the replayed tokens
+equal `done.response_text` (a withheld answer has no tokens and a `notice`). It exits 1 on any
+failure. With no `Q`, it asks one question per route (simple, fanout, enumerate, withhold).
 
 `GET /health` reports `starting` → `ready`. Query with a streaming client:
 
