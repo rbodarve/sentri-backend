@@ -15,10 +15,23 @@ env/
 # Local workspace config (kept on disk, not tracked).
 .claude/
 
+# API keys / secrets (e.g. OpenRouter); commit a key-less .env.example instead
+.env
+.env.*
+!.env.example
+
+# Node deps for rebuilding docs/data-flow-deck.js
+node_modules/
+
+# Workspace docs (deck, partition review, query list) — kept on disk, not tracked
+docs/
+
 # Session query traces (disk-backed, 7-day retention; regenerated at runtime)
 service/traces.jsonl
 
 # OS/editor
 .DS_Store
+# Office lock files (created while a .pptx is open in PowerPoint)
+~$*
 # Windows/WSL "downloaded from the internet" metadata streams
 *:Zone.Identifier
