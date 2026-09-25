@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-ENV_NAME="${RAG_CONDA_ENV:-ragtest}"
+ENV_NAME="${RAG_CONDA_ENV:-sentri-backend}"
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda create -y -n "$ENV_NAME" python=3.13
 conda activate "$ENV_NAME"

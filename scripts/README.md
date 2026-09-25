@@ -1,12 +1,12 @@
 # Workspace commands
 
 Portable shell wrappers for the RAG pipeline. Run from anywhere; each script locates the
-repo root and activates the `ragtest` conda env (override with `RAG_CONDA_ENV`). Also
+repo root and activates the `sentri-backend` conda env (override with `RAG_CONDA_ENV`). Also
 available as `make <target>`.
 
 | Command | Make | What it does |
 |---|---|---|
-| `bash scripts/setup.sh` | `make setup` | Create conda env `ragtest`, install pinned deps (CPU-only torch, zero VRAM) |
+| `bash scripts/setup.sh` | `make setup` | Create conda env `sentri-backend`, install pinned deps (CPU-only torch, zero VRAM) |
 | `bash scripts/check.sh` | `make check` | Run stage 1-3 self-checks (loader, enrich, relationships) |
 | `bash scripts/coverage.sh` | `make coverage` | Model-free field-coverage report over the built manifest (the analytical route's data ceiling) |
 | `bash scripts/build.sh` | `make build` | Build the retrieval eval set + embed and persist the vector index, then extract the corpus manifest (manifest step needs Ollama) |

@@ -1,4 +1,4 @@
-"""Streaming API for the ragtest agentic RAG pipeline.
+"""Streaming API for the sentri-backend agentic RAG pipeline.
 
 Wires this workspace into the generic `streaming_transport` package by handing
 it the five seams from `seams.py` — the transport itself (the `streaming_transport/`
@@ -43,7 +43,7 @@ from seams import build_pipeline, finalize, passthrough_query, summarize_stage
 from trace_recorder import SessionStore, TraceStore, TracingMiddleware, add_trace_route
 
 app = create_app(
-    service_name="ragtest-api",
+    service_name="sentri-backend-api",
     build_pipeline=build_pipeline,      # Seam 1
     summarize_stage=summarize_stage,    # Seam 4
     finalize=finalize,                  # Seam 5

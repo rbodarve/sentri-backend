@@ -4,7 +4,7 @@
 
 help:
 	@echo "RAG pipeline commands (run via 'make <target>'):"
-	@echo "  make setup                          Create conda env 'ragtest' + install pinned deps (one-time)"
+	@echo "  make setup                          Create conda env 'sentri-backend' + install pinned deps (one-time)"
 	@echo "  make check                          Stage 1-3 self-checks (loader, enrich, relationships); no model"
 	@echo "  make coverage                       Model-free field-coverage report over the manifest (analytical route's data ceiling)"
 	@echo "  make build                          Build retrieval eval set + embed index + extract manifest (manifest step needs Ollama)"

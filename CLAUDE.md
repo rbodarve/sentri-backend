@@ -14,9 +14,9 @@ are workspace-specific additions on top of it; keep such additions here, not in 
 
 ## Environment (read first)
 
-- **Everything runs in the `ragtest` conda env.** `python -m rag.*` fails from base — the
+- **Everything runs in the `sentri-backend` conda env.** `python -m rag.*` fails from base — the
   `scripts/*.sh` wrappers auto-activate it (override with `RAG_CONDA_ENV`). Run commands via
-  `make`/scripts, or `conda activate ragtest` first.
+  `make`/scripts, or `conda activate sentri-backend` first.
 - **CPU-only, zero-VRAM by design.** torch is installed CPU-only (`scripts/setup.sh`).
 - **Generation needs a running Ollama server** with the model pulled
   (`ollama pull granite4.1:3b`). Retrieval/recall eval do not need Ollama — but

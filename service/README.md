@@ -1,4 +1,4 @@
-# service — streaming API for the ragtest agentic RAG pipeline
+# service — streaming API for the sentri-backend agentic RAG pipeline
 
 Wires this workspace into the reusable SSE transport in
 [`streaming_transport/`](streaming_transport/). That package is domain-neutral and
@@ -18,16 +18,16 @@ the single-pass RAG), streamed over HTTP as Server-Sent Events.
 | `seams.py` | **Seams 1, 4, 5 + augment** — `build_pipeline`, `summarize_stage`, `finalize`, `passthrough_query`. |
 | `app.py` | `create_app(...)` wiring + `uvicorn` entrypoint. |
 | `trace_recorder.py` | Session-history replay (`SessionStore`) + query tracing: `TracingMiddleware` taps `POST /query` and appends each finished record to `traces.jsonl` (gitignored, 7-day retention, survives a restart). Read back at `GET /trace` (all) or `GET /trace/{n}` (one). |
-| `serve.sh` | Activates the `ragtest` env and launches uvicorn (mirrors `scripts/*.sh`). |
+| `serve.sh` | Activates the `sentri-backend` env and launches uvicorn (mirrors `scripts/*.sh`). |
 | `serve_ngrok.sh` | Same as `serve.sh`, but also exposes the API over an ngrok tunnel and prints the public https URL. Optional — needs `ngrok` with an authtoken configured. |
 | `simulate_remote.sh` | `serve_ngrok.sh` + `remote_client.py`: a simulated third-party device queries the **public** ngrok URL, prints each streamed event, checks the stream, then tears everything down. |
 | `remote_client.py` | The simulated device (stdlib only). Runs alone against an existing tunnel: `python service/remote_client.py [--url URL] [-q "..."]` (URL defaults to ngrok's `:4040` API). |
-| `requirements.txt` | `fastapi`, `uvicorn`, `pydantic`, `starlette` — install into the `ragtest` env. |
+| `requirements.txt` | `fastapi`, `uvicorn`, `pydantic`, `starlette` — install into the `sentri-backend` env. |
 
 ## Run
 
 ```bash
-pip install -r service/requirements.txt   # once, into the ragtest conda env
+pip install -r service/requirements.txt   # once, into the sentri-backend conda env
 ollama serve                              # generation needs a running Ollama
 bash service/serve.sh                      # -> http://0.0.0.0:8000
 ```
@@ -55,7 +55,7 @@ curl -N -X POST localhost:8000/query \
 
 ## How the seams map to this workspace
 
-| Seam | External API (reference) | ragtest (here) |
+| Seam | External API (reference) | sentri-backend (here) |
 |---|---|---|
 | 1 Construction | external service's build-from-config | `StreamingAgenticRag()` → `AgenticRag` (index + reranker + LLM, load-once) |
 | 2 Streaming | live `token`/`thinking`/`final_output` | verified answer **replayed** as `token` (see below); no `thinking` |

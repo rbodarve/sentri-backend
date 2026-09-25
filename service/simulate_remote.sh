@@ -7,7 +7,7 @@
 # Usage: bash service/simulate_remote.sh                  (default route-covering queries)
 #        bash service/simulate_remote.sh "question" ...   (your own queries)
 #
-# Requires what serve_ngrok.sh requires (ragtest env + service deps, Ollama, ngrok authtoken).
+# Requires what serve_ngrok.sh requires (sentri-backend env + service deps, Ollama, ngrok authtoken).
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -23,7 +23,7 @@ until curl -sf http://127.0.0.1:4040/api/tunnels | grep -q '"public_url":"https:
 done
 
 source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate "${RAG_CONDA_ENV:-ragtest}"
+conda activate "${RAG_CONDA_ENV:-sentri-backend}"
 QUERY_ARGS=()
 for q in "$@"; do QUERY_ARGS+=(-q "$q"); done
 python "$HERE/remote_client.py" "${QUERY_ARGS[@]}"

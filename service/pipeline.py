@@ -1,4 +1,4 @@
-"""Seam 2 (streaming protocol) for the ragtest agentic RAG pipeline.
+"""Seam 2 (streaming protocol) for the sentri-backend agentic RAG pipeline.
 
 `StreamingAgenticRag` wraps `rag.agent.AgenticRag` in the blocking-generator
 contract the transport expects: `run_stream(query, tracer, cancel_check)`

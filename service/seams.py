@@ -1,4 +1,4 @@
-"""The ragtest-specific seams handed to the generic transport.
+"""The sentri-backend-specific seams handed to the generic transport.
 
 This is the ~30% that knows about DPWH / the agentic RAG pipeline — the concrete
 implementation of the five seams the `streaming_transport` package defines (see
