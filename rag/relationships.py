@@ -12,6 +12,7 @@ Pure Python (sort + dict); no model, no VRAM.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 
 from llama_index.core.schema import NodeRelationship, RelatedNodeInfo, TextNode
@@ -47,6 +48,37 @@ def link_reading_order(nodes: list[TextNode]) -> list[TextNode]:
     return nodes
 
 
+_ROW_RE = re.compile(r"<tr>(.*?)</tr>", re.S)
+
+
+def stitch_split_table_headers(nodes: list[TextNode]) -> list[TextNode]:
+    """Prepend a table's header row to its continuation on the next page. Mutates in place.
+
+    A table that breaks across a page is OCR'd as two chunks: a one-row header table at the
+    foot of page N and a headerless body table on page N+1 (e.g. the 24cc0265_coa Bill of
+    Quantities: "Unit Cost (P)" / "Total Amount (P)" on p2, the numbers on p3). Page
+    boilerplate sits between them, so neighbour expansion never reunites them, and the body
+    reaches the LLM with two unlabelled number columns. Rule: consecutive tables in reading
+    order, the first exactly one row, the second on the next page with the same column count
+    -> the second gets the header row. Derived node text only; the DB is never altered.
+    """
+    by_document: dict[str, list[TextNode]] = defaultdict(list)
+    for node in nodes:
+        if node.metadata["category"] == "table":
+            by_document[node.metadata["pdf_source"]].append(node)
+
+    for tables in by_document.values():
+        tables.sort(key=_reading_order_key)
+        for head, body in zip(tables, tables[1:]):
+            head_rows, body_rows = _ROW_RE.findall(head.text), _ROW_RE.findall(body.text)
+            if (len(head_rows) == 1 and body_rows
+                    and int(body.metadata["pdf_page"]) == int(head.metadata["pdf_page"]) + 1
+                    and head_rows[0].count("<td>") == body_rows[0].count("<td>")):
+                body.text = head.text.replace("</table>", "", 1) + body.text.replace("<table>", "", 1)
+
+    return nodes
+
+
 if __name__ == "__main__":
     from rag.enrich import enrich_nodes
     from rag.loader import load_nodes
@@ -54,6 +86,8 @@ if __name__ == "__main__":
     nodes = load_nodes()
     enrich_nodes(nodes)
     link_reading_order(nodes)
+    before = {n.node_id: n.text for n in nodes}
+    stitch_split_table_headers(nodes)
 
     by_id = {n.node_id: n for n in nodes}
     documents = {n.metadata["pdf_source"] for n in nodes}
@@ -73,7 +107,15 @@ if __name__ == "__main__":
             assert target.relationships[NodeRelationship.PREVIOUS].node_id == node.node_id
             assert target.metadata["pdf_source"] == node.metadata["pdf_source"]
 
-    # 3) eyeball reading order for one document
+    # 3) split-table header stitching: exactly the known case (24cc0265_coa BOQ, p2 header ->
+    #    p3 body) is stitched, the header chunk itself is untouched, and nothing else changes
+    stitched = [n for n in nodes if n.text != before[n.node_id]]
+    print(f"\nstitched table headers: {[(n.metadata['pdf_source'], n.metadata['pdf_page']) for n in stitched]}")
+    assert [(n.metadata["pdf_source"], n.metadata["pdf_page"]) for n in stitched] == [("24cc0265_coa.pdf", "3")]
+    assert stitched[0].text.startswith("<table><tr><td>Item Number</td>")
+    assert "Total Amount (P)" in stitched[0].text and "261,273.60" in stitched[0].text
+
+    # 4) eyeball reading order for one document
     doc = "24CC0265 ROA.pdf"
     head = next(
         n for n in nodes

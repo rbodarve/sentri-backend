@@ -22,7 +22,7 @@ from llama_index.core.schema import TextNode
 from rag.config import PERSIST_DIR, get_embed_model
 from rag.enrich import enrich_nodes
 from rag.loader import NOTARY_PREFIX, load_nodes
-from rag.relationships import link_reading_order
+from rag.relationships import link_reading_order, stitch_split_table_headers
 
 # Lines that are context labels, not person names — skip them when parsing chunks.
 _CONTEXT_LINE_RE = re.compile(
@@ -119,6 +119,7 @@ def build_nodes():
     nodes = load_nodes()
     enrich_nodes(nodes)
     link_reading_order(nodes)
+    stitch_split_table_headers(nodes)
     nodes.extend(_signatory_summaries(nodes))
     return nodes
 
