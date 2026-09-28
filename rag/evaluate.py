@@ -2,11 +2,13 @@
 
 Runs the ground-truth set (eval/eval_retrieval.json) through the persisted index and reports
 hit_rate (= recall@k: did any expected chunk appear in the top-k?) and MRR. Only the
-embedding model runs -- no generation LLM -- so this is zero-VRAM.
+embedding model (and, in rerank mode, the CPU cross-encoder) runs -- no generation LLM -- so
+this is zero-VRAM.
 
-By default it uses pure vector retrieval (no metadata filter): the honest test of whether
-the Step-2 contract enrichment alone disambiguates. Set RAG_FILTER_BY_CONTRACT=1 to scope
-each query to its contract via MetadataFilters (the documented fix for cross-contract misses).
+Run bare, it uses pure vector retrieval (no metadata filter): the honest test of whether the
+Step-2 contract enrichment alone disambiguates. RAG_FILTER_BY_CONTRACT=1 scopes each query to its
+contract via MetadataFilters, and RAG_RERANK=1 adds the cross-encoder. `make eval` defaults to
+rerank mode, which sets both (scripts/evaluate.sh) -- that is the 1.000 gate.
 """
 
 from __future__ import annotations

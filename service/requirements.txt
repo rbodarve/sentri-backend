@@ -4,7 +4,7 @@ fastapi>=0.110
 uvicorn[standard]>=0.27
 pydantic>=2.0
 
-# Ships transitively with fastapi, but seams.py imports run_in_threadpool from it
-# directly, so it's declared here (same reason sentence-transformers is pinned in
+# Ships transitively with fastapi, but trace_recorder.py and streaming_transport/transport.py
+# import run_in_threadpool from it directly, so it's declared here (same reason sentence-transformers is pinned in
 # the root requirements even though it arrives via the embeddings package).
 starlette>=0.37

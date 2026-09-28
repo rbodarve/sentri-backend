@@ -47,8 +47,10 @@ class SessionStore:
     """In-process, per-session chat history. Scoped to process lifetime (not disk-backed).
 
     Injected into every POST /query request body by TracingMiddleware so that
-    `passthrough_query` (Seam augment) can resolve anaphoric follow-ups ("make
-    that a table") without the client needing to replay history itself.
+    `passthrough_query` (Seam augment) can resolve follow-ups -- reformat the last
+    answer ("make that a table"), or replay the turns through rag.subject's tracker
+    to pin the conversation's contract -- without the client replaying history itself.
+    Only answers that streamed tokens are recorded, so a withheld turn never enters it.
     """
 
     def __init__(self, max_turns: int = 20) -> None:
@@ -239,8 +241,9 @@ class TracingMiddleware:
                         rec["events"].append(parsed)
                 if not msg.get("more_body", False):
                     rec["finished_at"] = _now()
-                    # Capture the verified answer and update session history so
-                    # the next turn in this session can resolve anaphoric refs.
+                    # Capture the verified answer (the replayed tokens; a withheld answer has
+                    # none) and update session history so the next turn in this session can
+                    # resolve follow-ups and carry the conversation's contract.
                     session_id = rec.get("session_id")
                     query = rec.get("query")
                     if session_id and query:

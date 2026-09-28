@@ -14,15 +14,21 @@ available as `make <target>`.
 | `bash scripts/ask.sh "<question>"` | `make ask Q="..."` | One-shot: retrieve + rerank + generate a grounded, cited answer (no arg = demo questions) |
 | `bash scripts/chat.sh` | `make chat` | Interactive query loop: ask many questions in one session (index + LLM loaded once) |
 | `bash scripts/agent.sh "<question>"` | `make agent Q="..."` | Agentic controller: router + fan-out + semantic decomposition + verifier-driven self-correction (no arg = demo questions) |
-| `bash scripts/chat_agentic.sh` | `make chat-agentic` | Interactive query loop routed through the agentic controller (index + LLM loaded once) |
+| `bash scripts/chat_agentic.sh` | `make chat-agentic` | Interactive query loop routed through the agentic controller; carries the conversation's contract into follow-ups (`rag/subject.py`) |
 | `bash scripts/evaluate_agentic.sh` | `make eval-agentic` | Answer-level eval of the agent (routing / fan-out / decomposition / withholding); needs Ollama |
+| `bash service/serve.sh` | `make serve [HOST=.. PORT=..]` | Serve the agent as a streaming SSE API (see `service/README.md`); needs Ollama + `pip install -r service/requirements.txt` |
+| `bash service/serve_ngrok.sh` | `make serve-ngrok` | Same API behind an ngrok public tunnel |
+| `bash service/simulate_remote.sh` | `make simulate-remote [Q="..."]` | `serve-ngrok` + a simulated remote client that checks the stream contract |
 | — | `make all` | check + build + eval |
+| — | `make clean` | Remove the regenerable `index_store/` + caches |
+| — | `make help` | List the targets |
 
 ## Typical first run
 ```bash
-make setup      # one-time
-make build      # embed index + build retrieval eval set
-make eval       # rerank mode -> hit_rate 1.000
+make setup                 # one-time
+ollama pull granite4.1:3b  # generation model; make build's manifest step needs a running Ollama
+make build                 # retrieval eval set + embed index + extract manifest
+make eval                  # rerank mode -> hit_rate 1.000
 ```
 
 ## Notes

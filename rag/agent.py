@@ -6,22 +6,25 @@ Composes three behaviors on top of the deterministic pipeline, without replacing
                   "enumerate" (a corpus-wide "list all projects/locations" answered straight
                   from the manifest, deterministically -- no LLM, no retrieval).
   fan-out      -- a multi-contract question asking one intent of several contracts -- an
-                  explicit id list, or a distributive "each/all projects" over the whole corpus
-                  -- is split, by rule, into one single-contract sub-question each (no LLM).
+                  explicit id list, a distributive "each/all projects", or a corpus-wide sweep
+                  ("... across the documents in the database") -- is split, by rule, into one
+                  single-contract sub-question each (no LLM). A part that fails verification is
+                  withheld on its own; the answer is withheld only if every part fails.
   semantic     -- a genuine multi-hop/compound question is split into sub-questions by the LLM
                   (the ONLY place the LLM drives control), then the sub-answers are combined.
   analytical   -- a corpus-wide pattern/anomaly/commonality question reasons over the COMPLETE
                   manifest in one pass (not per-contract, no retrieval added -- the manifest is
                   already the whole corpus), the substrate top-k retrieval structurally lacks.
   self-correct -- every sub-answer is checked by the manifest Verifier; on a block/flag (or an
-                  unhelpful "I don't know") it retries with a widened k, then a dropped contract
-                  filter, and otherwise the answer is withheld.
+                  unhelpful "I don't know") it retries with a widened k. A known contract id stays
+                  filtered on every rung; only an unfiltered question may drop to the whole corpus.
+                  An id that is not in the corpus is withheld before retrieval.
 
 Design constraints this module honors (see CLAUDE.md / the plan):
   * Recall stays 1.000: it reuses RagAnswerer.answer_once unchanged; widening only keeps more
     already-retrieved chunks. It never adds a new retrieval path.
-  * No local arithmetic: the combine prompt forbids sums/totals -- aggregation stays the job of
-    the stronger handoff model, exactly as the manifest/verifier already assume.
+  * No LLM arithmetic: the decompose/combine prompts forbid sums/totals. The agreed replacement
+    (a cited calculation request evaluated in Decimal, never by a model) is not wired yet.
   * A bad LLM split cannot emit an unverified claim: every sub-answer passes the deterministic
     route + Verifier before it is combined.
 """
@@ -104,7 +107,7 @@ _COMBINE_TEMPLATE = PromptTemplate(
 )
 # Analytical answers reason over the COMPLETE manifest (the whole corpus in one context), the one
 # place a cross-corpus pattern/anomaly is even visible. Grounded strictly in the manifest rows, no
-# sums/totals (aggregation stays the handoff model's job), honest when the manifest can't support it.
+# sums/totals (no model computes -- see the module docstring), honest when the manifest can't support it.
 _ANALYTICAL_TEMPLATE = PromptTemplate(
     "You analyze a COMPLETE set of DPWH infrastructure-procurement contracts.\n"
     "The CORPUS MANIFEST below is the authoritative, complete list of every contract and its "
@@ -133,8 +136,9 @@ class Part:
 class AgentResult:
     """What the controller returns: the final answer plus its per-sub-question trail.
 
-    CONTRACT: ``text`` is always the raw model output, even when the answer was WITHHELD -- it is
-    NOT blanked on a grounding failure. A consumer MUST gate display on ``.ok`` (report.ok) and
+    CONTRACT: ``text`` is the raw model output, even when the answer was WITHHELD -- it is NOT
+    blanked on a grounding failure. (Exception: a fan-out already replaces each FAILED part's text
+    with a "withheld" line, so a partly withheld fan-out is displayable as is.) A consumer MUST gate display on ``.ok`` (report.ok) and
     show a withhold notice instead of ``text`` when it is False. Internal callers (format_result,
     evaluate_agentic, the service/ API) already do; any new renderer must too."""
 
@@ -255,8 +259,9 @@ class AgenticRag:
 
     # -- decomposition -------------------------------------------------------------------
     def _fanout_subquestions(self, question: str, ids: list[str]) -> list[str]:
-        """Rewrite a multi-contract question into one single-contract question per id: either an
-        explicit id list ("contracts X, Y and Z") or a distributive "each project" phrasing."""
+        """Rewrite a multi-contract question into one single-contract question per id: an explicit
+        id list ("contracts X, Y and Z"), a distributive "each project" phrasing, or a corpus-wide
+        sweep ("... across the documents in the database")."""
         if _MULTI_ID_RE.search(question):
             return [_MULTI_ID_RE.sub(f"for contract {cid}", question, count=1) for cid in ids]
         if _EACH_RE.search(question):
@@ -345,7 +350,8 @@ class AgenticRag:
 
 
 # Phrasings the small model uses to punt -- treated as a non-answer that should trigger a retry
-# (widen k, then drop the filter) before it is accepted. Retrying a genuine "no such value"
+# (widen k; an unfiltered question may then also drop to the whole corpus -- a known contract id
+# never does) before it is accepted. Retrying a genuine "no such value"
 # question only costs latency; it never changes a correct answer.
 _PUNT_MARKERS = (
     "don't know", "do not know", "not in the context", "not specified", "not provided",

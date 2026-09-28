@@ -12,7 +12,10 @@ the manifest back to its contract (so "signatories in Olongapo City" filters to 
 instead of searching all six contracts and drowning the right document in signature-heavy
 pages from the others). Ambiguous questions (zero or several contracts) stay unfiltered.
 
-Answers are constrained to the retrieved context to curb hallucination.
+The context opens with a header: the whole corpus manifest for an unfiltered question, or just
+the resolved contract's id note + its own manifest record for a filtered one. Then come the
+reranked hits, the top few neighbour-expanded in reading order, trimmed so everything fits ONE
+num_ctx call. Answers are constrained to that context to curb hallucination.
 """
 
 from __future__ import annotations
@@ -170,7 +173,8 @@ class RagAnswerer:
         # Same window/output reservation the compact synthesizer packs against, so _fits_one_call
         # predicts its split exactly.
         self._prompt_helper = PromptHelper.from_llm_metadata(Settings.llm.metadata)
-        # The manifest (complete list of contracts) is injected into every query's context, so
+        # The manifest (complete list of contracts) is injected into every UNFILTERED query's context
+        # (a contract-filtered pass gets only its own row, see answer_once), so
         # global questions ("how many / list all / add the amounts") see the whole corpus, which
         # top-k retrieval alone never supplies. No intent classification -- it is always present.
         manifest = load_manifest()
@@ -319,7 +323,7 @@ class RagAnswerer:
 
     def answer_once(self, question: str, contract_id: str | None, search_query: str,
                     reranker=None, trace: QueryTrace | None = None):
-        """Single filtered+reranked retrieval pass, manifest-injected, then synthesized.
+        """Single filtered+reranked retrieval pass under a manifest header, then synthesized.
 
         The reusable core of answer(): the agent (rag.agent) calls it per sub-question and can
         pass a wider ``reranker`` to widen k during self-correction."""

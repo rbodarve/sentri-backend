@@ -86,6 +86,11 @@ the wire — `blocks`/`flags` say why); `evidence` carries the same `{name, page
 `sources` but scoped to that sub-question only. Empty array for `analytical` queries (no sub-questions).
 `done`: `{confidence, uncertain, tokens, cost_usd, files, compose_backend, compose_model, response_text, notice}`.
 
+A fan-out answer (one sub-question per contract) withholds only the parts that fail the check: the
+verified parts are streamed, a failed part appears as `- <contract>: answer withheld (it failed the
+grounding check)` with its reason in `parts[].blocks`/`flags`, and `done.uncertain` is `true` only when
+every part failed (`rag/agent.py`).
+
 ### Parity with the external API (honest stand-ins)
 
 Fields the external API derives from state this pipeline lacks carry truthful defaults, so
@@ -100,6 +105,20 @@ the shape matches without faking numbers:
 - `notice` is an **additive** key (not in the external API's `done`): the grounding-check
   reason when `uncertain` is true, so a withhold is never silent. Clients
   that don't know the key ignore it.
+
+## Conversations (`session_id`)
+
+`TracingMiddleware` keeps each session's history in process (`SessionStore`, last 20 question–answer pairs, lost on
+restart) and records only **verified** answers, so a withheld turn never becomes context.
+`passthrough_query` (`seams.py`) then decides how a follow-up is asked:
+
+- **Names its own contract, place or contractor, or asks corpus-wide:** asked as typed.
+- **Any other follow-up** ("Who signed it?", "What is the contractor's contact number?"): the
+  session's current contract is pinned on by `rag.subject.SubjectTracker`, and the answer opens with
+  a visible note — *"(Answering about contract 24CC0265, taken from this conversation. Name a
+  contract or place to change it.)"* — so a wrongly carried subject is seen at once.
+- **"Make that a table" / "summarize that"**: the previous answer is reformatted directly, no retrieval.
+- **"That"/"it" with no history in the session**: the reply asks the user to re-state the question.
 
 ## Why tokens are replayed, not streamed live
 

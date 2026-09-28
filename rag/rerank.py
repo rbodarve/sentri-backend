@@ -12,8 +12,9 @@ The cross-encoder scores a LABELLED copy of each candidate ("Contract Agreement 
 24CC0265, page 1: <text>"). It scores only the passage text, and many answers sit in chunks whose
 text never says what they are -- a bare 'MAR 22 2024' stamp on a Notice of Award, a 63-char "made
 this APR 01 2024" line, a notarial paragraph, a headerless BOQ table -- so a date/PCAB/CTC question
-ranked them 10-37 of 40, past the top-10 cut. Labelled, 14 of 15 such misses rank 0-5. The label
-is rerank-only: the embedding stays pure content (injecting metadata there homogenized vectors and
+ranked them 10-37 of 40, past the top-10 cut. Labelled, 14 of 15 such misses rank 0-5. (rag.loader
+now also labels the worst of these -- date stamps, "made this" lines, notarial register entries --
+in the chunk text itself.) The rerank label is rerank-only: the embedding stays pure content (injecting metadata there homogenized vectors and
 hurt recall) and the returned nodes are the originals, so the LLM context is unchanged.
 """
 

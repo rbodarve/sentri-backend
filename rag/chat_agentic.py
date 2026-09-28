@@ -2,7 +2,8 @@
 
 Same loop as rag.chat, but every question is routed through AgenticRag -- router + fan-out +
 semantic decomposition + verifier-driven self-correction -- instead of the single-pass RAG.
-Loads the index + reranker + LLM once. Exit with an empty line, 'exit'/'quit', or Ctrl-D.
+A rag.subject.SubjectTracker carries the conversation's contract into follow-ups that don't
+name one ("who signed it?"), and each pinned answer says so. Loads the index + reranker + LLM once. Exit with an empty line, 'exit'/'quit', or Ctrl-D.
 """
 
 from __future__ import annotations

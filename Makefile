@@ -1,5 +1,5 @@
-# Convenience targets for the RAG pipeline. Each delegates to scripts/.
-# Usage: make setup | make check | make build | make eval [MODE=baseline|filtered|rerank] | make ask Q="..." | make chat | make agent Q="..." | make chat-agentic | make eval-agentic | make serve | make all | make clean
+# Convenience targets for the RAG pipeline. Each delegates to scripts/ (the serve targets to service/).
+# Usage: make setup | make check | make coverage | make build | make eval [MODE=baseline|filtered|rerank] | make ask Q="..." | make chat | make agent Q="..." | make chat-agentic | make eval-agentic | make serve | make serve-ngrok | make simulate-remote [Q="..."] | make all | make clean
 .PHONY: help setup check coverage build eval ask chat agent chat-agentic eval-agentic serve serve-ngrok simulate-remote all clean
 
 help:

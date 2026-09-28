@@ -6,8 +6,9 @@ deterministically from geometry, which every chunk has: group chunks by document
 (``pdf_source``) and order them by ``(pdf_page, y, x)`` -- i.e. top-to-bottom then
 left-to-right reading order -- then chain consecutive chunks with PREV/NEXT.
 
-This gives later retrieval a reliable way to expand a hit to its neighbouring blocks.
-Pure Python (sort + dict); no model, no VRAM.
+This gives later retrieval a reliable way to expand a hit to its neighbouring blocks. The
+same reading order drives stitch_split_table_headers, which gives a table split across a page
+break its header row back. Pure Python (sort + dict); no model, no VRAM.
 """
 
 from __future__ import annotations

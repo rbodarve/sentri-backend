@@ -1,12 +1,13 @@
 """Step 10 of the RAG pipeline: a final grounding check on the generated answer.
 
-Runs after generation, before the answer reaches the terminal. It does NOT re-ask the
-model or do any arithmetic; it checks the answer's *relational claims* against the corpus
-manifest (rag.manifest), which is the authoritative structured record of every contract.
+Runs after generation, before the answer reaches the user (terminal or the service's SSE
+stream). It does NOT re-ask the model or do any arithmetic; it checks the answer's
+*relational claims* against the corpus manifest (rag.manifest), the authoritative structured
+record of every contract.
 
-Either tier withholds the answer: on any failure the caller drops the generated text and shows
+Every tier withholds the answer: on any failure the caller drops the generated text and shows
 a generic "the model appears to be hallucinating" notice in its place, with the specific reason
-appended for diagnosis. The two tiers differ only in confidence, not in action:
+appended for diagnosis. The tiers differ only in confidence, not in action:
 
 - BLOCK (DERIVED, zero false positives): the answer names a contract_id that does not exist
   in the corpus. An invented contract is unambiguously hallucinated.
@@ -17,10 +18,16 @@ appended for diagnosis. The two tiers differ only in confidence, not in action:
   contract that is really in Bulacan). The manifest value is itself LLM-extracted, so this tier
   can carry a false positive; per project policy the answer is withheld anyway, accepting a rare
   suppressed-correct-answer over ever displaying a mis-bound one.
+- FLAG (person): a person named in a sentence alongside a contract's location/contractor must
+  appear in THAT contract's signature chunks (the person_names map built from the corpus), so a
+  signatory of contract A attributed to contract B is withheld. Role labels printed in capitals
+  beside signatures ("PROCURING ENTITY", "BAC MEMBER") are kept out of that map
+  (_NAME_STOP_WORDS).
 
-Only the CORE relations that the manifest holds (contract existence, location, contractor) are
-checked; open-ended (TAIL) claims -- materials, clauses, counts -- are left unverified here and
-are the job of a stronger entailment check on the handoff hardware. No values are ever summed.
+Only the CORE relations the corpus pins down (contract existence, location, contractor,
+signatory) are checked; open-ended (TAIL) claims -- materials, clauses, counts -- are left
+unverified here and are the job of a stronger entailment check on the handoff hardware. No
+values are ever summed.
 """
 
 from __future__ import annotations
@@ -135,7 +142,8 @@ def _contractor_index(manifest: list[dict]) -> dict[str, set[str]]:
 
 @dataclass
 class Report:
-    """Outcome of the pre-send check. ``blocked`` withholds the answer; ``flags`` warn."""
+    """Outcome of the pre-send check. Any block OR flag withholds the answer (see ``ok``); the two
+    lists differ in certainty -- a block is proven (invented id), a flag is very likely."""
 
     blocks: list[str] = field(default_factory=list)
     flags: list[str] = field(default_factory=list)
@@ -257,9 +265,9 @@ class Verifier:
 
 
 def format_report(report: Report) -> str:
-    """Render the check outcome as a compact banner for the terminal. Any grounding failure --
-    an invented contract or a mis-bound location/contractor -- yields a generic "the model
-    appears to be hallucinating" notice that stands in for the withheld answer; the specific
+    """Render the check outcome as a compact banner (the terminal, and the service's withhold
+    `notice`). Any grounding failure -- an invented contract or a mis-bound location, contractor
+    or person -- yields a generic "the model appears to be hallucinating" notice that stands in for the withheld answer; the specific
     reason(s) follow so the failure can be diagnosed."""
     if report.ok:
         return ("✓ grounding check passed -- but this ONLY confirms contract IDs, locations & "

@@ -33,7 +33,7 @@ RERANK_TOP_N = int(os.getenv("RAG_RERANK_TOP_N", "10"))
 NEIGHBOR_TOP_N = int(os.getenv("RAG_NEIGHBOR_TOP_N", "3"))
 
 # Agentic controller (rag.agent): self-correction retry budget and the widened rerank top_n
-# it falls back to. Deterministic router + verifier drive the loop; the LLM is used only for
+# it falls back to. Deterministic router + verifier drive the loop; the LLM drives control only in
 # semantic decomposition. AGENT_WIDE_TOP_N keeps more reranked chunks per retry (candidates
 # are already RERANK_CANDIDATES, so this only widens what reaches the LLM -- recall is unchanged).
 AGENT_MAX_ATTEMPTS = int(os.getenv("RAG_AGENT_MAX_ATTEMPTS", "2"))

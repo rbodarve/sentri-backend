@@ -4,7 +4,11 @@ Reads ``database/*.json`` (read-only; the DB is the trusted OCR transcription) a
 produces exactly one LlamaIndex ``TextNode`` per OCR chunk:
 
 - ``node.id_``     = the chunk's own UUID (globally unique across the DB)
-- ``node.text``    = the chunk's ``content``, verbatim
+- ``node.text``    = the chunk's ``content``, verbatim -- except for a short label that says what a
+                     chunk is when its text alone doesn't: a role prefix on signature chunks
+                     ("Signatory: " / NOTARY_PREFIX) and a page-derived label on a few
+                     context-free text chunks (see the regexes below). index.py strips the
+                     signature prefixes again before parsing names.
 - ``node.metadata``= raw source fields later steps need, copied as-is (no derivation)
 
 Deliberately does NOT enrich (Step 2) or wire relationships (Step 3).
@@ -32,9 +36,6 @@ NOTARY_PREFIX = "Notary Public who notarized this document: "
 # above it. Label such a chunk with the title printed on its own page.
 _BARE_DATE_RE = re.compile(r"[A-Za-z]{3,9}\.?\s+\d{1,2},?\s+\d{4}")
 _NOTICE_TITLES = {"NOTICE OF AWARD": "Notice of Award", "NOTICE TO PROCEED": "Notice to Proceed"}
-# The Contract Agreement's execution date only reads "THIS AGREEMENT, made this 17th day of April,
-# 2024 between ..." -- never "executed"/"date" -- so once the notice dates were labelled they
-# outranked it for "when was the contract agreement executed?". Label it the same way.
 # The notary's register entry ("Doc. No. 249 / Page No. 51 / Book No. X / Series of 2024") never
 # says whose register it is, so "notary Page No." questions read the PDF page number instead.
 _REGISTER_RE = re.compile(r"\s*Doc\.? ?No\..*Book No\..*Series", re.S)
@@ -43,6 +44,9 @@ _RESOLVED_RE = re.compile(r"\s*RESOLVED,?\s+at\b.*?this\s+(.*?\d{4})\s*$", re.S)
 # ...and its approval line ("Date Approved MAR 21 2024"), which is a different date (resolved MAR 20,
 # approved MAR 21): labelled only on a page carrying a RESOLVED line, so it reads as the resolution's.
 _APPROVED_RE = re.compile(r"\s*Date Approved:?\s+(.*?\d{4})\s*", re.I)
+# The Contract Agreement's execution date only reads "THIS AGREEMENT, made this 17th day of April,
+# 2024 between ..." -- never "executed"/"date" -- so once the notice dates were labelled they
+# outranked it for "when was the contract agreement executed?". Label it the same way.
 _MADE_THIS_RE = re.compile(r"AGREEMENT,?\s+made this\s+(.*?\d{4})", re.I | re.S)
 
 

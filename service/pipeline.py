@@ -17,11 +17,14 @@ that fails the manifest grounding check. Streaming raw LLM tokens as they
 generate would put un-verified (possibly withheld) text on the wire, so we do
 NOT stream generation live. We run the full route -> decompose -> verify loop,
 emitting per-stage progress, and only replay the *verified* answer as `token`
-events. A withheld answer streams no tokens — `done` carries the notice instead.
+events. A withheld answer streams no tokens — `done` carries the notice instead
+(a fan-out whose failed parts were withheld on their own still streams its
+verified parts).
 
-The only service-only paths are the two anaphora sentinels from
-`passthrough_query` (no prior context / reformat the previous answer), which
-precede the agent entirely.
+The only service-only paths are the sentinels from `passthrough_query`: the two
+anaphora sentinels (no prior context / reformat the previous answer) precede the
+agent entirely, and the subject pin runs the agent on the pinned question and
+only prefixes its verified answer with rag.subject.pin_note.
 """
 from __future__ import annotations
 
@@ -80,7 +83,7 @@ class StreamPart:
     contract_id: str | None
     sources: str  # "contract/doc_type pN, ..." from rag.generate.format_sources
     # Per-chunk evidence in the external API's source-panel shape ({name, page,
-    # score, chunk_id}), extracted from the retrieval Response so `finalize` can
+    # score, chunk_id} + bbox), extracted from the retrieval Response so `finalize` can
     # emit the same `sources` payload the external API does.
     evidence: list[dict] = field(default_factory=list)
 
@@ -135,7 +138,7 @@ def _node_evidence(response: Any, docstore=None) -> list[dict]:
             "chunk_id": n.node.node_id,
             # [x, y, width, height] in page-image pixels (origin top-left, y down -- see
             # rag/relationships.py _reading_order_key), straight from the OCR database.
-            # None for manifest-injected nodes (they have no coordinate).
+            # None for synthetic nodes with no page position (manifest nodes are skipped above).
             "bbox": md.get("coordinate"),
         })
     return out
@@ -148,7 +151,7 @@ class StreamFinal:
     question: str
     kind: str                    # an agent route (simple|fanout|semantic|analytical|enumerate),
                                  # or "transform" | "no_context" for the anaphora sentinels
-    contract_ids: list[str]      # contracts the router bound the question to
+    contract_ids: list[str]      # contract ids the user typed (resolved/pinned ids are not echoed)
     text: str                    # combined answer (displayable only if report.ok)
     report: Report               # final grounding outcome
     parts: list[StreamPart] = field(default_factory=list)

@@ -5,8 +5,8 @@ cannot answer *global* ones ("how many projects? list every location? add the am
 need the complete set of contracts in context, which retrieval never fetches (it returns the
 few chunks nearest the query, not the whole corpus). This module materializes that complete
 set as a small structured manifest (one row per contract), built once and persisted next to
-the index; rag.generate always injects it into the answer context, so no query-intent guessing
-is needed.
+the index; rag.generate injects it into every unfiltered answer context (a contract-filtered
+pass gets only its own row), so no query-intent guessing is needed.
 
 Two field tiers:
 - free fields (contract_id, doc_types) are aggregated from the enriched nodes -- no model call.

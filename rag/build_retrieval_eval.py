@@ -36,7 +36,7 @@ import json
 from pathlib import Path
 
 from rag.enrich import enrich_nodes
-from rag.loader import load_nodes
+from rag.loader import SECTIONS, load_nodes
 
 # Each spec: type, intent, contract_id (None = cross-corpus / no filter), query, search_query,
 # anchors. `query` is the human, location/name-based question; `search_query` is the intent-only
@@ -181,6 +181,20 @@ QUESTION_SPECS: list[dict] = [
 OUTPUT_PATH = Path("eval/eval_retrieval.json")
 
 
+def _ocr_content(database_dir: str = "database") -> dict[str, str]:
+    """Chunk UUID -> its raw OCR ``content``. Anchors are matched against this, not ``node.text``:
+    rag.loader adds labels ("Date of this Notice of Award: ...") to some chunks, and a label must
+    never make a chunk ground truth -- the "document types" question's "NOTICE OF AWARD" anchor
+    would otherwise match every labelled date stamp."""
+    content: dict[str, str] = {}
+    for path in sorted(Path(database_dir).glob("task_*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for category in SECTIONS:
+            for uuid, chunk in data.get(category, {}).items():
+                content[uuid] = chunk["content"]
+    return content
+
+
 def build_dataset() -> tuple[list[dict], list[dict]]:
     """Return (dataset, problems). Each dataset entry is a query with its ground-truth ids.
 
@@ -190,6 +204,7 @@ def build_dataset() -> tuple[list[dict], list[dict]]:
     """
     nodes = load_nodes()
     enrich_nodes(nodes)
+    ocr = _ocr_content()
     by_contract: dict[str, list] = {}
     for node in nodes:
         by_contract.setdefault(node.metadata["contract_id"], []).append(node)
@@ -199,7 +214,7 @@ def build_dataset() -> tuple[list[dict], list[dict]]:
     for spec in QUESTION_SPECS:
         scope = by_contract.get(spec["contract_id"], []) if spec["contract_id"] else nodes
         lowered_anchors = [a.lower() for a in spec["anchors"]]
-        matched = [n.id_ for n in scope if any(a in n.text.lower() for a in lowered_anchors)]
+        matched = [n.id_ for n in scope if any(a in ocr[n.id_].lower() for a in lowered_anchors)]
 
         if spec["type"] == "empty":
             expected_ids: list[str] = []          # the answer is absent by design
