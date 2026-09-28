@@ -31,7 +31,7 @@ from llama_index.core.vector_stores import FilterOperator, MetadataFilter, Metad
 from rag.config import GEN_MODEL, NEIGHBOR_TOP_N, RERANK_CANDIDATES, RERANK_TOP_N, get_llm
 from rag.enrich import CONTRACT_ID_RE, strip_contract_phrase
 from rag.index import load_index
-from rag.manifest import format_manifest, load_manifest
+from rag.manifest import format_manifest, format_manifest_row, load_manifest
 from rag.rerank import RerankingRetriever, get_reranker
 from rag.trace import QueryTrace
 from rag.verify import _GEO_STOP, Report, Verifier, format_report, _extract_sig_names
@@ -245,6 +245,14 @@ class RagAnswerer:
         node.excluded_llm_metadata_keys = ["is_manifest"]
         return NodeWithScore(node=node, score=1.0)
 
+    def _record_node(self, contract_id: str) -> NodeWithScore:
+        """The contract's own manifest record, flagged is_manifest like the full table."""
+        row = next(r for r in self._manifest if r["contract_id"] == contract_id)
+        node = TextNode(text=f"CONTRACT RECORD (the contract in question): {format_manifest_row(row)}",
+                        metadata={"is_manifest": True})
+        node.excluded_llm_metadata_keys = ["is_manifest"]
+        return NodeWithScore(node=node, score=1.0)
+
     def _resolve_contract_ids(self, question: str) -> set[str]:
         """All contracts a question names by a distinctive location/name token.
 
@@ -318,8 +326,11 @@ class RagAnswerer:
         nodes = self._retriever(contract_id, trace, reranker).retrieve(search_query)
         head = [self._manifest_node]
         if contract_id:
+            # A filtered pass sees only its own contract's record: the full manifest put every other
+            # contract's names/places/contractors in context, and "which provinces are mentioned in
+            # contract X's documents" listed them (a mis-binding the Verifier then withheld).
             # Surface the resolved id to generation so the answer cites it, not the project title.
-            head = [self._id_node(contract_id), *head]
+            head = [self._id_node(contract_id), self._record_node(contract_id)]
         nodes = self._trim_to_window(question, head, nodes)
         context = head + self._expand_neighbors(question, head, nodes)
         if trace is not None:

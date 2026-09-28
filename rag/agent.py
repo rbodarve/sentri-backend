@@ -60,6 +60,17 @@ _COMPARISON_RE = re.compile(
 # intent of the whole corpus ("list each project's location"). It fans out over every known
 # contract; a leading "for"/"of" is left outside the match so the rewrite reads naturally.
 _EACH_RE = re.compile(r"\b(?:each|every|all|per)\s+(?:of\s+the\s+)?(?:projects?|contracts?)\b", re.I)
+# Corpus-wide sweep cue ("... recorded across the documents in the database"): one field asked of
+# every contract. A single unfiltered pass hands the model 10 of ~400 chunks, so it can only ever
+# list the few instances that ranked; it fans out over every contract instead, like _EACH_RE.
+_CORPUS_RE = re.compile(
+    r"\bacross\b.{0,40}\b(?:documents|database|corpus|contracts|projects|files)\b|"
+    r"\b(?:in|from|of) the (?:database|corpus)\b", re.I
+)
+# ...but "list ONE project in the database" asks for a single example, not a sweep.
+_SINGULAR_RE = re.compile(r"\b(?:one|a|an|single)\s+(?:\w+\s+){0,2}(?:project|contract)\b", re.I)
+_ACROSS_RE = re.compile(r"\bacross\s+(?:all\s+)?(?:the\s+)?", re.I)
+_IN_DB_RE = re.compile(r"\s*\b(?:found\s+)?(?:in|from|of) the (?:database|corpus)\b", re.I)
 # Corpus-wide enumeration cue: a listing verb over a corpus-level noun. Combined with "no explicit
 # id AND no resolvable location" in classify(), this catches "list all projects" / "list the
 # locations you know about" -- questions whose complete answer IS the whole manifest, so they are
@@ -171,6 +182,9 @@ class AgenticRag:
         # the semantic route (cross-contract reasoning over specific ids), not analytical.
         if _ANALYTICAL_RE.search(question) and len(set(explicit)) < 2:
             return "analytical", sorted(self._known)
+        if (not explicit and not resolved and _CORPUS_RE.search(question)
+                and not _SINGULAR_RE.search(question)):
+            return "fanout", sorted(self._known)
         if not explicit and _EACH_RE.search(question):
             # "list/for each project ...": one intent asked of some or all contracts.
             # If the question also names a location, restrict to matching contracts so a
@@ -193,18 +207,19 @@ class AgenticRag:
                          search_query: str) -> tuple[str, Report, Any]:
         """answer_once wrapped in the retry ladder.
 
-        Invented id (not in the corpus): can't filter on it (an empty filter makes the vector
-        store raise), so go unfiltered and let the Verifier BLOCK tier expose the hallucination.
-        The ladder may drop the filter -> widen k to surface the invented-id evidence.
+        Invented id (not in the corpus): withhold before retrieval. Answering it unfiltered let
+        another contract's evidence answer it, and the Verifier only blocks an invented id the
+        answer text repeats -- "BAYANI R. GAJES" for a 24AF0094 question sailed through.
 
         Known id: stay filtered on EVERY rung. Dropping the filter would let another contract's
         evidence answer a contract-scoped question -- a cross-contract mis-binding (fix A). And a
         filtered pass is authoritative: when it legitimately finds no value the model punts
         ("not stated"), which is the correct answer, so a punt is accepted rather than retried
         into the wider corpus (fix B) -- only a grounding failure warrants the wider retry."""
-        known = contract_id is not None and contract_id in self._known
-        if contract_id and not known:
-            contract_id = None
+        if contract_id is not None and contract_id not in self._known:
+            return "", Report(blocks=[f"names contract {contract_id}, which is not in the corpus"],
+                              flags=[]), None
+        known = contract_id is not None
         if known:
             strategies = [(contract_id, None), (contract_id, self._wide_reranker)]
         else:
@@ -244,7 +259,14 @@ class AgenticRag:
         explicit id list ("contracts X, Y and Z") or a distributive "each project" phrasing."""
         if _MULTI_ID_RE.search(question):
             return [_MULTI_ID_RE.sub(f"for contract {cid}", question, count=1) for cid in ids]
-        return [_EACH_RE.sub(f"contract {cid}", question, count=1) for cid in ids]
+        if _EACH_RE.search(question):
+            return [_EACH_RE.sub(f"contract {cid}", question, count=1) for cid in ids]
+        # Corpus-wide sweep: "across the X documents in the database" -> "in contract C's X documents"
+        base = question
+        if _ACROSS_RE.search(base):
+            base = _IN_DB_RE.sub("", base)
+            return [_ACROSS_RE.sub(f"in contract {cid}'s ", base, count=1) for cid in ids]
+        return [_IN_DB_RE.sub(f" for contract {cid}", base, count=1) for cid in ids]
 
     def _decompose(self, question: str) -> list[str]:
         """Ask the LLM for sub-questions (JSON array). Fail-open to the original question."""
@@ -300,10 +322,16 @@ class AgenticRag:
         parts = [self._answer_subquestion(s, stage) for s in subqs]
 
         if kind == "fanout":
-            # Per-contract listing: the combined report is ok only if every part cleared.
-            text = "\n".join(f"- {p.answer}" for p in parts)
-            report = Report(blocks=[b for p in parts for b in p.report.blocks],
-                            flags=[f for p in parts for f in p.report.flags])
+            # Per-contract listing: each part was verified on its own, so one failed part withholds
+            # only itself (its text never shows; the reason stays on the part) -- withholding the
+            # whole list threw away every verified part (a corpus sweep lost 5 of 6 over one
+            # invented id). All parts failed -> withhold the answer, as before.
+            text = "\n".join(f"- {p.answer}" if p.report.ok else
+                             f"- {p.contract_id}: answer withheld (it failed the grounding check)"
+                             for p in parts)
+            report = Report() if any(p.report.ok for p in parts) else Report(
+                blocks=[b for p in parts for b in p.report.blocks],
+                flags=[f for p in parts for f in p.report.flags])
             stage("combine", {"strategy": "fanout", "ok": report.ok})
             return AgentResult(question, kind, text, report, parts)
 

@@ -11,7 +11,7 @@ inside one LLM context." At this size that assumption is not a flaw; it's what
 buys the project its headline properties (recall 1.000, deterministic routing,
 a complete manifest that makes global questions answerable). At 100,000
 database files (~16k contracts, ~1M chunks — or worse if 100k means contracts),
-that invariant breaks in five independent places. Fixing any one of them isn't
+that invariant breaks in six independent places. Fixing any one of them isn't
 enough; they all inherit the same assumption.
 
 
@@ -27,34 +27,39 @@ ROOT CAUSE, TRACED THROUGH EACH LAYER
      (multiply several× for Python object overhead — it won't fit).
    - Query: SimpleVectorStore.query computes similarity as a dense dot-product
      over EVERY embedding — O(N) per query. The contract_id MetadataFilter in
-     rag/generate.py:112-117 doesn't help: SimpleVectorStore applies filters by
+     rag/generate.py:105-121 doesn't help: SimpleVectorStore applies filters by
      iterating all nodes in Python first. There is no index structure at all.
-   - Build: build_index() (rag/index.py:123-129) re-embeds the entire corpus
+   - Build: build_index() (rag/index.py:127-132) re-embeds the entire corpus
      from scratch every `make build`. CPU bge-small at ~1M chunks is many hours
      to days, repaid in full for every single added document — there is no
      incremental path.
 
 2. The manifest is injected into every prompt — the correctness blocker.
-   rag/generate.py:96-99 puts the COMPLETE contract list into every query's
-   context by design ("it is always present"). One line per contract
-   (~180 chars) × 16k contracts ≈ 3MB ≈ 700k+ tokens, against a deliberately
-   capped num_ctx of 4096. This isn't a tuning problem — the whole mechanism
-   ("global questions see the whole corpus in context") is only possible
-   because the corpus is tiny. At scale the manifest can't fit any context
-   window, local or handoff.
+   rag/generate.py:173-180 builds the COMPLETE contract list and answer_once
+   (rag/generate.py:327) puts it into every unfiltered query's context ("it is
+   always present"). Since 2026-09-28 a contract-FILTERED pass injects only its
+   own contract's row (rag/generate.py:333, _record_node) -- that half of step 3
+   below is done, and it already fixed a real bug at today's size (other
+   contracts' places leaking into single-contract answers). Unfiltered questions
+   and the analytical route (rag/agent.py) still read the whole table.
+   One line per contract (~180 chars) × 16k contracts ≈ 3MB ≈ 700k+ tokens,
+   against a deliberately capped num_ctx of 4096. This isn't a tuning
+   problem — the whole mechanism ("global questions see the whole corpus in
+   context") is only possible because the corpus is tiny. At scale the
+   manifest can't fit any context window, local or handoff.
 
 3. Manifest build is one sequential LLM call per contract.
-   rag/manifest.py:140-146 loops sorted(by_contract) calling llm.complete()
+   rag/manifest.py:164-170 loops sorted(by_contract) calling llm.complete()
    once each on local Ollama. At seconds per call, 16k contracts ≈ days;
    100k contracts ≈ weeks — and `make build` reruns it in full. It also runs
    AFTER the (now days-long) embed, so any Ollama hiccup discards everything.
 
 4. Query-time routing degrades in both speed and behavior.
-   _resolve_contract_ids (rag/generate.py:120-127) runs one regex search over
+   resolve_contract_ids (rag/generate.py:123-137) runs one regex search over
    the question PER distinctive token in the entire corpus — O(corpus
    vocabulary) per query; at 16k contracts that's hundreds of thousands of
    regex calls per question. Worse, the resolution rule "exactly one contract
-   owns this token" (rag/generate.py:129-136) collapses at scale: with 16k
+   owns this token" (rag/generate.py:139-150) collapses at scale: with 16k
    Philippine infrastructure contracts, virtually every location token is
    shared, so the filter almost never engages, retrieval goes unfiltered over
    1M chunks with only 40 rerank candidates — and recall, the project's "pass"
@@ -62,9 +67,21 @@ ROOT CAUSE, TRACED THROUGH EACH LAYER
    the search space to one contract (~67 chunks).
 
 5. Startup and the verify gate are full-corpus scans.
-   _build_person_names (rag/generate.py:47-63) iterates the entire docstore
+   _build_person_names (rag/generate.py:51-67) iterates the entire docstore
    into RAM on every RagAnswerer() construction; the verify-gate script re-parses
    every database/*.json on every turn — minutes per turn at 100k files.
+
+6. Corpus-wide questions fan out once per contract (added 2026-09-28).
+   "... across the documents in the database" is routed to one filtered
+   sub-question per known contract (rag/agent.py:185-187, _CORPUS_RE), and a
+   distributive "each/all projects" question already did the same
+   (rag/agent.py:192). That is what made those ~45 questions answerable at 6
+   contracts (one unfiltered pass sees ~10 of ~400 chunks), but it costs one
+   full retrieve+generate per contract: ~4 min per question today, ~16k LLM
+   calls -- days -- per question at 100k files. It is the right shape (the
+   per-contract discipline again) on the wrong substrate: at scale these
+   field sweeps belong to the queryable manifest/field table of step 3, not to
+   N generation calls.
 
 
 WHAT ALREADY SCALES (KEEP IT)
@@ -101,11 +118,14 @@ STEPS TO MAKE IT SCALABLE (IN DEPENDENCY ORDER)
    the index). Per-contract questions inject only the resolved contracts' rows
    (a few hundred bytes) instead of the whole list. Global/aggregate questions
    ("how many, total amount") get answered by deterministic code/SQL over the
-   table — note this changes the current handoff posture: today sums are
-   deferred to the stronger handoff model, but at 100k rows no model can read
-   the list either, so aggregation must move to code (still never the local
-   LLM, consistent with the existing "LLM is forbidden from computing sums"
-   rule).
+   table. This is consistent with the current arithmetic rule (2026-09-26): no
+   LLM ever computes -- the model emits a cited calculation request and a
+   Decimal evaluator computes it (designed, not yet wired). At 100k rows the
+   operands can't come from a prompt either, so the table must supply them.
+   Corpus-wide field sweeps (blocker 6) move here too: extract the recurring
+   fields (dates, signatories, notary entries, addresses) into the table at
+   build time and answer "across the database" questions by query, capping the
+   per-contract fan-out to the contracts a filter selects.
 
 4. Invert the resolver. Tokenize the QUESTION once and look tokens up in the
    token→contracts dict (O(question length), corpus-size independent) instead
@@ -126,13 +146,18 @@ STEPS TO MAKE IT SCALABLE (IN DEPENDENCY ORDER)
    samples the larger corpus, including distractor-heavy cases (many contracts
    sharing locations) that today's corpus can't express.
 
-Steps 1–2 remove the hard blocker; step 3 removes the correctness blocker;
-4–6 remove the linear-scan tax. The retrieval LOGIC
+Steps 1–2 remove the hard blocker; step 3 removes the correctness blocker
+(and the per-contract sweep cost of blocker 6); 4–6 remove the linear-scan
+tax. The retrieval LOGIC
 (filter → rerank → neighbour-expand → generate/verify) stays intact — the one
 per-query step added since this write-up, reading-order neighbour expansion
 (PrevNextNodePostprocessor), is corpus-size-independent (bounded node-id lookups,
 not a scan), so it adds no new blocker; it only asks step 1 to keep the
-relationships (noted there). That is the encouraging part:
+relationships (noted there). The 2026-09-28 build-time chunk labels
+(rag/loader.py: a notice's bare date stamp, the agreement's "made this" line,
+the notarial register entry, the resolution's dates) are likewise per-file and
+linear, so they fit the incremental build of step 2 unchanged.
+That is the encouraging part:
 the design's per-contract discipline is exactly what a 100k corpus needs, it's
 just currently implemented on top of data structures that assume the corpus
 fits everywhere at once.

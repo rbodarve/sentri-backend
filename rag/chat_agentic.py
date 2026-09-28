@@ -9,10 +9,12 @@ from __future__ import annotations
 
 from rag.agent import AgenticRag, format_result
 from rag.config import GEN_MODEL
+from rag.subject import SubjectTracker, pin_note
 
 
 def main() -> None:
     agent = AgenticRag()
+    subject = SubjectTracker(agent.rag)   # carries the conversation's contract into follow-ups
     print(f"Agentic RAG chat ready ({GEN_MODEL}). Ask a question; empty line or Ctrl-D to quit.")
     while True:
         try:
@@ -22,8 +24,14 @@ def main() -> None:
             break
         if not question or question.lower() in {"exit", "quit"}:
             break
+        asked, pinned = subject.resolve(question)
+        if pinned:
+            print(f"\n{pin_note(pinned)}")
         try:
-            print(f"\n{format_result(agent.answer(question))}")
+            result = agent.answer(asked)
+            if result.ok:
+                subject.observe(asked, result.text)
+            print(f"\n{format_result(result)}")
         except Exception as exc:  # a generation/Ollama error must not end the session
             print(f"\n[error answering that question: {exc}] -- try again or ask another.")
 

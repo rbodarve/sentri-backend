@@ -35,6 +35,7 @@ from llama_index.core import Settings
 from rag.agent import AgenticRag, Part
 from rag.enrich import CONTRACT_ID_RE
 from rag.generate import format_sources
+from rag.subject import pin_note
 from rag.verify import Report
 
 # Seam 4 stage vocabulary — the stage names this pipeline reports.
@@ -49,6 +50,12 @@ _NO_CONTEXT_SENTINEL = "__NO_PRIOR_CONTEXT__"
 # retrieved document chunks can't displace the previous answer as the LLM's context.
 _TRANSFORM_SENTINEL = "__PRIOR_CONTEXT_TRANSFORM__"
 _TRANSFORM_SEP = "\n__FOLLOWUP__\n"
+
+# Returned by passthrough_query when the session's subject was pinned onto a follow-up.
+# Payload format: _SUBJECT_SENTINEL + comma-joined pinned ids + "\n" + pinned question.
+# run_stream strips it, answers the pinned question, and prefixes the verified answer with
+# rag.subject.pin_note so a wrongly carried subject is visible on the same turn.
+_SUBJECT_SENTINEL = "__SUBJECT_PIN__"
 
 _TRANSFORM_TEMPLATE = (
     "Reformat or summarize the previous answer as the user requests.\n"
@@ -204,13 +211,18 @@ class StreamingAgenticRag:
             report = self.agent.rag.verifier.check(text, check_bindings=False)
             result = StreamFinal(follow_up, "transform", [], text, report, [])
         else:
+            pinned: list[str] = []
+            if query.startswith(_SUBJECT_SENTINEL):
+                head, _, query = query.partition("\n")
+                pinned = head[len(_SUBJECT_SENTINEL):].split(",")
             # Only emit contract IDs that the user explicitly typed in the query.
             # Location-resolved IDs (inferred from place names like "La Union") are used
             # internally for routing but must not appear in the output stream — the client
-            # didn't ask by ID and shouldn't receive one it never mentioned.
-            explicit_ids = list(dict.fromkeys(
+            # didn't ask by ID and shouldn't receive one it never mentioned. A pinned
+            # subject id is announced by the pin note in the answer text instead.
+            explicit_ids = [i for i in dict.fromkeys(
                 m.upper() for m in CONTRACT_ID_RE.findall(query)
-            ))
+            ) if i not in pinned]
 
             def on_stage(stage: str, data: dict) -> None:
                 # Record each completed agent stage (Seam 3), then poll for cancel so a
@@ -233,7 +245,8 @@ class StreamingAgenticRag:
                 ar = self.agent.answer(query, on_stage=on_stage)
             except _Cancelled:
                 return
-            result = StreamFinal(query, ar.kind, explicit_ids, ar.text, ar.report,
+            text = f"{pin_note(pinned)}\n\n{ar.text}" if pinned and ar.ok else ar.text
+            result = StreamFinal(query, ar.kind, explicit_ids, text, ar.report,
                                  [self._stream_part(p) for p in ar.parts])
 
         # Replay the verified answer as tokens. A withheld answer (failed the

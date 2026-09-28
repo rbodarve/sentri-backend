@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from rag.config import GEN_MODEL
 from rag.enrich import CONTRACT_ID_RE
+from rag.subject import SubjectTracker
 from rag.verify import format_report
 
 from pipeline import (
@@ -33,6 +34,7 @@ from pipeline import (
     StreamFinal,
     StreamingAgenticRag,
     _NO_CONTEXT_SENTINEL,
+    _SUBJECT_SENTINEL,
     _TRANSFORM_SENTINEL,
     _TRANSFORM_SEP,
 )
@@ -199,69 +201,47 @@ def _is_anaphoric(query: str, rag) -> bool:
     return True
 
 
-def _current_subject(history: list[ChatMessage], rag) -> str | None:
-    """The contract the conversation is currently about, for anaphora resolution.
-
-    Scans user turns newest-first and returns the first that names exactly one contract --
-    an explicit id, or a distinctive location/name the router's resolver binds. Sticky by
-    construction: anaphoric or corpus-wide turns name no single contract, so the subject
-    carries forward from the last turn that did, and only a turn naming a DIFFERENT single
-    contract changes it. Derived from the user's own utterances (the authoritative subject
-    intent), never from generated answer prose -- so a verbose answer that happens to mention
-    several contracts' project types can't misbind the follow-up (the earlier failure mode).
-    """
-    if rag is None:
-        return None
-    for m in reversed(history):
-        if m.role != "user":
-            continue
-        # route(): explicit id first, else the single contract a location/name token binds.
-        cid = rag.route(m.content)[0]
-        if cid:
-            return cid
-    return None
-
-
 def passthrough_query(query: str, history: list[ChatMessage]) -> str:
-    """Route self-contained questions as-is; resolve anaphoric follow-ups against the prior turn.
+    """Route self-contained questions as-is; carry the session's subject into follow-ups.
 
-    For most queries this is a passthrough — the deterministic router classifies by scanning the
-    raw question for contract ids and location tokens, and folding prior turns into the text would
-    let a stale id from a previous question misroute the current one.
-
-    Anaphoric follow-ups ("make that a table", "signatories for that project") have no retrieval
-    anchor of their own, so they are resolved against the previous answer in one of two ways:
-
-      * presentation-only ("make that a table", "summarize that"): run_stream reformats the prior
-        answer directly, no retrieval, so retrieved chunks cannot displace it as the LLM context.
-      * new information about the same entity ("signatories for that project"): reformatting can't
-        surface a fact the prior answer never held, so bind the anaphor to the conversation's
-        current subject (the last user turn that named a contract) and rewrite it into a
-        self-contained, scoped question that runs normal retrieval.
-
-    When no history is available, the no-context sentinel is returned instead.
+    * presentation-only anaphoric follow-ups ("make that a table", "summarize that"): run_stream
+      reformats the prior answer directly, no retrieval, so retrieved chunks cannot displace it.
+    * an anaphoric follow-up with no history at all: the no-context sentinel (ask to re-state).
+    * everything else: rag.subject.SubjectTracker decides. A question that names a contract or
+      place, or asks corpus-wide, is routed as typed; any other follow-up -- "this Contract ID",
+      "the said project", or no pronoun at all ("What is the Contractor's contact number?") --
+      gets the session's current (or a recalled earlier) subject pinned on, marked with the
+      subject sentinel so run_stream shows the pin in the answer.
     """
     # The sentinels are this function's own in-band output. A client query that already starts
     # with one would otherwise steer run_stream directly -- a forged "previous answer" to
     # transform, or a ValueError when the separator is missing -- so strip the leading
     # underscores: it no longer matches a sentinel and is routed as the ordinary question it is.
-    if query.startswith((_NO_CONTEXT_SENTINEL, _TRANSFORM_SENTINEL)):
+    if query.startswith((_NO_CONTEXT_SENTINEL, _TRANSFORM_SENTINEL, _SUBJECT_SENTINEL)):
         query = query.lstrip("_")
     rag = _pipeline_ref.agent.rag if _pipeline_ref is not None else None
-    if not _is_anaphoric(query, rag):
+    if _is_anaphoric(query, rag):
+        last_assistant = next(
+            (m.content for m in reversed(history) if m.role == "assistant"), None
+        )
+        if not last_assistant:
+            return f"{_NO_CONTEXT_SENTINEL}: {query}"
+        if _PRESENTATION_RE.search(query):
+            return f"{_TRANSFORM_SENTINEL}\n{last_assistant}{_TRANSFORM_SEP}{query}"
+    if rag is None:
         return query
-    last_assistant = next(
-        (m.content for m in reversed(history) if m.role == "assistant"), None
-    )
-    if not last_assistant:
-        return f"{_NO_CONTEXT_SENTINEL}: {query}"
-    if _PRESENTATION_RE.search(query):
-        return f"{_TRANSFORM_SENTINEL}\n{last_assistant}{_TRANSFORM_SEP}{query}"
-    # New-fact follow-up ("signatories for that project"): reformatting can't surface a fact the
-    # prior answer never held, so bind the anaphor to the conversation's current subject -- the
-    # last user turn that named a single contract -- and rewrite it into a scoped question that
-    # runs normal retrieval. Fall back to reformatting when no subject has been established yet.
-    cid = _current_subject(history, rag)
-    if cid:
-        return _ANAPHORA_RE.sub(f"contract {cid}", query, count=1)
-    return f"{_TRANSFORM_SENTINEL}\n{last_assistant}{_TRANSFORM_SEP}{query}"
+    # Everything else runs normal retrieval, with the session's subject pinned on when the
+    # question doesn't anchor itself (rag.subject). The tracker is rebuilt by replaying the
+    # session history -- the same deterministic rules over the same turns reproduce the same
+    # subject, and history holds only verified answers (a withheld turn streams no tokens, so
+    # TracingMiddleware never records it), so a withheld turn never moves the subject.
+    tracker = SubjectTracker(rag)
+    asked_before = None
+    for m in history:
+        if m.role == "user":
+            asked_before, _ = tracker.resolve(m.content)
+        elif asked_before is not None:
+            tracker.observe(asked_before, m.content)
+            asked_before = None
+    asked, pinned = tracker.resolve(query)
+    return f"{_SUBJECT_SENTINEL}{','.join(pinned)}\n{asked}" if pinned else asked

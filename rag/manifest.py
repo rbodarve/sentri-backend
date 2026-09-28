@@ -200,13 +200,16 @@ def format_manifest(manifest: list[dict]) -> str:
         "(this is the complete list; use it for any question about how many, which, or all projects):"
     ]
     for i, r in enumerate(manifest, 1):
-        lines.append(
-            f"{i}. Contract {r['contract_id']}: {r['contract_name']} | "
+        lines.append(f"{i}. {format_manifest_row(r)}")
+    return "\n".join(lines)
+
+
+def format_manifest_row(r: dict) -> str:
+    """One contract's manifest record, as it reads in the injected table."""
+    return (f"Contract {r['contract_id']}: {r['contract_name']} | "
             f"location: {r['location']} | office: {r['implementing_office']} | "
             f"contractor: {r['contractor']} | amount: {r['amount']} | "
-            f"documents: {', '.join(r['doc_types'])}"
-        )
-    return "\n".join(lines)
+            f"documents: {', '.join(r['doc_types'])}")
 
 
 def format_enumeration(manifest: list[dict]) -> str:

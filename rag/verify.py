@@ -63,6 +63,9 @@ _NAME_STOP_WORDS = frozenset({
     "association", "center", "bureau", "notice", "award", "certificate", "acceptance",
     "completion", "scope", "terms", "conditions", "article", "section", "clause",
     "office", "national", "regional", "implementing",
+    # role/rank labels printed in all caps beside signatures ("PROCURING ENTITY", "BAC MEMBER",
+    # "GEN MANAGER", "CESO III"), and the notary's city -- not person names
+    "procuring", "entity", "member", "manager", "ceso", "city",
 })
 
 

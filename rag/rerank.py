@@ -7,6 +7,14 @@ into the top few. Runs on CPU (zero VRAM).
 
 ``RerankingRetriever`` wraps a base retriever so it plugs straight into RetrieverEvaluator:
 retrieve RERANK_CANDIDATES by vector similarity, then rerank down to RERANK_TOP_N.
+
+The cross-encoder scores a LABELLED copy of each candidate ("Contract Agreement for contract
+24CC0265, page 1: <text>"). It scores only the passage text, and many answers sit in chunks whose
+text never says what they are -- a bare 'MAR 22 2024' stamp on a Notice of Award, a 63-char "made
+this APR 01 2024" line, a notarial paragraph, a headerless BOQ table -- so a date/PCAB/CTC question
+ranked them 10-37 of 40, past the top-10 cut. Labelled, 14 of 15 such misses rank 0-5. The label
+is rerank-only: the embedding stays pure content (injecting metadata there homogenized vectors and
+hurt recall) and the returned nodes are the originals, so the LLM context is unchanged.
 """
 
 from __future__ import annotations
@@ -18,6 +26,21 @@ from llama_index.core.retrievers import BaseRetriever
 from llama_index.core.schema import NodeWithScore, QueryBundle
 
 from rag.config import RERANK_MODEL, RERANK_TOP_N
+
+_DOC_LABEL = {
+    "COA": "Contract Agreement", "CONTRACT_AGREEMENT": "Contract Agreement",
+    "NOA": "Notice of Award", "NTP": "Notice to Proceed", "ROA": "Resolution of Award",
+    "ADS": "Invitation to Bid", "SIGNATORIES": "Signatories",
+}
+
+
+def _labelled(candidate: NodeWithScore) -> NodeWithScore:
+    """A copy of the candidate whose text leads with its document type, contract and page."""
+    md = candidate.node.metadata
+    doc = _DOC_LABEL.get(md.get("doc_type"), md.get("doc_type"))
+    node = candidate.node.model_copy()
+    node.text = f"{doc} for contract {md.get('contract_id')}, page {md.get('pdf_page')}: {node.text}"
+    return NodeWithScore(node=node, score=candidate.score)
 
 
 @lru_cache(maxsize=None)
@@ -44,7 +67,10 @@ class RerankingRetriever(BaseRetriever):
 
     def _retrieve(self, query_bundle: QueryBundle) -> list[NodeWithScore]:
         candidates = self._base_retriever.retrieve(query_bundle)
-        reranked = self._reranker.postprocess_nodes(candidates, query_bundle=query_bundle)
+        originals = {c.node.node_id: c.node for c in candidates}
+        ranked = self._reranker.postprocess_nodes([_labelled(c) for c in candidates],
+                                                  query_bundle=query_bundle)
+        reranked = [NodeWithScore(node=originals[n.node.node_id], score=n.score) for n in ranked]
         if self._trace is not None:
             self._trace.emit("retrieve", nodes=candidates, k=len(candidates),
                              query=query_bundle.query_str)
