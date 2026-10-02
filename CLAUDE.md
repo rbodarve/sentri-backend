@@ -114,4 +114,4 @@ embedding/reranker/LLM for better hardware without touching pipeline code. Defau
 - **Verify gate:** `.claude/verify.sh` (a Stop hook) validates `database/` OCR integrity on
   every turn. It must exit 0. It only checks JSON structure — it never re-OCRs.
   `.claude/` is gitignored, so this gate is local-only: a fresh clone has no verify.sh or hook.
-- Match existing style; keep changes surgical. `PYTHONWARNINGS=ignore` is set by the scripts.
+- Match existing style; keep changes surgical. `PYTHONWARNINGS=ignore` and `PYTHONUTF8=1` (Windows defaults to cp1252) are set by the scripts.

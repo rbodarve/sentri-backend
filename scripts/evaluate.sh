@@ -10,6 +10,7 @@ cd "$ROOT"
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "${RAG_CONDA_ENV:-sentri-backend}"
 export PYTHONWARNINGS="ignore"
+export PYTHONUTF8=1  # UTF-8 stdio + default file encoding on Windows (cp1252 otherwise)
 
 MODE="${1:-rerank}"
 case "$MODE" in

@@ -250,7 +250,7 @@ if __name__ == "__main__":
     OUTPUT_PATH.parent.mkdir(exist_ok=True)
     # ensure_ascii=False so non-ASCII place names (e.g. "Macañao") stay literal, matching the
     # checked-in eval_retrieval.json -- regenerating must be a no-op, not a diff.
-    OUTPUT_PATH.write_text(json.dumps(dataset, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    OUTPUT_PATH.write_text(json.dumps(dataset, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
 
     from collections import Counter
     by_type = Counter(e["type"] for e in dataset)

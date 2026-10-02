@@ -24,6 +24,7 @@ done
 
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "${RAG_CONDA_ENV:-sentri-backend}"
+export PYTHONUTF8=1  # UTF-8 stdio + default file encoding on Windows (cp1252 otherwise)
 QUERY_ARGS=()
 for q in "$@"; do QUERY_ARGS+=(-q "$q"); done
 python "$HERE/remote_client.py" "${QUERY_ARGS[@]}"

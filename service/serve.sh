@@ -12,5 +12,6 @@ cd "$HERE"
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "${RAG_CONDA_ENV:-sentri-backend}"
 export PYTHONWARNINGS="ignore"
+export PYTHONUTF8=1  # UTF-8 stdio + default file encoding on Windows (cp1252 otherwise)
 
 exec python -m uvicorn app:app --host "${HOST:-0.0.0.0}" --port "${PORT:-8000}"
