@@ -32,7 +32,9 @@ collisions such as "asis" inside "Rental Basis".
 
 from __future__ import annotations
 
+import html
 import json
+import re
 from pathlib import Path
 
 from rag.enrich import enrich_nodes
@@ -119,6 +121,9 @@ QUESTION_SPECS: list[dict] = [
     dict(type="broad", intent="accountants", contract_id=None,
          anchors=["DEXTER D. LOMBOY", "JULIETA C. BACANI", "JAYSON V. ANTONIO", "JONNALYN Q. BARASI", "JUANITO C. MENDOZA"],
          query="Who are the accountants named across the contracts?", search_query="Who are the accountants named across the contracts?"),
+    # Known gap (fact_cov 0.80): the BAC Resolution is bundled inside the NOA PDF (doc_type NOA,
+    # pp. 2-3), so metadata and the manifest cannot see it; its only evidence is one short title
+    # chunk, which this meta question ranks 37/40. Kept as-is, not tuned for (2026-10-03).
     dict(type="broad", intent="document_types", contract_id="24A00153",
          anchors=["NOTICE OF AWARD", "CONTRACT AGREEMENT", "NOTICE TO PROCEED", "BAC RESOLUTION", "ACKNOWLEDGEMENT"],
          query="What document types make up the Aringay River contract file in Tubao, La Union?", search_query="What document types make up this contract file?"),
@@ -195,16 +200,23 @@ def _ocr_content(database_dir: str = "database") -> dict[str, str]:
     return content
 
 
+def match_text(text: str) -> str:
+    """Normalize text for anchor matching: the OCR keeps HTML entities in table cells
+    ("Jewel&#39;s") and doubled spaces in signatures ("IRENE DC.  ONTINGCO"), so a literal anchor
+    would never match them. Shared with rag.evaluate's fact coverage so both match the same way."""
+    return re.sub(r"\s+", " ", html.unescape(text)).lower()
+
+
 def build_dataset() -> tuple[list[dict], list[dict]]:
     """Return (dataset, problems). Each dataset entry is a query with its ground-truth ids.
 
-    ``problems`` lists specs that fail their own contract: a non-empty spec with zero matched
-    chunks (a broken anchor), or an ``empty`` spec whose absence probe actually matched (so the
+    ``problems`` lists specs that fail their own contract: a non-empty spec with an anchor that
+    matches zero chunks (a broken anchor), or an ``empty`` spec whose absence probe actually matched (so the
     answer is present and the question is not really unanswerable). Either is a build error.
     """
     nodes = load_nodes()
     enrich_nodes(nodes)
-    ocr = _ocr_content()
+    ocr = {i: match_text(t) for i, t in _ocr_content().items()}
     by_contract: dict[str, list] = {}
     for node in nodes:
         by_contract.setdefault(node.metadata["contract_id"], []).append(node)
@@ -213,8 +225,8 @@ def build_dataset() -> tuple[list[dict], list[dict]]:
     problems: list[dict] = []
     for spec in QUESTION_SPECS:
         scope = by_contract.get(spec["contract_id"], []) if spec["contract_id"] else nodes
-        lowered_anchors = [a.lower() for a in spec["anchors"]]
-        matched = [n.id_ for n in scope if any(a in ocr[n.id_].lower() for a in lowered_anchors)]
+        lowered_anchors = [match_text(a) for a in spec["anchors"]]
+        matched = [n.id_ for n in scope if any(a in ocr[n.id_] for a in lowered_anchors)]
 
         if spec["type"] == "empty":
             expected_ids: list[str] = []          # the answer is absent by design
@@ -222,8 +234,11 @@ def build_dataset() -> tuple[list[dict], list[dict]]:
                 problems.append({**spec, "reason": f"absence probe matched {len(matched)} chunk(s)"})
         else:
             expected_ids = matched
-            if not expected_ids:
-                problems.append({**spec, "reason": "no chunk matched the anchors"})
+            # Per anchor, not per spec: one dead anchor caps the question's fact coverage silently.
+            dead = [a for a, low in zip(spec["anchors"], lowered_anchors)
+                    if not any(low in ocr[n.id_] for n in scope)]
+            if dead:
+                problems.append({**spec, "reason": f"anchor(s) matched no chunk: {dead}"})
 
         dataset.append({
             "type": spec["type"],

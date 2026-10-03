@@ -42,6 +42,21 @@ def evaluate(top_k: int = TOP_K, filter_by_contract: bool = FILTER_BY_CONTRACT, 
     # With reranking we retrieve a wide candidate set, then narrow to RERANK_TOP_N.
     candidate_k = RERANK_CANDIDATES if rerank else top_k
 
+    # The agent's own router decides which no-id questions fan out, and over which contracts. It
+    # needs only the manifest-backed resolver, so call it on a stub instead of loading the LLM.
+    route = None
+    if filter_by_contract:
+        from types import SimpleNamespace
+        from rag.agent import AgenticRag
+        from rag.generate import _resolver_index, resolve_contract_ids
+        from rag.manifest import load_manifest
+        manifest = load_manifest()
+        resolver, phrases = _resolver_index(manifest)
+        router = SimpleNamespace(
+            _known={r["contract_id"] for r in manifest},
+            _rag=SimpleNamespace(resolve_contract_ids=lambda q: resolve_contract_ids(q, resolver, phrases)))
+        route = lambda q: AgenticRag.classify(router, q)
+
     results = []
     metrics = None  # resolve the metric objects once (F7); the evaluator wrapper is per-item
     for item in dataset:                                # because the contract filter is per-item.
@@ -64,18 +79,38 @@ def evaluate(top_k: int = TOP_K, filter_by_contract: bool = FILTER_BY_CONTRACT, 
         else:
             evaluator = RetrieverEvaluator(metrics=metrics, retriever=retriever)
         result = evaluator.evaluate(query=query_text, expected_ids=item["expected_ids"])
-        results.append((item, result))
+        # The chunks production actually sees: a no-id question the router fans out runs one
+        # filtered search per contract, so pool those; otherwise the single pass above.
+        seen = set(result.retrieved_ids)
+        if route and not item["contract_id"]:
+            kind, ids = route(item["query"])
+            if kind == "fanout":
+                seen = {n.node.node_id for cid in ids
+                        for n in build_retriever(index, cid, candidate_k, reranker).retrieve(item["search_query"])}
+        results.append((item, result, seen))
     return results
 
 
 def _anchor_coverage(item, result) -> float:
-    """Per-anchor recall: the fraction of a question's expected chunks that were retrieved. For
-    broad/complex probes (many anchors across contracts) hit_rate=1 means only ONE anchor showed
-    up; coverage says how much of the full corpus-spanning answer was actually retrieved."""
+    """Chunk coverage (the old number, kept for comparison with old runs): the fraction of a
+    question's expected chunks in the single pass's top-k. Capped below 1 whenever a question has
+    more expected chunks than k (project_locations: 85 chunks, so at most 10/85)."""
     expected = set(item["expected_ids"])
     if not expected:
         return 0.0
     return len(expected & set(result.retrieved_ids)) / len(expected)
+
+
+def _fact_coverage(item, seen, ocr) -> float:
+    """Fact coverage: the fraction of a question's anchors (answer facts) found in at least one
+    seen chunk. Matches anchors on raw OCR text, the same way rag.build_retrieval_eval picks
+    expected_ids, so a loader label can never count as a found fact."""
+    from rag.build_retrieval_eval import match_text
+    anchors = [match_text(a) for a in item["anchors"]]
+    if not anchors:
+        return 0.0
+    texts = [match_text(ocr.get(i, "")) for i in seen]
+    return sum(any(a in t for t in texts) for a in anchors) / len(anchors)
 
 
 def resolver_check():
@@ -112,8 +147,10 @@ if __name__ == "__main__":
         sys.exit(f"resolver gate FAILED: {len(mismatches)} query(ies) resolve to the wrong filter")
     print()
 
+    from rag.build_retrieval_eval import _ocr_content
     results = evaluate()
     n = len(results)
+    ocr = _ocr_content()
 
     mode = "contract-filtered" if FILTER_BY_CONTRACT else "pure-vector"
     if RERANK:
@@ -121,14 +158,14 @@ if __name__ == "__main__":
     k_shown = RERANK_TOP_N if RERANK else TOP_K
 
     # Per-type recall. `single` is THE gate (CLAUDE.md); broad/complex hit_rate is lenient ("any
-    # expected chunk in top-k"), so it reads high by construction -- report per-anchor COVERAGE
-    # alongside it (how much of the corpus-spanning answer was actually retrieved).
+    # expected chunk in top-k"), so it reads high by construction -- report FACT coverage (how many
+    # answer facts the chunks production sees contain) alongside it, plus the old chunk coverage.
     by_type: dict[str, list] = {}
-    for item, r in results:
+    for item, r, seen in results:
         by_type.setdefault(item.get("type", "single"), []).append(
-            (int(r.metric_vals_dict["hit_rate"]), _anchor_coverage(item, r)))
+            (int(r.metric_vals_dict["hit_rate"]), _fact_coverage(item, seen, ocr), _anchor_coverage(item, r)))
     single = by_type.get("single", [])
-    single_hit = sum(h for h, _ in single) / len(single) if single else 0.0
+    single_hit = sum(row[0] for row in single) / len(single) if single else 0.0
 
     # F5: the GATE is the single-type recall, not the strict+lenient blend.
     print(f"mode={mode} top_k={k_shown} | scored={n} | empty(withheld)={n_empty}")
@@ -136,10 +173,12 @@ if __name__ == "__main__":
     for t in ("single", "broad", "complex"):
         rowsT = by_type.get(t, [])
         if rowsT:
-            hr = sum(h for h, _ in rowsT) / len(rowsT)
-            cov = sum(c for _, c in rowsT) / len(rowsT)
-            tag = "" if t == "single" else "  [lenient: any-hit; coverage = full-answer recall]"
-            print(f"  {t:<8} hit_rate={hr:.3f}  coverage={cov:.3f}  ({len(rowsT)}){tag}")
+            hr, fcov, ccov = (sum(row[j] for row in rowsT) / len(rowsT) for j in range(3))
+            tag = "" if t == "single" else "  [lenient: any-hit; fact_cov = answer facts found]"
+            print(f"  {t:<8} hit_rate={hr:.3f}  fact_cov={fcov:.3f}  ({len(rowsT)}){tag}")
+            print(f"  {'':<8} chunk_cov={ccov:.3f}  [old: expected chunks in one pass's top-k]")
+    if FILTER_BY_CONTRACT:
+        print("  (fact_cov: a no-id question the agent routes to fanout pools one filtered search per contract)")
     # F3: the ablation is not equal-k -- baseline/filtered score at TOP_K, rerank at RERANK_TOP_N,
     # so "rerank > filtered" mixes the reorder with a bigger window. For an apples-to-apples reader
     # run filtered at the same k: `RAG_FILTER_BY_CONTRACT=1 RAG_TOP_K=10 make eval MODE=filtered`.
@@ -148,16 +187,16 @@ if __name__ == "__main__":
               f"(not equal-k). To isolate the reranker, compare filtered at RAG_TOP_K={RERANK_TOP_N}.")
     print()
 
-    print(f"  {'hit':>3} {'cov':>4} {'mrr':>5}  type     intent/contract                query")
-    for item, r in results:
+    print(f"  {'hit':>3} {'fcov':>4} {'ccov':>4} {'mrr':>5}  type     intent/contract                query")
+    for item, r, seen in results:
         h = int(r.metric_vals_dict["hit_rate"])
         m = r.metric_vals_dict["mrr"]
-        cov = _anchor_coverage(item, r)
+        fcov, ccov = _fact_coverage(item, seen, ocr), _anchor_coverage(item, r)
         mark = " " if h else "*"
-        print(f" {mark}{h:>3} {cov:>4.2f} {m:>5.2f}  {item.get('type', 'single'):<8} {item['intent']:<20} "
+        print(f" {mark}{h:>3} {fcov:>4.2f} {ccov:>4.2f} {m:>5.2f}  {item.get('type', 'single'):<8} {item['intent']:<20} "
               f"{str(item['contract_id'] or '-'):<9} {item['query'][:38]}")
 
-    misses = [(item, r) for item, r in results if r.metric_vals_dict["hit_rate"] == 0]
+    misses = [(item, r) for item, r, _ in results if r.metric_vals_dict["hit_rate"] == 0]
     if misses:
         print(f"\n{len(misses)} MISS(es):")
         for item, r in misses:
