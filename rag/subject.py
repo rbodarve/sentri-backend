@@ -30,8 +30,7 @@ from __future__ import annotations
 
 import re
 
-from rag.agent import (_ANALYTICAL_RE, _CORPUS_RE, _EACH_RE, _LIST_CORPUS_RE, is_aggregate_question,
-                       is_rank_question)
+from rag.agent import is_corpus_wide
 from rag.enrich import CONTRACT_ID_RE
 
 _RESET_RE = re.compile(
@@ -123,9 +122,7 @@ class SubjectTracker:
         named = self._contractor_named(question)
         if named:
             return pin(question, named), named
-        if (_LIST_CORPUS_RE.search(question) or _EACH_RE.search(question)
-                or _ANALYTICAL_RE.search(question) or _CORPUS_RE.search(question)
-                or is_rank_question(question) or is_aggregate_question(question)
+        if (is_corpus_wide(question)
                 or (_WHICH_PLURAL_RE.search(question) and not _ANAPHOR_RE.search(question)
                     and not _ORDINAL_RE.search(question))):
             return question, []

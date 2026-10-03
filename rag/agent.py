@@ -145,6 +145,15 @@ def is_aggregate_question(question: str) -> bool:
                 and _AGGREGATE_FIELD_RE.search(question) and _RANK_SCOPE_RE.search(question)
                 and not _PER_CONTRACT_RE.search(question))
 
+
+def is_corpus_wide(question: str) -> bool:
+    """Every corpus-wide route cue, text-only. classify() takes a corpus-wide route only when this
+    matches, and rag.subject never pins a session contract onto it -- one list, so a new route
+    cannot be added to one and missed in the other."""
+    return bool(_LIST_CORPUS_RE.search(question) or _EACH_RE.search(question)
+                or _ANALYTICAL_RE.search(question) or _CORPUS_RE.search(question)
+                or is_rank_question(question) or is_aggregate_question(question))
+
 _DECOMPOSE_TEMPLATE = PromptTemplate(
     "Break the question into the minimal list of independent, self-contained sub-questions "
     "needed to answer it. Each sub-question must name its own contract id or location so it "
@@ -229,38 +238,41 @@ class AgenticRag:
         "enumerate","rank","aggregate"}."""
         explicit = list(dict.fromkeys(m.upper() for m in CONTRACT_ID_RE.findall(question)))
         resolved = self._rag.resolve_contract_ids(question)  # resolve once, reuse (was up to 3x)
-        if not explicit and not resolved:
-            # Corpus-wide ranking ("which contract has the highest amount"): every contract's value
-            # is needed and the comparison must not be the LLM's, so it is answered by sorting the
-            # manifest (see answer()). Precedes enumerate so "list the contracts by amount" ranks.
-            if is_rank_question(question):
-                return "rank", sorted(self._known)
-            # Corpus-wide total/average: every amount is an operand, so it is summed in Decimal
-            # from the manifest (see answer()), never by the LLM through a fan-out combine. After
-            # rank, so "the highest total amount" ranks.
-            if is_aggregate_question(question):
-                return "aggregate", sorted(self._known)
-        # Corpus-wide enumeration: a "list the projects/contracts/locations" question with no
-        # explicit id and no resolvable location -- its complete answer IS the manifest, so answer
-        # by deterministic enumeration (see answer()), not lossy/nondeterministic summarization or
-        # a whole-corpus fan-out. A location-scoped "list all projects in X" resolves an id here
-        # and so falls through to the scoped simple/fan-out route below.
-        if not explicit and _LIST_CORPUS_RE.search(question) and not resolved:
-            return "enumerate", sorted(self._known)
-        # Analytical (corpus-wide pattern/anomaly) reasons over the whole manifest at once, so it
-        # precedes the fan-out/each rules. A question comparing >=2 *named* contracts is left to
-        # the semantic route (cross-contract reasoning over specific ids), not analytical.
-        if _ANALYTICAL_RE.search(question) and len(set(explicit)) < 2:
-            return "analytical", sorted(self._known)
-        if (not explicit and not resolved and _CORPUS_RE.search(question)
-                and not _SINGULAR_RE.search(question)):
-            return "fanout", sorted(self._known)
-        if not explicit and _EACH_RE.search(question):
-            # "list/for each project ...": one intent asked of some or all contracts.
-            # If the question also names a location, restrict to matching contracts so a
-            # location-scoped "all projects in X" doesn't fan out over the whole corpus.
-            scope = sorted(resolved) if resolved else sorted(self._known)
-            return ("simple" if len(scope) <= 1 else "fanout"), scope
+        # A corpus-wide route needs its cue in is_corpus_wide (shared with rag.subject's pin rule).
+        if is_corpus_wide(question):
+            if not explicit and not resolved:
+                # Corpus-wide ranking ("which contract has the highest amount"): every contract's
+                # value is needed and the comparison must not be the LLM's, so it is answered by
+                # sorting the manifest (see answer()). Precedes enumerate so "list the contracts by
+                # amount" ranks.
+                if is_rank_question(question):
+                    return "rank", sorted(self._known)
+                # Corpus-wide total/average: every amount is an operand, so it is summed in Decimal
+                # from the manifest (see answer()), never by the LLM through a fan-out combine.
+                # After rank, so "the highest total amount" ranks.
+                if is_aggregate_question(question):
+                    return "aggregate", sorted(self._known)
+            # Corpus-wide enumeration: a "list the projects/contracts/locations" question with no
+            # explicit id and no resolvable location -- its complete answer IS the manifest, so
+            # answer by deterministic enumeration (see answer()), not lossy/nondeterministic
+            # summarization or a whole-corpus fan-out. A location-scoped "list all projects in X"
+            # resolves an id here and so falls through to the scoped simple/fan-out route below.
+            if not explicit and _LIST_CORPUS_RE.search(question) and not resolved:
+                return "enumerate", sorted(self._known)
+            # Analytical (corpus-wide pattern/anomaly) reasons over the whole manifest at once, so
+            # it precedes the fan-out/each rules. A question comparing >=2 *named* contracts is left
+            # to the semantic route (cross-contract reasoning over specific ids), not analytical.
+            if _ANALYTICAL_RE.search(question) and len(set(explicit)) < 2:
+                return "analytical", sorted(self._known)
+            if (not explicit and not resolved and _CORPUS_RE.search(question)
+                    and not _SINGULAR_RE.search(question)):
+                return "fanout", sorted(self._known)
+            if not explicit and _EACH_RE.search(question):
+                # "list/for each project ...": one intent asked of some or all contracts.
+                # If the question also names a location, restrict to matching contracts so a
+                # location-scoped "all projects in X" doesn't fan out over the whole corpus.
+                scope = sorted(resolved) if resolved else sorted(self._known)
+                return ("simple" if len(scope) <= 1 else "fanout"), scope
         ids = explicit or sorted(resolved)
         if len(set(ids)) <= 1:
             return "simple", ids
