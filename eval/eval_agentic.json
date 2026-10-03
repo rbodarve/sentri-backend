@@ -54,5 +54,132 @@
     "expect": "withhold",
     "anchors": [],
     "withhold_reason": ["24AJ0052", "Bulacan"]
+  },
+  {
+    "query": "Which contract has the highest awarded amount, and how much is it?",
+    "kind": "rank",
+    "expect": "answer",
+    "anchors": ["24A00153", "140,274,481"]
+  },
+  {
+    "query": "Rank the corpus contracts from smallest to largest awarded amount.",
+    "kind": "rank",
+    "expect": "answer",
+    "anchors": ["19,109,972", "69,479,428", "93,990,000", "96,489,983", "140,274,481"],
+    "ordered": true
+  },
+  {
+    "query": "Which contract has the lowest bid amount?",
+    "kind": "rank",
+    "expect": "answer",
+    "anchors": ["24AJ0052", "19,109,972"]
+  },
+  {
+    "query": "Which bidder had the lowest bid amount?",
+    "kind": "simple",
+    "expect": "route"
+  },
+  {
+    "query": "What is the highest unit price in the BOQ?",
+    "kind": "simple",
+    "expect": "route"
+  },
+  {
+    "query": "What amount is stated in the change order?",
+    "kind": "simple",
+    "expect": "route"
+  },
+  {
+    "query": "What is the change order amount for each of the contracts?",
+    "kind": "fanout",
+    "expect": "route"
+  },
+  {
+    "query": "What are the amounts in change order documents across the contracts?",
+    "kind": "fanout",
+    "expect": "route"
+  },
+  {
+    "query": "Which contract has the highest and the lowest awarded amount?",
+    "kind": "rank",
+    "expect": "answer",
+    "anchors": ["24A00153", "24AJ0052"]
+  },
+  {
+    "query": "What is the combined total value of all the awarded contract amounts in the corpus?",
+    "kind": "aggregate",
+    "expect": "answer",
+    "anchors": ["419,343,865.39", "of the 5 contracts with a stated amount", "24CM0001"]
+  },
+  {
+    "query": "Across all contracts, what is the average awarded contract amount?",
+    "kind": "aggregate",
+    "expect": "answer",
+    "anchors": ["83,868,773.08", "of the 5 contracts with a stated amount", "24CM0001"]
+  },
+  {
+    "query": "What is the total amount of all contracts?",
+    "kind": "aggregate",
+    "expect": "route"
+  },
+  {
+    "query": "What is the total amount of contract 24A00153?",
+    "kind": "simple",
+    "expect": "route"
+  },
+  {
+    "query": "What is the total bid amount?",
+    "kind": "simple",
+    "expect": "route"
+  },
+  {
+    "query": "What is the average contract amount?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "Known limit: singular 'contract amount' has no corpus-scope cue, so it stays simple; widening the scope would unpin per-contract follow-ups ('average unit price')."
+  },
+  {
+    "query": "What is the total contract amount for each of the contracts?",
+    "kind": "fanout",
+    "expect": "route"
+  },
+  {
+    "query": "List the total contract amounts of all projects.",
+    "kind": "enumerate",
+    "expect": "route"
+  },
+  {
+    "query": "What is the sum of the bid amounts of all bidders across the contracts?",
+    "kind": "fanout",
+    "expect": "route"
+  },
+  {
+    "query": "Which contracts have a total amount above 100 million?",
+    "kind": "simple",
+    "expect": "route"
+  },
+  {
+    "query": "Which contracts have a total contract amount above 100 million?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "A 'which' question selects contracts; an aggregate answers with a value."
+  },
+  {
+    "query": "Which contract has a total contract amount of PHP 4,950,000.00?",
+    "kind": "simple",
+    "expect": "route"
+  },
+  {
+    "query": "What is the total contract amount of all contracts?",
+    "kind": "aggregate",
+    "expect": "answer",
+    "anchors": ["419,343,865.39", "of the 5 contracts with a stated amount", "24CM0001"]
+  },
+  {
+    "query": "What are the total and the average awarded contract amounts of all the contracts?",
+    "kind": "aggregate",
+    "expect": "answer",
+    "anchors": ["419,343,865.39", "83,868,773.08"],
+    "ordered": true
   }
 ]

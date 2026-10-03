@@ -29,7 +29,8 @@ are workspace-specific additions on top of it; keep such additions here, not in 
 Use `make` (details in [scripts/README.md](scripts/README.md)):
 
 - `make setup` — create the conda env + install pinned deps (one-time).
-- `make check` — stage 1–3 self-checks (loader, enrich, relationships); pure Python, no model.
+- `make check` — stage 1–3 self-checks (loader, enrich, relationships) + the model-free router
+  gate (`python -m rag.evaluate_agentic --routes`; skipped until `make build` creates the manifest).
 - `make coverage` — model-free field-coverage report over the built manifest (the analytical
   route's data ceiling).
 - `make build` — build the retrieval eval set + embed & persist the vector index to `index_store/`,
@@ -65,12 +66,15 @@ context-free chunks from their own page (a notice's bare date stamp, the agreeme
 kind, check its unlabelled siblings: a label makes a chunk outrank them.
 
 `agent.py` is the **agentic layer** over `generate.py` (it does not replace it): a
-deterministic router classifies each question `simple | fanout | semantic | enumerate |
-analytical`. Fan-out splits a contiguous multi-contract question, an "each/all projects"
+deterministic router classifies each question `simple | fanout | semantic | enumerate | rank |
+aggregate | analytical`. Fan-out splits a contiguous multi-contract question, an "each/all projects"
 question, or a corpus-wide sweep ("... across the documents in the database") into one
 single-contract sub-question each (by rule), and withholds only a part that fails the check.
 `semantic` multi-hop questions are decomposed by the LLM (the only place the LLM drives
-control); `enumerate`/`analytical` answer from the manifest. Every sub-answer runs the
+control); `enumerate`/`rank`/`aggregate`/`analytical` answer from the manifest (`rank` — a corpus-wide
+"highest / rank by amount" — sorts the manifest amounts in Decimal, and `aggregate` — a corpus-wide
+total/average amount — sums them in Decimal, both with no LLM; duration is not a
+manifest field yet, see PLAN.md Phase B). Every sub-answer runs the
 deterministic route + `Verifier` inside a self-correction ladder (widen k → withhold; a known
 contract id stays filtered on every rung, an id not in the corpus is withheld before retrieval).
 A contract-filtered pass sees only its own manifest row. It reuses `RagAnswerer.answer_once`,

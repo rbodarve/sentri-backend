@@ -4,7 +4,9 @@ Composes three behaviors on top of the deterministic pipeline, without replacing
 
   router       -- classify a question: "simple" | "fanout" | "semantic" | "analytical" |
                   "enumerate" (a corpus-wide "list all projects/locations" answered straight
-                  from the manifest, deterministically -- no LLM, no retrieval).
+                  from the manifest, deterministically -- no LLM, no retrieval) | "rank" (a
+                  corpus-wide "highest / rank by amount", the manifest amounts sorted in Decimal) |
+                  "aggregate" (a corpus-wide total/average amount, computed in Decimal).
   fan-out      -- a multi-contract question asking one intent of several contracts -- an
                   explicit id list, a distributive "each/all projects", or a corpus-wide sweep
                   ("... across the documents in the database") -- is split, by rule, into one
@@ -42,7 +44,7 @@ from llama_index.core.prompts import PromptTemplate
 from rag.config import AGENT_MAX_ATTEMPTS, AGENT_WIDE_TOP_N
 from rag.enrich import CONTRACT_ID_RE
 from rag.generate import RagAnswerer
-from rag.manifest import format_enumeration
+from rag.manifest import format_aggregate, format_enumeration, format_ranking
 from rag.rerank import get_reranker
 from rag.verify import Report
 
@@ -89,6 +91,59 @@ _ANALYTICAL_RE = re.compile(
     r"\b(?:patterns?|anomal(?:y|ies|ous)|outliers?|trends?|unusual|irregular(?:ities)?|"
     r"recurring|commonalit(?:y|ies)|similarit(?:y|ies)|stands?\s+out)\b|\bin\s+common\b", re.I
 )
+# Corpus-wide ranking cue: an order word AND a ranked manifest field, with no contract named
+# ("which contract has the highest awarded amount", "rank the contracts by amount"). Answered by
+# comparing the manifest's amounts in Decimal (see answer()) -- no LLM orders numbers.
+# The order word is a superlative or a list verb. The first superlative sets the direction
+# ("from smallest to largest" -> ascending); a list verb (rank/sort/"order by"/"in ... order")
+# or superlatives of both directions ask for the full order, else the top contract. A bare
+# "order" is not a list verb: "the change order amount" names a document.
+_SUPERLATIVE_RE = re.compile(r"\b(highest|largest|biggest|lowest|smallest)\b", re.I)
+_HIGH_WORDS = ("highest", "largest", "biggest")
+_RANK_LIST_RE = re.compile(
+    r"\b(?:rank(?:ed|ing)?|sort(?:ed)?|order(?:ed)?\s+by|"
+    r"in\s+(?:(?:ascending|descending|increasing|decreasing|reverse)\s+)?order)\b", re.I
+)
+_RANK_FIELD_RE = re.compile(r"\b(?:amounts?|price|cost)\b", re.I)
+# ...and it must range over contracts: "which contract", "the contracts", "the corpus". Without
+# this, a per-contract follow-up ("which bidder had the lowest bid amount", "the change order")
+# would rank the whole corpus and lose its session pin.
+_RANK_SCOPE_RE = re.compile(r"\b(?:which|what)\s+(?:contract|project)s?\b|\b(?:contracts|projects|corpus)\b", re.I)
+
+
+def is_rank_question(question: str) -> bool:
+    """The corpus-wide ranking cue (order word AND ranked field AND corpus scope), shared with
+    rag.subject so a session never pins its contract onto a question the router ranks."""
+    return bool((_SUPERLATIVE_RE.search(question) or _RANK_LIST_RE.search(question))
+                and _RANK_FIELD_RE.search(question) and _RANK_SCOPE_RE.search(question))
+
+# Corpus-wide aggregate cue: a total/average word AND the summed field named AND corpus scope
+# ("the combined total of all the awarded contract amounts", "the total amount of all contracts").
+# Answered by summing the manifest's contract amounts in Decimal (see answer()) -- no LLM adds
+# numbers. The field cue is positive: only the contract amount is summed, so "the sum of the bid
+# amounts" or "a total amount above 100 million" (a filter) never gets the contract-amount sum.
+_TOTAL_RE = re.compile(r"\b(?:total|sum|combined|aggregate)\b", re.I)
+_AVERAGE_RE = re.compile(r"\b(?:average|mean)\b", re.I)
+_AGGREGATE_FIELD_RE = re.compile(
+    r"\b(?:awarded|total)\s+contract\s+(?:amounts?|prices?|values?)\b|"
+    r"\bamounts?\s+of\s+(?:all\s+)?(?:the\s+)?(?:contracts|projects)\b", re.I
+)
+# ...but "Total Contract Amount" is also a per-contract field name: "the total contract amount for
+# each of the contracts" / "list the total contract amounts" asks one value per contract (fan-out
+# or enumerate), not their sum. Not _EACH_RE: its "all contracts" is the aggregate's own scope.
+# And a "which" question selects contracts ("which contracts have a total contract amount above
+# 100 million"); an aggregate answers with a value.
+_PER_CONTRACT_RE = re.compile(
+    r"\b(?:each|every|per)\b|\b(?:list|enumerate)\b|\btotal\s+(?:contract\s+)?amounts\b|"
+    r"^\s*which\b", re.I
+)
+
+
+def is_aggregate_question(question: str) -> bool:
+    """The corpus-wide total/average cue, shared with rag.subject like is_rank_question."""
+    return bool((_TOTAL_RE.search(question) or _AVERAGE_RE.search(question))
+                and _AGGREGATE_FIELD_RE.search(question) and _RANK_SCOPE_RE.search(question)
+                and not _PER_CONTRACT_RE.search(question))
 
 _DECOMPOSE_TEMPLATE = PromptTemplate(
     "Break the question into the minimal list of independent, self-contained sub-questions "
@@ -171,9 +226,20 @@ class AgenticRag:
     # -- routing -------------------------------------------------------------------------
     def classify(self, question: str) -> tuple[str, list[str]]:
         """(kind, ordered contract ids). kind in {"simple","fanout","semantic","analytical",
-        "enumerate"}."""
+        "enumerate","rank","aggregate"}."""
         explicit = list(dict.fromkeys(m.upper() for m in CONTRACT_ID_RE.findall(question)))
         resolved = self._rag.resolve_contract_ids(question)  # resolve once, reuse (was up to 3x)
+        if not explicit and not resolved:
+            # Corpus-wide ranking ("which contract has the highest amount"): every contract's value
+            # is needed and the comparison must not be the LLM's, so it is answered by sorting the
+            # manifest (see answer()). Precedes enumerate so "list the contracts by amount" ranks.
+            if is_rank_question(question):
+                return "rank", sorted(self._known)
+            # Corpus-wide total/average: every amount is an operand, so it is summed in Decimal
+            # from the manifest (see answer()), never by the LLM through a fan-out combine. After
+            # rank, so "the highest total amount" ranks.
+            if is_aggregate_question(question):
+                return "aggregate", sorted(self._known)
         # Corpus-wide enumeration: a "list the projects/contracts/locations" question with no
         # explicit id and no resolvable location -- its complete answer IS the manifest, so answer
         # by deterministic enumeration (see answer()), not lossy/nondeterministic summarization or
@@ -296,12 +362,25 @@ class AgenticRag:
         stage = on_stage or (lambda name, data: None)
         kind, ids = self.classify(question)
         stage("route", {"kind": kind, "contract_ids": ids})
-        if kind == "enumerate":
-            # The complete answer IS the manifest: enumerate it deterministically (no LLM, no
-            # retrieval), so the answer is complete and identical every run. Grounded by
-            # construction -- built straight from the oracle -- so the report is clean.
-            text = format_enumeration(self._rag.manifest)
-            stage("combine", {"strategy": "enumerate", "ok": True})
+        if kind in ("enumerate", "rank", "aggregate"):
+            # The complete answer IS the manifest: enumerate it, or rank / total its amounts in
+            # Decimal, deterministically (no LLM, no retrieval), so the answer is complete and
+            # identical every run. Grounded by construction -- built straight from the oracle -- so
+            # the report is clean. The LLM only extracted the verbatim strings at build time.
+            if kind == "enumerate":
+                text = format_enumeration(self._rag.manifest)
+            elif kind == "aggregate":
+                # "the total and the average": both lines (the route matched at least one word).
+                ops = tuple(op for op, cue in (("total", _TOTAL_RE), ("average", _AVERAGE_RE))
+                            if cue.search(question))
+                text = format_aggregate(self._rag.manifest, ops)
+            else:
+                highs = [w.lower() in _HIGH_WORDS for w in _SUPERLATIVE_RE.findall(question)]
+                descending = not highs or highs[0]
+                both_ends = len(set(highs)) == 2  # "highest and the lowest": show the full order
+                text = format_ranking(self._rag.manifest, descending,
+                                      top_only=not (both_ends or _RANK_LIST_RE.search(question)))
+            stage("combine", {"strategy": kind, "ok": True})
             return AgentResult(question, kind, text, Report(blocks=[], flags=[]), [])
 
         if kind == "simple":
@@ -347,6 +426,19 @@ class AgenticRag:
         report = self._verifier.check(combined)
         stage("combine", {"strategy": "semantic", "ok": report.ok})
         return AgentResult(question, kind, combined, report, parts)
+
+
+def manifest_router(manifest: list[dict]) -> Callable[[str], tuple[str, list[str]]]:
+    """AgenticRag.classify on a manifest-only stub: the production router without loading the
+    index or the LLM. It needs only the known ids and the manifest-backed resolver, so the eval
+    gates (rag.evaluate, rag.evaluate_agentic --routes) route exactly as production does."""
+    from types import SimpleNamespace
+    from rag.generate import _resolver_index, resolve_contract_ids
+    resolver, phrases = _resolver_index(manifest)
+    router = SimpleNamespace(
+        _known={r["contract_id"] for r in manifest},
+        _rag=SimpleNamespace(resolve_contract_ids=lambda q: resolve_contract_ids(q, resolver, phrases)))
+    return lambda question: AgenticRag.classify(router, question)
 
 
 # Phrasings the small model uses to punt -- treated as a non-answer that should trigger a retry

@@ -118,7 +118,10 @@ STEPS TO MAKE IT SCALABLE (IN DEPENDENCY ORDER)
    the index). Per-contract questions inject only the resolved contracts' rows
    (a few hundred bytes) instead of the whole list. Global/aggregate questions
    ("how many, total amount") get answered by deterministic code/SQL over the
-   table. This is consistent with the current arithmetic rule (2026-09-26): no
+   table. The `rank` and `aggregate` routes (rag/agent.py, 2026-10-03) already
+   work this way for "highest / rank by amount" and "total / average amount":
+   code sorts or sums the manifest amounts in Decimal,
+   no prompt -- at scale they become an ORDER BY / SUM / AVG over the table. This is consistent with the current arithmetic rule (2026-09-26): no
    LLM ever computes -- the model emits a cited calculation request and a
    Decimal evaluator computes it (designed, not yet wired). At 100k rows the
    operands can't come from a prompt either, so the table must supply them.

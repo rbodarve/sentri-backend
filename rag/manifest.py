@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 from rag.config import PERSIST_DIR, get_llm
@@ -219,13 +220,112 @@ def format_enumeration(manifest: list[dict]) -> str:
     contract_id, which routing knows but generation never showed."""
     lines = [f"The database contains {len(manifest)} contracts/projects:"]
     for i, r in enumerate(manifest, 1):
-        name = r.get("short_name") or r.get("contract_name") or "not stated"
-        lines.append(f"{i}. Contract {r['contract_id']} — {name} — "
+        lines.append(f"{i}. Contract {r['contract_id']} — {_display_name(r)} — "
                      f"Location: {r.get('location') or 'not stated'}")
     return "\n".join(lines)
 
 
+def _display_name(r: dict) -> str:
+    """A contract's name as the deterministic manifest answers show it."""
+    return r.get("short_name") or r.get("contract_name") or "not stated"
+
+
+def parse_amount(text: str | None) -> Decimal | None:
+    """A manifest amount ('Php140,274,481.48', 'P 96,489,983.04', 'PHP140274481.48') as a Decimal;
+    None for anything that is not exactly one peso figure ('not stated', a figure with trailing
+    text), so an odd string is never guessed into a figure and mis-ranked."""
+    m = re.fullmatch(r"\s*(?:Php|P|₱)?\s*((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*", text or "", re.I)
+    return Decimal(m.group(1).replace(",", "")) if m else None
+
+
+def format_ranking(manifest: list[dict], descending: bool, top_only: bool) -> str:
+    """Deterministic answer to a corpus-wide 'highest / rank by amount' question: the verbatim
+    manifest amounts compared in Decimal -- no LLM orders numbers. A contract without a parseable
+    amount is named as not ranked, with its verbatim manifest value, never dropped silently."""
+    stated, unstated = _stated_amounts(manifest)
+    ranked = [r for _, r in sorted(stated, key=lambda ar: ar[0], reverse=descending)]
+    if top_only and ranked:
+        word = "highest" if descending else "lowest"
+        lines = [f"Of the {len(ranked)} contracts with a stated amount, the {word} is "
+                 f"{_amount_row(ranked[0])}."]
+    else:
+        order = "largest to smallest" if descending else "smallest to largest"
+        lines = [f"The {len(ranked)} contracts with a stated amount, {order}:"]
+        lines += [f"{i}. {_amount_row(r)}" for i, r in enumerate(ranked, 1)]
+    if unstated:
+        lines.append(f"Not ranked {unstated}")
+    return "\n".join(lines)
+
+
+def format_aggregate(manifest: list[dict], ops: tuple[str, ...]) -> str:
+    """Deterministic answer to a corpus-wide 'total / average amount' question (ops: "total"
+    and/or "average", one line each): the verbatim manifest amounts summed in Decimal -- no LLM
+    adds numbers. Every addend is listed; a contract without a parseable amount is named as not
+    included."""
+    stated, unstated = _stated_amounts(manifest)
+    if not stated:
+        return f"No contract has a stated amount. Not included {unstated}"
+    total = sum((a for a, _ in stated), Decimal(0))
+    values = {"total": total,
+              "average": (total / len(stated)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)}
+    lines = [f"The {op} amount of the {len(stated)} contracts with a stated amount is "
+             f"Php{values[op]:,.2f}." for op in ops]
+    lines.append("Stated amounts:")
+    lines += [f"- {_amount_row(r)}" for _, r in stated]
+    if unstated:
+        lines.append(f"Not included {unstated}")
+    return "\n".join(lines)
+
+
+def _stated_amounts(manifest: list[dict]) -> tuple[list[tuple[Decimal, dict]], str]:
+    """(every (Decimal amount, row) the manifest states, in manifest order; the tail naming each
+    contract without one with its verbatim value, '' if none) -- shared by rank and aggregate."""
+    parsed = [(parse_amount(r.get("amount")), r) for r in manifest]
+    missing = [f"Contract {r['contract_id']} ({r.get('amount') or 'not stated'})"
+               for a, r in parsed if a is None]
+    tail = f"(no single peso amount in the manifest): {', '.join(missing)}." if missing else ""
+    return [(a, r) for a, r in parsed if a is not None], tail
+
+
+def _amount_row(r: dict) -> str:
+    """One contract's line in the deterministic amount answers (rank, aggregate)."""
+    return f"Contract {r['contract_id']} — {_display_name(r)} — Amount: {r['amount']}"
+
+
+def _self_check() -> None:
+    """Model-free pins for the rank route's amount handling (`python -m rag.manifest --check`)."""
+    assert parse_amount("PHP140274481.48") == Decimal("140274481.48"), "no-comma amount not parsed"
+    vat = "Php69,479,428.64 (VAT inclusive)"
+    assert parse_amount(vat) is None, "trailing text must not be guessed into a figure"
+    text = format_ranking([{"contract_id": "X1", "contract_name": "n", "amount": vat}], True, False)
+    assert "not stated" not in text.split("Not ranked")[-1].split(":")[0], \
+        f"an unparsed amount is labelled 'not stated': {text!r}"
+    assert vat in text.split("Not ranked")[-1], f"the not-ranked line hides the verbatim value: {text!r}"
+    print("OK: parse_amount / format_ranking pins")
+    rows = [{"contract_id": "X1", "contract_name": "a", "amount": "P1,000.00"},
+            {"contract_id": "X2", "contract_name": "b", "amount": "Php2,000.50"},
+            {"contract_id": "X3", "contract_name": "c", "amount": "not stated"}]
+    text = format_aggregate(rows, ("total",))
+    assert "3,000.50" in text, f"total is not the Decimal sum: {text!r}"
+    assert "of the 2 contracts with a stated amount" in text, f"total hides its n: {text!r}"
+    assert "P1,000.00" in text and "Php2,000.50" in text, f"total hides an addend: {text!r}"
+    assert "Contract X3 (not stated)" in text and "(no single peso amount in the manifest)" in text, \
+        f"total hides an excluded contract: {text!r}"
+    # mean 0.025: ROUND_HALF_UP -> 0.03 (ROUND_HALF_EVEN would give 0.02); no addend contains "0.03"
+    text = format_aggregate([{"contract_id": "Y1", "amount": "P0.01"},
+                             {"contract_id": "Y2", "amount": "P0.04"}], ("average",))
+    assert "0.03" in text and "0.025" not in text, f"average not rounded ROUND_HALF_UP: {text!r}"
+    text = format_aggregate(rows, ("total", "average"))  # "the total and the average": both lines
+    assert "total amount" in text and "3,000.50" in text and "average amount" in text \
+        and "1,500.25" in text and text.index("3,000.50") < text.index("1,500.25"), \
+        f"a total-and-average question drops a value: {text!r}"
+    print("OK: format_aggregate pins")
+
+
 if __name__ == "__main__":
+    if "--check" in sys.argv:
+        _self_check()
+        sys.exit()
     manifest = build_manifest()
     print(f"built manifest for {len(manifest)} contracts -> {MANIFEST_PATH}\n")
     print(format_manifest(manifest))

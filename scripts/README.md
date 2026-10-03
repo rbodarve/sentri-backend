@@ -7,7 +7,7 @@ available as `make <target>`.
 | Command | Make | What it does |
 |---|---|---|
 | `bash scripts/setup.sh` | `make setup` | Create conda env `sentri-backend`, install pinned deps (CPU-only torch, zero VRAM) |
-| `bash scripts/check.sh` | `make check` | Run stage 1-3 self-checks (loader, enrich, relationships) |
+| `bash scripts/check.sh` | `make check` | Run stage 1-3 self-checks (loader, enrich, relationships) + the model-free router gate (skipped without a built manifest) |
 | `bash scripts/coverage.sh` | `make coverage` | Model-free field-coverage report over the built manifest (the analytical route's data ceiling) |
 | `bash scripts/build.sh` | `make build` | Build the retrieval eval set + embed and persist the vector index, then extract the corpus manifest (manifest step needs Ollama) |
 | `bash scripts/evaluate.sh [mode]` | `make eval [MODE=...]` | Measure recall; `mode` = `baseline` \| `filtered` \| `rerank` (default `rerank`) |
@@ -15,7 +15,7 @@ available as `make <target>`.
 | `bash scripts/chat.sh` | `make chat` | Interactive query loop: ask many questions in one session (index + LLM loaded once) |
 | `bash scripts/agent.sh "<question>"` | `make agent Q="..."` | Agentic controller: router + fan-out + semantic decomposition + verifier-driven self-correction (no arg = demo questions) |
 | `bash scripts/chat_agentic.sh` | `make chat-agentic` | Interactive query loop routed through the agentic controller; carries the conversation's contract into follow-ups (`rag/subject.py`) |
-| `bash scripts/evaluate_agentic.sh` | `make eval-agentic` | Answer-level eval of the agent (routing / fan-out / decomposition / withholding); needs Ollama |
+| `bash scripts/evaluate_agentic.sh` | `make eval-agentic` | Answer-level eval of the agent (routing / fan-out / decomposition / withholding); needs Ollama. `--routes`: routing only, model-free |
 | `bash service/serve.sh` | `make serve [HOST=.. PORT=..]` | Serve the agent as a streaming SSE API (see `service/README.md`); needs Ollama + `pip install -r service/requirements.txt` |
 | `bash service/serve_ngrok.sh` | `make serve-ngrok` | Same API behind an ngrok public tunnel |
 | `bash service/simulate_remote.sh` | `make simulate-remote [Q="..."]` | `serve-ngrok` + a simulated remote client that checks the stream contract |

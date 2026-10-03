@@ -131,7 +131,7 @@ def finalize(final: StreamFinal, _context: Any) -> "list[tuple[str, dict[str, An
         ("graph", _document_graph(sources)),
         # Per-sub-question breakdown: question text, bound contract, verified answer ("" if withheld),
         # grounding outcome (blocks/flags), formatted citation string, and per-chunk
-        # evidence with bounding boxes. Empty for "analytical" queries (no sub-questions).
+        # evidence with bounding boxes. Empty for manifest-answered queries (analytical, enumerate, rank, aggregate).
         ("parts", [
             {
                 "question": p.question,

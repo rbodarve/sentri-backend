@@ -13,7 +13,8 @@ Rules, in order, for resolve(question):
               moves in observe()); if it also compares against "it/this/that", pin the union
   contractor  names a contractor ("the Rodekom contract") -> pin its contract (the router's
               resolver knows places and project names, not contractors)
-  corpus-wide "list all projects", "across the documents", "in the database" -> ask as-is
+  corpus-wide "list all projects", "across the documents", "in the database", "which contract
+              has the highest amount", "the total amount of all contracts" -> ask as-is
   earlier     "the first/second/previous/other project" -> pin that earlier subject
   follow-up   anything else, when a subject exists -> pin the current subject
 A pin of several contracts reads "for contracts A, B and C", which the router fans out.
@@ -28,7 +29,8 @@ from __future__ import annotations
 
 import re
 
-from rag.agent import _ANALYTICAL_RE, _CORPUS_RE, _EACH_RE, _LIST_CORPUS_RE
+from rag.agent import (_ANALYTICAL_RE, _CORPUS_RE, _EACH_RE, _LIST_CORPUS_RE, is_aggregate_question,
+                       is_rank_question)
 from rag.enrich import CONTRACT_ID_RE
 
 _RESET_RE = re.compile(
@@ -120,7 +122,8 @@ class SubjectTracker:
         if named:
             return pin(question, named), named
         if (_LIST_CORPUS_RE.search(question) or _EACH_RE.search(question)
-                or _ANALYTICAL_RE.search(question) or _CORPUS_RE.search(question)):
+                or _ANALYTICAL_RE.search(question) or _CORPUS_RE.search(question)
+                or is_rank_question(question) or is_aggregate_question(question)):
             return question, []
         subject = self._earlier(question) or self.current
         return (pin(question, subject), subject) if subject else (question, [])

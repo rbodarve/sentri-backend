@@ -73,7 +73,7 @@ Everything runs through `make`. The targets are defined in the [`Makefile`](Make
 documented in [`scripts/README.md`](scripts/README.md).
 
 ```bash
-make check                                  # stage 1–3 self-checks (loader, enrich, relationships); no model
+make check                                  # stage 1–3 self-checks (loader, enrich, relationships) + router gate; no model
 make eval                                   # retrieval recall gate (default mode: rerank)
 make ask   Q="Which contractor was awarded contract 24AJ0052?"
 make agent Q="Who is the District Engineer for contracts 24BJ0005 and 24CC0265?"
@@ -97,7 +97,7 @@ flowchart LR
     R --> M[manifest<br/>1 record / contract]
     Q([question]) --> A[agent: router]
     A -->|simple / fan-out / semantic| G[generate: filter → rerank<br/>→ neighbours → LLM]
-    A -->|enumerate / analytical| M
+    A -->|enumerate / rank / aggregate / analytical| M
     I --> G
     G --> V{verify}
     V -->|grounded| OUT([cited answer])
@@ -114,7 +114,7 @@ flowchart LR
 | Rerank | [`rag/rerank.py`](rag/rerank.py) | CPU cross-encoder [BAAI/bge-reranker-base](https://huggingface.co/BAAI/bge-reranker-base). It takes 40 candidates, labels each with its document type and contract, and keeps the top 10. |
 | Generate | [`rag/generate.py`](rag/generate.py) | Retrieval filtered to the contract, reranked, neighbour-expanded, and trimmed to fit a single `num_ctx` call. The answer cites its sources. |
 | Verify | [`rag/verify.py`](rag/verify.py) | Deterministic grounding check against the manifest: flags invented contract ids and mis-bound locations, contractors or people. |
-| Agent | [`rag/agent.py`](rag/agent.py) | Routes each question (`simple`, `fanout`, `semantic`, `enumerate` or `analytical`) and fans corpus-wide questions out per contract. Failed answers retry through a verifier-driven ladder: widen k, then withhold. |
+| Agent | [`rag/agent.py`](rag/agent.py) | Routes each question (`simple`, `fanout`, `semantic`, `enumerate`, `rank`, `aggregate` or `analytical`) and fans corpus-wide questions out per contract. `rank` ("which contract has the highest amount") sorts the manifest amounts in code, and `aggregate` ("the total / average amount of the contracts") sums them in code; no LLM compares or adds numbers. Failed answers retry through a verifier-driven ladder: widen k, then withhold. |
 | Subject | [`rag/subject.py`](rag/subject.py) | Carries a conversation's contract into follow-up questions ("who signed *it*?"). |
 
 The **LLM never does arithmetic**, and the verifier's pass only confirms contract ids, locations and
@@ -140,7 +140,7 @@ Every model and retrieval knob is an environment variable read in [`rag/config.p
 | Suite | Command | Ground truth | Latest result |
 |---|---|---|---|
 | Retrieval recall (the gate) | `make eval` | [`eval/eval_retrieval.json`](eval/eval_retrieval.json), 40 questions | hit rate **1.000** (single, broad and complex) |
-| Agent, answer level | `make eval-agentic` | [`eval/eval_agentic.json`](eval/eval_agentic.json), 9 questions incl. 2 withhold traps | **8/9** |
+| Agent, answer level | `make eval-agentic` | [`eval/eval_agentic.json`](eval/eval_agentic.json), 32 questions incl. 2 withhold traps, 4 rank and 5 aggregate questions, and 14 look-alikes (routing only) | **32/32** |
 | Full question set through the streaming service | local harness | 441 questions from the local, untracked `docs/queries.txt` | **413/441 = 93.7%** (2026-09-28) |
 
 The one failing agent row is a known model miss. In the 24CM0001 notice to proceed the contractor
