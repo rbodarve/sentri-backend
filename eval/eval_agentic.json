@@ -165,6 +165,29 @@
     "note": "A 'which' question selects contracts; an aggregate answers with a value."
   },
   {
+    "query": "Which contracts have a total contract amount above 100 million?",
+    "kind": "simple",
+    "expect": "route",
+    "session": "24CM0001",
+    "note": "A plural 'which contracts' question selects across the corpus: no session pin."
+  },
+  {
+    "query": "Which contracts did its contractor also win?",
+    "kind": "simple",
+    "expect": "route",
+    "session": "24CM0001",
+    "pinned": ["24CM0001"],
+    "note": "'its' points back at the session contract: keep the pin."
+  },
+  {
+    "query": "What is the total bid amount?",
+    "kind": "simple",
+    "expect": "route",
+    "session": "24CM0001",
+    "pinned": ["24CM0001"],
+    "note": "A per-contract follow-up keeps the session pin."
+  },
+  {
     "query": "Which contract has a total contract amount of PHP 4,950,000.00?",
     "kind": "simple",
     "expect": "route"

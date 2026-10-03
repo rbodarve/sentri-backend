@@ -14,7 +14,8 @@ Rules, in order, for resolve(question):
   contractor  names a contractor ("the Rodekom contract") -> pin its contract (the router's
               resolver knows places and project names, not contractors)
   corpus-wide "list all projects", "across the documents", "in the database", "which contract
-              has the highest amount", "the total amount of all contracts" -> ask as-is
+              has the highest amount", "the total amount of all contracts", "which contracts/
+              projects ..." (unless it points back: "its", "the first project") -> ask as-is
   earlier     "the first/second/previous/other project" -> pin that earlier subject
   follow-up   anything else, when a subject exists -> pin the current subject
 A pin of several contracts reads "for contracts A, B and C", which the router fans out.
@@ -39,6 +40,7 @@ _RESET_RE = re.compile(
 )
 _COMPARE_RE = re.compile(r"\b(?:compare|compared|versus|vs\.?|difference|same as|similar to)\b", re.I)
 _ANAPHOR_RE = re.compile(r"\b(?:it|this|that|these|those|them|its)\b", re.I)
+_WHICH_PLURAL_RE = re.compile(r"^\s*which\s+(?:contracts|projects)\b", re.I)  # selects across all
 _ORDINAL_RE = re.compile(
     r"\b(first|second|third|previous|earlier|other)\s+(?:one|project|contract)\b", re.I
 )
@@ -123,7 +125,9 @@ class SubjectTracker:
             return pin(question, named), named
         if (_LIST_CORPUS_RE.search(question) or _EACH_RE.search(question)
                 or _ANALYTICAL_RE.search(question) or _CORPUS_RE.search(question)
-                or is_rank_question(question) or is_aggregate_question(question)):
+                or is_rank_question(question) or is_aggregate_question(question)
+                or (_WHICH_PLURAL_RE.search(question) and not _ANAPHOR_RE.search(question)
+                    and not _ORDINAL_RE.search(question))):
             return question, []
         subject = self._earlier(question) or self.current
         return (pin(question, subject), subject) if subject else (question, [])

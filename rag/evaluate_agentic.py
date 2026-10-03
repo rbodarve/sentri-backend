@@ -11,6 +11,8 @@ Each question in eval/eval_agentic.json declares its expected router "kind" and 
                        analytical|enumerate|rank|aggregate). Checked FIRST, so a misroute fails even if the
                        answer happens to pass -- the gate covers routing, not just answer text.
                        `--routes` checks only this, model-free (no Ollama, no index).
+  session="<id>"    -> `--routes` only: ask the question as a follow-up in a conversation on that
+                       contract (rag.subject), and require the pin to equal "pinned" (default []).
   ordered=true      -> the anchors must also appear in the listed order (a ranking).
   expect="route"    -> pass = the route alone. For a question with no single right answer (a
                        per-contract follow-up asked without its contract) that must not misroute.
@@ -59,13 +61,34 @@ def score(result, item) -> bool:
 def check_routes(dataset) -> None:
     """Model-free routing gate (--routes): classify every question with the router on a manifest
     stub, as rag.evaluate does, so a misroute is caught without Ollama or the index."""
+    from types import SimpleNamespace
+    from rag.generate import _resolver_index, resolve_contract_ids
     from rag.manifest import load_manifest
-    route = manifest_router(load_manifest())
-    misroutes = [(item, got) for item in dataset
-                 if (got := route(item["query"])[0]) != item["kind"]]
+    from rag.subject import SubjectTracker
+    manifest = load_manifest()
+    route = manifest_router(manifest)
+    resolver, phrases = _resolver_index(manifest)
+    rag = SimpleNamespace(manifest=manifest, contract_ids={r["contract_id"] for r in manifest},
+                          resolve_contract_ids=lambda q: resolve_contract_ids(q, resolver, phrases))
+
+    def asked(item) -> tuple[str, list[str]]:
+        """A "session" row is asked as a follow-up in a conversation on that contract."""
+        if "session" not in item:
+            return item["query"], []
+        tracker = SubjectTracker(rag)
+        tracker.current = [item["session"]]
+        return tracker.resolve(item["query"])
+
+    misroutes = []
+    for item in dataset:
+        question, pinned = asked(item)
+        got = route(question)[0]
+        if got != item["kind"] or pinned != item.get("pinned", []):
+            misroutes.append((item, f"{got} pinned={pinned}"))
     print(f"routes: {len(dataset) - len(misroutes)}/{len(dataset)} questions -> declared kind")
     for item, got in misroutes:
-        print(f"  MISROUTE expected {item['kind']} got {got}  {item['query']}")
+        print(f"  MISROUTE expected {item['kind']} pinned={item.get('pinned', [])} got {got}  "
+              f"{item['query']}")
     if misroutes:
         raise SystemExit(1)
 
