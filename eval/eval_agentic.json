@@ -242,6 +242,76 @@
     "note": "A bid amount is not the manifest contract amount; HEAD route recorded 2026-10-04."
   },
   {
+    "query": "Which contracts are above 100 million?",
+    "kind": "filter",
+    "expect": "route",
+    "note": "h-safe: no amount noun; the scale word proves pesos. HEAD simple (LLM compared)."
+  },
+  {
+    "query": "Which contracts are above PHP 100,000,000?",
+    "kind": "filter",
+    "expect": "route"
+  },
+  {
+    "query": "Which contracts are above 100,000,000 pesos?",
+    "kind": "filter",
+    "expect": "route"
+  },
+  {
+    "query": "List the contracts above 100 million.",
+    "kind": "filter",
+    "expect": "route",
+    "note": "h-safe: HEAD enumerate (listed every contract, threshold dropped)."
+  },
+  {
+    "query": "What is the total contract amount of all contracts whose amount is above 100 million?",
+    "kind": "aggregate",
+    "expect": "route",
+    "note": "h-safe: 'whose amount' binds the threshold. HEAD fanout."
+  },
+  {
+    "query": "What is the average amount of the contracts whose amount is above 50 million?",
+    "kind": "aggregate",
+    "expect": "route",
+    "note": "h-safe: HEAD simple."
+  },
+  {
+    "query": "Which contracts are above 300?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "h-safe look-alike: no money cue, no amount noun -> no proof of pesos. HEAD route."
+  },
+  {
+    "query": "Which contracts are above 300 days?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "h-safe look-alike. HEAD route."
+  },
+  {
+    "query": "Which contracts are above 100,000,000?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "h-safe look-alike: a bare figure is pesos only with an amount noun. HEAD route."
+  },
+  {
+    "query": "How many contracts are there?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "h-safe look-alike: no threshold. HEAD route."
+  },
+  {
+    "query": "Which contracts are above 100 million in approved budget?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "h-safe look-alike: trailing text names another field; the select path needs the figure to end its clause. HEAD route."
+  },
+  {
+    "query": "Which contracts are above 100 million in bid amount?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "h-safe look-alike, as above. HEAD route."
+  },
+  {
     "query": "Which contracts have an amount not exceeding 100 million?",
     "kind": "simple",
     "expect": "route",

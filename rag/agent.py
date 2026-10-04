@@ -47,7 +47,7 @@ from rag.config import AGENT_MAX_ATTEMPTS, AGENT_WIDE_TOP_N
 from rag.enrich import CONTRACT_ID_RE
 from rag.generate import RagAnswerer
 from rag.manifest import (format_aggregate, format_enumeration, format_filter, format_ranking,
-                          has_threshold, parse_threshold)
+                          has_threshold, parse_threshold, threshold_ends_clause)
 from rag.rerank import get_reranker
 from rag.verify import Report
 
@@ -156,15 +156,22 @@ def is_aggregate_question(question: str) -> bool:
 # contract amount named AND corpus scope ("which contracts have an amount above X"). Answered by
 # comparing the manifest amounts in Decimal (see answer()) -- no LLM compares numbers. The field
 # cue is positive: "a bid amount above X" is not the manifest's contract amount.
-_FILTER_FIELD_RE = re.compile(r"\b(?:an|the|contract|awarded|total)\s+amounts?\b", re.I)
+_FILTER_FIELD_RE = re.compile(r"\b(?:an|the|contract|awarded|total|whose)\s+amounts?\b", re.I)
 # ...or a count of contracts ("how many contracts are above X"): the filter header states the count.
 _COUNT_RE = re.compile(r"\bhow\s+many\s+(?:contracts|projects)\b", re.I)
+# ...or a selection of contracts ("which contracts are above 100 million", "list the contracts
+# above PHP X"). No amount noun binds it, so the figure must carry its own money cue (see
+# contract_threshold) and end its clause: "... above 100 million in bid amount" names another field.
+_SELECT_RE = re.compile(
+    r"\b(?:which|what)\s+(?:contracts|projects)\b|\blist\s+(?:all\s+)?(?:the\s+)?(?:contracts|projects)\b",
+    re.I
+)
 # ...and the threshold must bind to the contracts or their amount: the one threshold
 # parse_threshold matched (comparison word + figure) must follow "contracts" /
-# "an|the|contract|awarded|total amount", with at most a short bridge ("an amount of over X",
+# "an|the|contract|awarded|total|whose amount", with at most a short bridge ("an amount of over X",
 # "whose total contract amount is below X", "contracts are above X"). So "with a bid amount above X" never filters or
 # totals the contract amounts, and "contracts under review" is no threshold at all.
-_AMOUNT_NOUN = r"\b(?:an|the|contract|awarded|total)\s+amounts?"
+_AMOUNT_NOUN = r"\b(?:an|the|contract|awarded|total|whose)\s+amounts?"
 _BRIDGE = r"(?:\s+(?:of|is|are|that\s+(?:is|are)|which\s+(?:is|are)))?\s*$"
 _THRESHOLD_SUBJECT_RE = re.compile(rf"(?:\b(?:contracts|projects)|{_AMOUNT_NOUN}){_BRIDGE}", re.I)
 # A figure with no money cue (peso marker, scale word, "pesos") is pesos only when it binds an
@@ -185,7 +192,8 @@ def contract_threshold(question: str) -> tuple[str, Decimal] | None:
 
 def is_filter_question(question: str) -> bool:
     """The corpus-wide amount-threshold cue, shared with rag.subject like is_rank_question."""
-    return bool((_FILTER_FIELD_RE.search(question) or _COUNT_RE.search(question))
+    return bool((_FILTER_FIELD_RE.search(question) or _COUNT_RE.search(question)
+                 or (_SELECT_RE.search(question) and threshold_ends_clause(question)))
                 and _RANK_SCOPE_RE.search(question)
                 and contract_threshold(question))
 

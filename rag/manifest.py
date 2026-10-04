@@ -261,6 +261,13 @@ def has_threshold(question: str) -> bool:
     return bool(_THRESHOLD_RE.search(question))
 
 
+def threshold_ends_clause(question: str) -> bool:
+    """Whether the question's one 'above / below X' figure ends its clause ("contracts above 100
+    million?"), so no trailing text ("... in bid amount") names another field."""
+    matches = list(_THRESHOLD_RE.finditer(question))
+    return len(matches) == 1 and bool(_CLAUSE_END_RE.match(question, matches[0].end()))
+
+
 def parse_threshold(question: str, after: re.Pattern | None = None,
                     proof: re.Pattern | None = None,
                     end_proof: re.Pattern | None = None) -> tuple[str, Decimal] | None:
