@@ -449,6 +449,18 @@
     "note": "Look-alike: the threshold binds the bid amount, not the contract amount."
   },
   {
+    "query": "How many contracts are above 100 million in bid amount?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "Look-alike: trailing text names another field, so the figure does not end its clause. HEAD: filter."
+  },
+  {
+    "query": "How many contracts are above 100 million in approved budget?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "Look-alike: the threshold binds the approved budget, not the contract amount. HEAD: filter."
+  },
+  {
     "query": "How many contracts are there?",
     "kind": "simple",
     "expect": "route",

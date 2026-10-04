@@ -160,7 +160,7 @@ _FILTER_FIELD_RE = re.compile(r"\b(?:an|the|contract|awarded|total|whose)\s+amou
 # ...or a count of contracts ("how many contracts are above X"): the filter header states the count.
 _COUNT_RE = re.compile(r"\bhow\s+many\s+(?:contracts|projects)\b", re.I)
 # ...or a selection of contracts ("which contracts are above 100 million", "list the contracts
-# above PHP X"). No amount noun binds it, so the figure must carry its own money cue (see
+# above PHP X"). No amount noun binds either cue (count or select), so the figure must carry its own money cue (see
 # contract_threshold) and end its clause: "... above 100 million in bid amount" names another field.
 _SELECT_RE = re.compile(
     r"\b(?:which|what)\s+(?:contracts|projects)\b|\blist\s+(?:all\s+)?(?:the\s+)?(?:contracts|projects)\b",
@@ -192,8 +192,9 @@ def contract_threshold(question: str) -> tuple[str, Decimal] | None:
 
 def is_filter_question(question: str) -> bool:
     """The corpus-wide amount-threshold cue, shared with rag.subject like is_rank_question."""
-    return bool((_FILTER_FIELD_RE.search(question) or _COUNT_RE.search(question)
-                 or (_SELECT_RE.search(question) and threshold_ends_clause(question)))
+    return bool((_FILTER_FIELD_RE.search(question)
+                 or ((_COUNT_RE.search(question) or _SELECT_RE.search(question))
+                     and threshold_ends_clause(question)))
                 and _RANK_SCOPE_RE.search(question)
                 and contract_threshold(question))
 
