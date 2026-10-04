@@ -236,12 +236,6 @@
     "note": "A year is not an amount threshold."
   },
   {
-    "query": "How many contracts are above 100 million?",
-    "kind": "simple",
-    "expect": "route",
-    "note": "Known limit: no field word before the threshold, so it stays simple."
-  },
-  {
     "query": "Which contracts have a bid amount above 100 million?",
     "kind": "simple",
     "expect": "route",
@@ -348,5 +342,72 @@
     "session": "24CM0001",
     "pinned": [],
     "note": "Corpus-wide: the session contract is not pinned (HEAD pinned 24CM0001)."
+  },
+  {
+    "query": "How many contracts are above 100 million?",
+    "kind": "filter",
+    "expect": "answer",
+    "anchors": ["1 of the 5 contracts with a stated amount has an amount above Php100,000,000.00"],
+    "note": "Count over a threshold: the filter header states the count. Bridge word 'are'. HEAD: simple."
+  },
+  {
+    "query": "How many contracts exceed 90 million?",
+    "kind": "filter",
+    "expect": "route",
+    "note": "Count cue, no bridge word. HEAD: simple."
+  },
+  {
+    "query": "How many contracts have a bid amount above 50 million?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "Look-alike: the threshold binds the bid amount, not the contract amount."
+  },
+  {
+    "query": "How many contracts are there?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "A count with no threshold is not a filter. HEAD route."
+  },
+  {
+    "query": "How many contracts are over 300 days?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "Look-alike: a bare number with no peso marker or scale word is not an amount. HEAD route."
+  },
+  {
+    "query": "How many contracts are above 100 calendar days?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "Look-alike: a duration, not an amount. HEAD route."
+  },
+  {
+    "query": "What is the average amount of the contracts that are over 200 days?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "Look-alike: the threshold is a duration, so no aggregate over amounts. HEAD route."
+  },
+  {
+    "query": "Which contracts have an amount above 50,000,000?",
+    "kind": "filter",
+    "expect": "route",
+    "note": "A bare figure after an amount noun is pesos. HEAD route."
+  },
+  {
+    "query": "Which contracts have a contract amount over 90,000,000.00?",
+    "kind": "filter",
+    "expect": "route",
+    "note": "A bare figure after an amount noun is pesos. HEAD route."
+  },
+  {
+    "query": "Which contracts have an amount above 50,000,000 pesos?",
+    "kind": "filter",
+    "expect": "route",
+    "note": "Trailing 'pesos' is a money cue. HEAD route."
+  },
+  {
+    "query": "What is the total contract amount of all contracts above 100,000,000?",
+    "kind": "aggregate",
+    "expect": "route",
+    "note": "A bare figure after 'contracts' with an amount noun in the question. HEAD route."
   }
 ]

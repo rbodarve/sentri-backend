@@ -157,25 +157,36 @@ def is_aggregate_question(question: str) -> bool:
 # comparing the manifest amounts in Decimal (see answer()) -- no LLM compares numbers. The field
 # cue is positive: "a bid amount above X" is not the manifest's contract amount.
 _FILTER_FIELD_RE = re.compile(r"\b(?:an|the|contract|awarded|total)\s+amounts?\b", re.I)
+# ...or a count of contracts ("how many contracts are above X"): the filter header states the count.
+_COUNT_RE = re.compile(r"\bhow\s+many\s+(?:contracts|projects)\b", re.I)
 # ...and the threshold must bind to the contracts or their amount: the one threshold
 # parse_threshold matched (comparison word + figure) must follow "contracts" /
 # "an|the|contract|awarded|total amount", with at most a short bridge ("an amount of over X",
-# "whose total contract amount is below X"). So "with a bid amount above X" never filters or
+# "whose total contract amount is below X", "contracts are above X"). So "with a bid amount above X" never filters or
 # totals the contract amounts, and "contracts under review" is no threshold at all.
-_THRESHOLD_SUBJECT_RE = re.compile(
-    r"\b(?:contracts|projects|(?:an|the|contract|awarded|total)\s+amounts?)"
-    r"(?:\s+(?:of|is|that\s+is|which\s+is))?\s*$", re.I
-)
+_AMOUNT_NOUN = r"\b(?:an|the|contract|awarded|total)\s+amounts?"
+_BRIDGE = r"(?:\s+(?:of|is|are|that\s+(?:is|are)|which\s+(?:is|are)))?\s*$"
+_THRESHOLD_SUBJECT_RE = re.compile(rf"(?:\b(?:contracts|projects)|{_AMOUNT_NOUN}){_BRIDGE}", re.I)
+# A figure with no money cue (peso marker, scale word, "pesos") is pesos only when it binds an
+# amount noun ("an amount above 50,000,000") or -- in a question naming the amount -- bare
+# "contracts" ("the total contract amount of all contracts above 100,000,000"). So "how many
+# contracts are over 300 days" and "the average amount of the contracts that are over 200 days" do
+# not parse.
+_AMOUNT_PROOF_RE = re.compile(_AMOUNT_NOUN + _BRIDGE, re.I)
+_NAMED_AMOUNT_PROOF_RE = re.compile(rf"{_AMOUNT_NOUN}{_BRIDGE}|\b(?:contracts|projects)\s*$", re.I)
 
 
 def contract_threshold(question: str) -> tuple[str, Decimal] | None:
     """parse_threshold's (op, X), only when the threshold binds to the contract amount."""
-    return parse_threshold(question, after=_THRESHOLD_SUBJECT_RE)
+    names_amount = _FILTER_FIELD_RE.search(question) or _AGGREGATE_FIELD_RE.search(question)
+    return parse_threshold(question, after=_THRESHOLD_SUBJECT_RE,
+                           proof=_NAMED_AMOUNT_PROOF_RE if names_amount else _AMOUNT_PROOF_RE)
 
 
 def is_filter_question(question: str) -> bool:
     """The corpus-wide amount-threshold cue, shared with rag.subject like is_rank_question."""
-    return bool(_FILTER_FIELD_RE.search(question) and _RANK_SCOPE_RE.search(question)
+    return bool((_FILTER_FIELD_RE.search(question) or _COUNT_RE.search(question))
+                and _RANK_SCOPE_RE.search(question)
                 and contract_threshold(question))
 
 

@@ -244,8 +244,8 @@ def parse_amount(text: str | None) -> Decimal | None:
 _THRESHOLD_RE = re.compile(
     r"(?:\b(?P<neg>not|no)\s+)?"
     r"\b(?P<word>above|over|more\s+than|greater\s+than|exceed(?:s|ing)?|below|under|less\s+than|"
-    r"at\s+least|at\s+most)\s+(?:Php|P|₱)?\s*(?P<num>(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)"
-    r"(?:\s*(?P<scale>thousand|million|billion)\b)?", re.I
+    r"at\s+least|at\s+most)\s+(?P<peso>Php|P|₱)?\s*(?P<num>(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)"
+    r"(?:\s*(?P<scale>thousand|million|billion)\b)?(?:\s+(?P<pesos>pesos?)\b)?", re.I
 )
 _THRESHOLD_OPS = {"below": "<", "under": "<", "less than": "<", "at least": ">=", "at most": "<="}
 _SCALES = {"thousand": 10**3, "million": 10**6, "billion": 10**9}
@@ -258,17 +258,22 @@ def has_threshold(question: str) -> bool:
     return bool(_THRESHOLD_RE.search(question))
 
 
-def parse_threshold(question: str, after: re.Pattern | None = None) -> tuple[str, Decimal] | None:
+def parse_threshold(question: str, after: re.Pattern | None = None,
+                    proof: re.Pattern | None = None) -> tuple[str, Decimal] | None:
     """(op, Decimal threshold) of a question's one 'above / below X' amount, op in
     {">", "<", ">=", "<="}. None unless fully parsed: no threshold, a negated one ("not
     exceeding X") or two or more ("above X but below Y") -- a deterministic route never drops part
-    of a condition. `after`: a pattern the text right before that threshold must match (rag.agent
-    binds the threshold to the contract amount with it)."""
+    of a condition. Only a money figure: a peso marker, a scale word or "pesos", or the text right
+    before the threshold matches `proof` ("over 300 days" is None). `after`: a pattern that text
+    must match (rag.agent binds the threshold to the contract amount with it)."""
     matches = list(_THRESHOLD_RE.finditer(question))
     if len(matches) != 1 or matches[0]["neg"]:
         return None
     m = matches[0]
-    if after and not after.search(question[:m.start()]):
+    before = question[:m.start()]
+    if not (m["peso"] or m["scale"] or m["pesos"] or (proof and proof.search(before))):
+        return None
+    if after and not after.search(before):
         return None
     op = _THRESHOLD_OPS.get(" ".join(m["word"].lower().split()), ">")
     scale = _SCALES[m["scale"].lower()] if m["scale"] else 1
@@ -330,7 +335,8 @@ def format_filter(manifest: list[dict], op: str, threshold: Decimal) -> str:
     stated, unstated = _stated_amounts(manifest)
     matches = sorted(((a, r) for a, r in stated if _COMPARE[op](a, threshold)),
                      key=lambda ar: ar[0], reverse=True)
-    head = (f"{len(matches)} of the {len(stated)} contracts with a stated amount have an amount "
+    head = (f"{len(matches)} of the {len(stated)} contracts with a stated amount "
+            f"{'has' if len(matches) == 1 else 'have'} an amount "
             f"{_OP_WORDS[op]} Php{threshold:,.2f}")
     lines = [f"{head}, largest to smallest:" if matches else f"{head}."]
     lines += [f"{i}. {_amount_row(r)}" for i, (_, r) in enumerate(matches, 1)]
@@ -389,6 +395,10 @@ def _self_check() -> None:
     for q in ("an amount not exceeding 100 million", "no more than P50,000,000",
               "above 50 million but below 100 million"):
         assert parse_threshold(q) is None, f"partly parsed threshold: {q!r} -> {parse_threshold(q)}"
+    # Only a money figure: a peso marker or a scale word, else a bare number ("300 days") is no amount.
+    for q in ("over 300 days", "above 100 calendar days"):
+        assert parse_threshold(q) is None, f"bare number parsed as pesos: {q!r} -> {parse_threshold(q)}"
+    assert parse_threshold("above 50,000,000 pesos") == (">", Decimal("50000000"))
     rows = [{"contract_id": i, "contract_name": i, "amount": a} for i, a in [
         ("24A00153", "Php140,274,481.48"), ("24AJ0052", "P19,109,972.23"),
         ("24BG0272", "P 96,489,983.04"), ("24BJ0005", "P 93,990,000.00"),
@@ -398,6 +408,7 @@ def _self_check() -> None:
     text = format_filter(rows, ">", Decimal("100000000"))
     assert ids(text) == ["24A00153"], f"above 100M is not exactly 24A00153: {text!r}"
     assert "Contract 24CM0001 (not stated)" in text, f"filter hides an uncompared contract: {text!r}"
+    assert text.startswith("1 of the 5 contracts with a stated amount has "), f"n=1 verb: {text!r}"
     text = format_filter(rows, ">", Decimal("90000000"))
     assert ids(text) == ["24A00153", "24BG0272", "24BJ0005"], f"above 90M wrong set: {text!r}"
     text = format_filter(rows, ">", Decimal("93990000.00"))

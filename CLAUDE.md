@@ -74,7 +74,7 @@ single-contract sub-question each (by rule), and withholds only a part that fail
 control); `enumerate`/`rank`/`aggregate`/`filter`/`analytical` answer from the manifest (`rank` — a corpus-wide
 "highest / rank by amount" — sorts the manifest amounts in Decimal, and `aggregate` — a corpus-wide
 total/average amount, optionally of the contracts above / below X — sums them in Decimal, and `filter` — a corpus-wide "amount above / below
-X" — compares each with the threshold in Decimal, all with no LLM; duration is not a
+X", or "how many contracts are above X" — compares each with the threshold in Decimal, all with no LLM; duration is not a
 manifest field yet, see PLAN.md Phase B). Every sub-answer runs the
 deterministic route + `Verifier` inside a self-correction ladder (widen k → withhold; a known
 contract id stays filtered on every rung, an id not in the corpus is withheld before retrieval).
