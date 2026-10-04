@@ -169,18 +169,18 @@ _BRIDGE = r"(?:\s+(?:of|is|are|that\s+(?:is|are)|which\s+(?:is|are)))?\s*$"
 _THRESHOLD_SUBJECT_RE = re.compile(rf"(?:\b(?:contracts|projects)|{_AMOUNT_NOUN}){_BRIDGE}", re.I)
 # A figure with no money cue (peso marker, scale word, "pesos") is pesos only when it binds an
 # amount noun ("an amount above 50,000,000") or -- in a question naming the amount -- bare
-# "contracts" ("the total contract amount of all contracts above 100,000,000"). So "how many
-# contracts are over 300 days" and "the average amount of the contracts that are over 200 days" do
-# not parse.
+# "contracts" when the figure ends its clause ("the total contract amount of all contracts above
+# 100,000,000?"). So "how many contracts are over 300 days", "the average amount of the contracts
+# that are over 200 days" and "the average amount of the contracts over 200 days" do not parse.
 _AMOUNT_PROOF_RE = re.compile(_AMOUNT_NOUN + _BRIDGE, re.I)
-_NAMED_AMOUNT_PROOF_RE = re.compile(rf"{_AMOUNT_NOUN}{_BRIDGE}|\b(?:contracts|projects)\s*$", re.I)
+_BARE_SUBJECT_RE = re.compile(r"\b(?:contracts|projects)\s*$", re.I)
 
 
 def contract_threshold(question: str) -> tuple[str, Decimal] | None:
     """parse_threshold's (op, X), only when the threshold binds to the contract amount."""
     names_amount = _FILTER_FIELD_RE.search(question) or _AGGREGATE_FIELD_RE.search(question)
-    return parse_threshold(question, after=_THRESHOLD_SUBJECT_RE,
-                           proof=_NAMED_AMOUNT_PROOF_RE if names_amount else _AMOUNT_PROOF_RE)
+    return parse_threshold(question, after=_THRESHOLD_SUBJECT_RE, proof=_AMOUNT_PROOF_RE,
+                           end_proof=_BARE_SUBJECT_RE if names_amount else None)
 
 
 def is_filter_question(question: str) -> bool:

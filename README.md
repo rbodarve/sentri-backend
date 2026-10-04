@@ -140,7 +140,7 @@ Every model and retrieval knob is an environment variable read in [`rag/config.p
 | Suite | Command | Ground truth | Latest result |
 |---|---|---|---|
 | Retrieval recall (the gate) | `make eval` | [`eval/eval_retrieval.json`](eval/eval_retrieval.json), 40 questions | hit rate **1.000** (single, broad and complex) |
-| Agent, answer level | `make eval-agentic` | [`eval/eval_agentic.json`](eval/eval_agentic.json), 68 questions incl. 2 withhold traps, 4 rank, 11 aggregate and 15 filter questions, and 29 look-alikes (routing only) | **68/68** |
+| Agent, answer level | `make eval-agentic` | [`eval/eval_agentic.json`](eval/eval_agentic.json), 71 questions incl. 2 withhold traps, 4 rank, 11 aggregate and 15 filter questions, 31 look-alikes and 1 accepted fall-through (routing only) | **71/71** |
 | Full question set through the streaming service | local harness | 441 questions from the local, untracked `docs/queries.txt` | **413/441 = 93.7%** (2026-09-28) |
 
 The one failing agent row is a known model miss. In the 24CM0001 notice to proceed the contractor

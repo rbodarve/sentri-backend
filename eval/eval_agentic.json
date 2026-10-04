@@ -409,5 +409,23 @@
     "kind": "aggregate",
     "expect": "route",
     "note": "A bare figure after 'contracts' with an amount noun in the question. HEAD route."
+  },
+  {
+    "query": "What is the average amount of the contracts over 200 days?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "Look-alike: a bare figure after 'contracts' followed by a unit does not end its clause. HEAD: aggregate Php200 (wrong)."
+  },
+  {
+    "query": "What is the total contract amount of the projects over 300 calendar days?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "Look-alike: a bare figure after 'projects' followed by a unit does not end its clause. HEAD: aggregate Php300 (wrong)."
+  },
+  {
+    "query": "What is the total contract amount of all contracts above 100,000,000 in total?",
+    "kind": "fanout",
+    "expect": "route",
+    "note": "accepted fall-through: trailing text after a bare figure (clause-end rule). HEAD: aggregate Php100,000,000 (correct)."
   }
 ]

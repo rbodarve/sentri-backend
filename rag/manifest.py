@@ -251,6 +251,9 @@ _THRESHOLD_OPS = {"below": "<", "under": "<", "less than": "<", "at least": ">="
 _SCALES = {"thousand": 10**3, "million": 10**6, "billion": 10**9}
 _COMPARE = {">": operator.gt, "<": operator.lt, ">=": operator.ge, "<=": operator.le}
 _OP_WORDS = {">": "above", "<": "below", ">=": "at least", "<=": "at most"}
+# A figure ends its clause: punctuation, the end, or "and"/"or" next ("contracts above 100,000,000?").
+# "contracts over 200 days" does not: the figure is followed by its unit.
+_CLAUSE_END_RE = re.compile(r"\s*(?:[?.,!;]|$|(?:and|or)\b)", re.I)
 
 
 def has_threshold(question: str) -> bool:
@@ -259,19 +262,22 @@ def has_threshold(question: str) -> bool:
 
 
 def parse_threshold(question: str, after: re.Pattern | None = None,
-                    proof: re.Pattern | None = None) -> tuple[str, Decimal] | None:
+                    proof: re.Pattern | None = None,
+                    end_proof: re.Pattern | None = None) -> tuple[str, Decimal] | None:
     """(op, Decimal threshold) of a question's one 'above / below X' amount, op in
     {">", "<", ">=", "<="}. None unless fully parsed: no threshold, a negated one ("not
     exceeding X") or two or more ("above X but below Y") -- a deterministic route never drops part
     of a condition. Only a money figure: a peso marker, a scale word or "pesos", or the text right
-    before the threshold matches `proof` ("over 300 days" is None). `after`: a pattern that text
+    before the threshold matches `proof` ("over 300 days" is None), or it matches `end_proof` and
+    the figure ends its clause ("contracts over 200 days" is None). `after`: a pattern that text
     must match (rag.agent binds the threshold to the contract amount with it)."""
     matches = list(_THRESHOLD_RE.finditer(question))
     if len(matches) != 1 or matches[0]["neg"]:
         return None
     m = matches[0]
     before = question[:m.start()]
-    if not (m["peso"] or m["scale"] or m["pesos"] or (proof and proof.search(before))):
+    if not (m["peso"] or m["scale"] or m["pesos"] or (proof and proof.search(before))
+            or (end_proof and end_proof.search(before) and _CLAUSE_END_RE.match(question, m.end()))):
         return None
     if after and not after.search(before):
         return None
@@ -399,6 +405,12 @@ def _self_check() -> None:
     for q in ("over 300 days", "above 100 calendar days"):
         assert parse_threshold(q) is None, f"bare number parsed as pesos: {q!r} -> {parse_threshold(q)}"
     assert parse_threshold("above 50,000,000 pesos") == (">", Decimal("50000000"))
+    # end_proof: a bare figure after it is pesos only if the figure ends its clause.
+    bare = re.compile(r"contracts\s*$")
+    q = "the total contract amount of all contracts above 100,000,000?"
+    assert parse_threshold(q, end_proof=bare) == (">", Decimal("100000000")), f"clause end not parsed: {q!r}"
+    q = "the average amount of the contracts over 200 days?"
+    assert parse_threshold(q, end_proof=bare) is None, f"figure with trailing unit parsed as pesos: {q!r}"
     rows = [{"contract_id": i, "contract_name": i, "amount": a} for i, a in [
         ("24A00153", "Php140,274,481.48"), ("24AJ0052", "P19,109,972.23"),
         ("24BG0272", "P 96,489,983.04"), ("24BJ0005", "P 93,990,000.00"),
