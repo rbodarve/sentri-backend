@@ -300,8 +300,11 @@ class AgenticRag:
                 # Corpus-wide ranking ("which contract has the highest amount"): every contract's
                 # value is needed and the comparison must not be the LLM's, so it is answered by
                 # sorting the manifest (see answer()). Precedes enumerate so "list the contracts by
-                # amount" ranks.
-                if is_rank_question(question):
+                # amount" ranks. A threshold the filter did not take ("the highest amount among the
+                # contracts below X", "... with a bid amount above X") falls through: rank orders
+                # every contract and would drop it. Here, not in is_rank_question: the aggregate
+                # rule above and rag.subject's no-pin rule still need the rank cue.
+                if is_rank_question(question) and not has_threshold(question):
                     return "rank", sorted(self._known)
                 # Corpus-wide total/average: every amount is an operand, so it is summed in Decimal
                 # from the manifest (see answer()), never by the LLM through a fan-out combine.

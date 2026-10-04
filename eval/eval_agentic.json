@@ -336,6 +336,22 @@
     "note": "A rank question with a threshold stays filter (the aggregate rule's rank guard). HEAD route."
   },
   {
+    "query": "What is the highest amount among the contracts below 50 million?",
+    "kind": "simple",
+    "expect": "route",
+    "session": "24CM0001",
+    "pinned": [],
+    "note": "A threshold the filter does not catch falls through, unpinned (h2). HEAD: rank, named 24A00153 (Php140,274,481.48), the threshold dropped."
+  },
+  {
+    "query": "What is the highest amount among the contracts with a bid amount above 100 million?",
+    "kind": "simple",
+    "expect": "route",
+    "session": "24CM0001",
+    "pinned": [],
+    "note": "A bid-amount condition is not the contract amount: falls through, unpinned (h3). HEAD: rank, the condition dropped."
+  },
+  {
     "query": "What is the average amount of the contracts over 50 million?",
     "kind": "aggregate",
     "expect": "route",
