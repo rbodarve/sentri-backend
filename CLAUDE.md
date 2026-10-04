@@ -73,7 +73,7 @@ single-contract sub-question each (by rule), and withholds only a part that fail
 `semantic` multi-hop questions are decomposed by the LLM (the only place the LLM drives
 control); `enumerate`/`rank`/`aggregate`/`filter`/`analytical` answer from the manifest (`rank` — a corpus-wide
 "highest / rank by amount" — sorts the manifest amounts in Decimal, and `aggregate` — a corpus-wide
-total/average amount — sums them in Decimal, and `filter` — a corpus-wide "amount above / below
+total/average amount, optionally of the contracts above / below X — sums them in Decimal, and `filter` — a corpus-wide "amount above / below
 X" — compares each with the threshold in Decimal, all with no LLM; duration is not a
 manifest field yet, see PLAN.md Phase B). Every sub-answer runs the
 deterministic route + `Verifier` inside a self-correction ladder (widen k → withhold; a known

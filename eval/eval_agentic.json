@@ -261,8 +261,92 @@
   },
   {
     "query": "What is the average amount of the contracts over 50 million?",
+    "kind": "aggregate",
+    "expect": "answer",
+    "anchors": ["average amount of the 4 contracts above Php50,000,000.00 is Php100,058,473.29"],
+    "note": "The threshold selects the averaged contracts (follow-up (d)(3)); D6 routed it simple."
+  },
+  {
+    "query": "What is the total contract amount of all contracts above 100 million?",
+    "kind": "aggregate",
+    "expect": "answer",
+    "anchors": ["total amount of the 1 contract above Php100,000,000.00 is Php140,274,481.48"],
+    "note": "Total of the >100M subset only; HEAD routed it filter (listed, no total)."
+  },
+  {
+    "query": "What is the total contract amount of all contracts above 1 billion?",
+    "kind": "aggregate",
+    "expect": "answer",
+    "anchors": ["No contract has a stated amount above Php1,000,000,000.00"],
+    "note": "Empty subset: no total line, no division."
+  },
+  {
+    "query": "What is the total contract amount of all contracts not exceeding 100 million?",
+    "kind": "fanout",
+    "expect": "route",
+    "note": "D6: a negated threshold is not parsed, so not aggregate. HEAD route."
+  },
+  {
+    "query": "What is the average amount of the contracts above 50 million but below 100 million?",
     "kind": "simple",
     "expect": "route",
-    "note": "A threshold the aggregate cannot apply: not aggregate (HEAD: aggregate, averaged all contracts)."
+    "note": "D6: two thresholds are not parsed, so not aggregate. HEAD route."
+  },
+  {
+    "query": "What is the average contract amount of the contracts with a bid amount above 100 million?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "Look-alike: a bid-amount threshold is not a contract-amount threshold (HEAD: filter, wrong)."
+  },
+  {
+    "query": "What is the total awarded contract amount of all the contracts under review with a bid amount above 50 million?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "Look-alike (d3 /code-review): 'contracts under' is not the parsed threshold; the bid amount's is."
+  },
+  {
+    "query": "Which contracts have an amount of more than 90 million?",
+    "kind": "filter",
+    "expect": "route",
+    "note": "Bridge word 'of' between the amount and the threshold. HEAD route."
+  },
+  {
+    "query": "Which contracts have an amount that is above 100 million?",
+    "kind": "filter",
+    "expect": "route",
+    "note": "Bridge words 'that is'. HEAD route."
+  },
+  {
+    "query": "Which contracts have a contract amount of over PHP 50,000,000?",
+    "kind": "filter",
+    "expect": "route",
+    "note": "Bridge word 'of'. HEAD route."
+  },
+  {
+    "query": "List the contracts whose total contract amount is below 50 million.",
+    "kind": "filter",
+    "expect": "route",
+    "note": "Bridge word 'is'; must not enumerate all contracts. HEAD route."
+  },
+  {
+    "query": "What is the total contract amount of all contracts with an amount of over 50 million?",
+    "kind": "aggregate",
+    "expect": "answer",
+    "anchors": ["total amount of the 4 contracts above Php50,000,000.00 is Php400,233,893.16"],
+    "note": "Total of the >50M subset; the threshold binds 'an amount of'. HEAD: filter."
+  },
+  {
+    "query": "What is the highest total contract amount of the contracts above 50 million?",
+    "kind": "filter",
+    "expect": "route",
+    "note": "A rank question with a threshold stays filter (the aggregate rule's rank guard). HEAD route."
+  },
+  {
+    "query": "What is the average amount of the contracts over 50 million?",
+    "kind": "aggregate",
+    "expect": "route",
+    "session": "24CM0001",
+    "pinned": [],
+    "note": "Corpus-wide: the session contract is not pinned (HEAD pinned 24CM0001)."
   }
 ]

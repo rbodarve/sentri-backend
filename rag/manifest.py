@@ -258,15 +258,18 @@ def has_threshold(question: str) -> bool:
     return bool(_THRESHOLD_RE.search(question))
 
 
-def parse_threshold(question: str) -> tuple[str, Decimal] | None:
+def parse_threshold(question: str, after: re.Pattern | None = None) -> tuple[str, Decimal] | None:
     """(op, Decimal threshold) of a question's one 'above / below X' amount, op in
     {">", "<", ">=", "<="}. None unless fully parsed: no threshold, a negated one ("not
     exceeding X") or two or more ("above X but below Y") -- a deterministic route never drops part
-    of a condition."""
+    of a condition. `after`: a pattern the text right before that threshold must match (rag.agent
+    binds the threshold to the contract amount with it)."""
     matches = list(_THRESHOLD_RE.finditer(question))
     if len(matches) != 1 or matches[0]["neg"]:
         return None
     m = matches[0]
+    if after and not after.search(question[:m.start()]):
+        return None
     op = _THRESHOLD_OPS.get(" ".join(m["word"].lower().split()), ">")
     scale = _SCALES[m["scale"].lower()] if m["scale"] else 1
     return op, Decimal(m["num"].replace(",", "")) * scale
@@ -291,18 +294,26 @@ def format_ranking(manifest: list[dict], descending: bool, top_only: bool) -> st
     return "\n".join(lines)
 
 
-def format_aggregate(manifest: list[dict], ops: tuple[str, ...]) -> str:
+def format_aggregate(manifest: list[dict], ops: tuple[str, ...],
+                     threshold: tuple[str, Decimal] | None = None) -> str:
     """Deterministic answer to a corpus-wide 'total / average amount' question (ops: "total"
     and/or "average", one line each): the verbatim manifest amounts summed in Decimal -- no LLM
-    adds numbers. Every addend is listed; a contract without a parseable amount is named as not
-    included."""
+    adds numbers. A threshold (op, X) from parse_threshold first keeps only the amounts that
+    compare true ("the total of the contracts above X"). Every addend is listed; a contract
+    without a parseable amount is named as not included."""
     stated, unstated = _stated_amounts(manifest)
+    cond = ""
+    if threshold:
+        op, x = threshold
+        stated = [(a, r) for a, r in stated if _COMPARE[op](a, x)]
+        cond = f" {_OP_WORDS[op]} Php{x:,.2f}"
     if not stated:
-        return f"No contract has a stated amount. Not included {unstated}"
+        return f"No contract has a stated amount{cond}." + (f" Not included {unstated}" if unstated else "")
     total = sum((a for a, _ in stated), Decimal(0))
     values = {"total": total,
               "average": (total / len(stated)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)}
-    lines = [f"The {op} amount of the {len(stated)} contracts with a stated amount is "
+    noun = "contract" if len(stated) == 1 else "contracts"
+    lines = [f"The {op} amount of the {len(stated)} {noun}{cond or ' with a stated amount'} is "
              f"Php{values[op]:,.2f}." for op in ops]
     lines.append("Stated amounts:")
     lines += [f"- {_amount_row(r)}" for _, r in stated]
@@ -394,6 +405,27 @@ def _self_check() -> None:
     text = format_filter(rows, ">=", Decimal("93990000.00"))
     assert "24BJ0005" in ids(text), f"'at least' excludes the boundary: {text!r}"
     print("OK: parse_threshold / format_filter pins")
+    # Threshold aggregate: expected values recomputed from the rows, not typed in.
+    def subset(x):
+        return [a for a in map(parse_amount, (r["amount"] for r in rows)) if a is not None and a > x]
+    big = subset(Decimal("90000000"))
+    text = format_aggregate(rows, ("total",), (">", Decimal("90000000")))
+    assert (f"The total amount of the {len(big)} contracts above Php90,000,000.00 is "
+            f"Php{sum(big):,.2f}.") in text, f"threshold total is not the subset sum: {text!r}"
+    assert "24AJ0052" not in text, f"threshold total lists a contract below the threshold: {text!r}"
+    mid = subset(Decimal("50000000"))
+    avg = (sum(mid) / len(mid)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    text = format_aggregate(rows, ("average",), (">", Decimal("50000000")))
+    assert f"of the {len(mid)} contracts above Php50,000,000.00 is Php{avg:,.2f}." in text, \
+        f"threshold average is not the subset mean: {text!r}"
+    text = format_aggregate(rows, ("total",), (">", Decimal("100000000")))
+    assert "of the 1 contract above Php100,000,000.00 is" in text, f"n=1 is not singular: {text!r}"
+    text = format_aggregate(rows, ("total", "average"), (">", Decimal("1000000000")))
+    assert text.startswith("No contract has a stated amount above Php1,000,000,000.00.") \
+        and "total amount" not in text and "average amount" not in text, \
+        f"empty subset states a value: {text!r}"
+    assert "Contract 24CM0001 (not stated)" in text, f"empty subset hides an unstated contract: {text!r}"
+    print("OK: threshold format_aggregate pins")
 
 
 if __name__ == "__main__":

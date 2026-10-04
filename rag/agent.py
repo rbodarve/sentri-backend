@@ -37,6 +37,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Any, Callable
 
 from llama_index.core import Settings
@@ -142,12 +143,13 @@ _PER_CONTRACT_RE = re.compile(
 
 
 def is_aggregate_question(question: str) -> bool:
-    """The corpus-wide total/average cue, shared with rag.subject like is_rank_question. Not when
-    the question states a threshold ("the average ... over X"): summing every amount would drop
-    the condition."""
+    """The corpus-wide total/average cue, shared with rag.subject like is_rank_question. A stated
+    threshold ("the average ... over X") must be fully parsed, as answer() totals only the
+    contracts it selects; else (negated, a range) summing every amount would drop the condition."""
     return bool((_TOTAL_RE.search(question) or _AVERAGE_RE.search(question))
                 and _AGGREGATE_FIELD_RE.search(question) and _RANK_SCOPE_RE.search(question)
-                and not _PER_CONTRACT_RE.search(question) and not has_threshold(question))
+                and not _PER_CONTRACT_RE.search(question)
+                and (not has_threshold(question) or contract_threshold(question)))
 
 
 # Corpus-wide amount filter: a threshold ("above 100 million", see parse_threshold) AND the
@@ -155,12 +157,26 @@ def is_aggregate_question(question: str) -> bool:
 # comparing the manifest amounts in Decimal (see answer()) -- no LLM compares numbers. The field
 # cue is positive: "a bid amount above X" is not the manifest's contract amount.
 _FILTER_FIELD_RE = re.compile(r"\b(?:an|the|contract|awarded|total)\s+amounts?\b", re.I)
+# ...and the threshold must bind to the contracts or their amount: the one threshold
+# parse_threshold matched (comparison word + figure) must follow "contracts" /
+# "an|the|contract|awarded|total amount", with at most a short bridge ("an amount of over X",
+# "whose total contract amount is below X"). So "with a bid amount above X" never filters or
+# totals the contract amounts, and "contracts under review" is no threshold at all.
+_THRESHOLD_SUBJECT_RE = re.compile(
+    r"\b(?:contracts|projects|(?:an|the|contract|awarded|total)\s+amounts?)"
+    r"(?:\s+(?:of|is|that\s+is|which\s+is))?\s*$", re.I
+)
+
+
+def contract_threshold(question: str) -> tuple[str, Decimal] | None:
+    """parse_threshold's (op, X), only when the threshold binds to the contract amount."""
+    return parse_threshold(question, after=_THRESHOLD_SUBJECT_RE)
 
 
 def is_filter_question(question: str) -> bool:
     """The corpus-wide amount-threshold cue, shared with rag.subject like is_rank_question."""
     return bool(_FILTER_FIELD_RE.search(question) and _RANK_SCOPE_RE.search(question)
-                and parse_threshold(question))
+                and contract_threshold(question))
 
 
 def is_corpus_wide(question: str) -> bool:
@@ -259,6 +275,12 @@ class AgenticRag:
         # A corpus-wide route needs its cue in is_corpus_wide (shared with rag.subject's pin rule).
         if is_corpus_wide(question):
             if not explicit and not resolved:
+                # "The total of the contracts above X": the threshold selects the summed amounts
+                # (see answer()). Before filter, which would only list them; not a rank question,
+                # so "the highest total amount of the contracts above X" still filters.
+                if (contract_threshold(question) and is_aggregate_question(question)
+                        and not is_rank_question(question)):
+                    return "aggregate", sorted(self._known)
                 # Corpus-wide amount filter ("which contracts have an amount above X"): each amount
                 # is compared in Decimal from the manifest (see answer()). First: a threshold is the
                 # stronger cue, so "list / rank the contracts above X" filters, never lists all.
@@ -408,9 +430,9 @@ class AgenticRag:
                 # "the total and the average": both lines (the route matched at least one word).
                 ops = tuple(op for op, cue in (("total", _TOTAL_RE), ("average", _AVERAGE_RE))
                             if cue.search(question))
-                text = format_aggregate(self._rag.manifest, ops)
+                text = format_aggregate(self._rag.manifest, ops, contract_threshold(question))
             elif kind == "filter":
-                text = format_filter(self._rag.manifest, *parse_threshold(question))
+                text = format_filter(self._rag.manifest, *contract_threshold(question))
             else:
                 highs = [w.lower() in _HIGH_WORDS for w in _SUPERLATIVE_RE.findall(question)]
                 descending = not highs or highs[0]

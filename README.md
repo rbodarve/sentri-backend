@@ -114,7 +114,7 @@ flowchart LR
 | Rerank | [`rag/rerank.py`](rag/rerank.py) | CPU cross-encoder [BAAI/bge-reranker-base](https://huggingface.co/BAAI/bge-reranker-base). It takes 40 candidates, labels each with its document type and contract, and keeps the top 10. |
 | Generate | [`rag/generate.py`](rag/generate.py) | Retrieval filtered to the contract, reranked, neighbour-expanded, and trimmed to fit a single `num_ctx` call. The answer cites its sources. |
 | Verify | [`rag/verify.py`](rag/verify.py) | Deterministic grounding check against the manifest: flags invented contract ids and mis-bound locations, contractors or people. |
-| Agent | [`rag/agent.py`](rag/agent.py) | Routes each question (`simple`, `fanout`, `semantic`, `enumerate`, `rank`, `aggregate`, `filter` or `analytical`) and fans corpus-wide questions out per contract. `rank` ("which contract has the highest amount") sorts the manifest amounts in code, `aggregate` ("the total / average amount of the contracts") sums them in code, and `filter` ("which contracts have an amount above 100 million") compares each with the threshold in code; no LLM compares or adds numbers. Failed answers retry through a verifier-driven ladder: widen k, then withhold. |
+| Agent | [`rag/agent.py`](rag/agent.py) | Routes each question (`simple`, `fanout`, `semantic`, `enumerate`, `rank`, `aggregate`, `filter` or `analytical`) and fans corpus-wide questions out per contract. `rank` ("which contract has the highest amount") sorts the manifest amounts in code, `aggregate` ("the total / average amount of the contracts", optionally "above X") sums them in code, and `filter` ("which contracts have an amount above 100 million") compares each with the threshold in code; no LLM compares or adds numbers. Failed answers retry through a verifier-driven ladder: widen k, then withhold. |
 | Subject | [`rag/subject.py`](rag/subject.py) | Carries a conversation's contract into follow-up questions ("who signed *it*?"). |
 
 The **LLM never does arithmetic**, and the verifier's pass only confirms contract ids, locations and
@@ -140,7 +140,7 @@ Every model and retrieval knob is an environment variable read in [`rag/config.p
 | Suite | Command | Ground truth | Latest result |
 |---|---|---|---|
 | Retrieval recall (the gate) | `make eval` | [`eval/eval_retrieval.json`](eval/eval_retrieval.json), 40 questions | hit rate **1.000** (single, broad and complex) |
-| Agent, answer level | `make eval-agentic` | [`eval/eval_agentic.json`](eval/eval_agentic.json), 45 questions incl. 2 withhold traps, 4 rank, 5 aggregate and 5 filter questions, and 22 look-alikes (routing only) | **45/45** |
+| Agent, answer level | `make eval-agentic` | [`eval/eval_agentic.json`](eval/eval_agentic.json), 58 questions incl. 2 withhold traps, 4 rank, 10 aggregate and 10 filter questions, and 25 look-alikes (routing only) | **58/58** |
 | Full question set through the streaming service | local harness | 441 questions from the local, untracked `docs/queries.txt` | **413/441 = 93.7%** (2026-09-28) |
 
 The one failing agent row is a known model miss. In the 24CM0001 notice to proceed the contractor
