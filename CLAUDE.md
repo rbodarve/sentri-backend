@@ -67,13 +67,14 @@ kind, check its unlabelled siblings: a label makes a chunk outrank them.
 
 `agent.py` is the **agentic layer** over `generate.py` (it does not replace it): a
 deterministic router classifies each question `simple | fanout | semantic | enumerate | rank |
-aggregate | analytical`. Fan-out splits a contiguous multi-contract question, an "each/all projects"
+aggregate | filter | analytical`. Fan-out splits a contiguous multi-contract question, an "each/all projects"
 question, or a corpus-wide sweep ("... across the documents in the database") into one
 single-contract sub-question each (by rule), and withholds only a part that fails the check.
 `semantic` multi-hop questions are decomposed by the LLM (the only place the LLM drives
-control); `enumerate`/`rank`/`aggregate`/`analytical` answer from the manifest (`rank` — a corpus-wide
+control); `enumerate`/`rank`/`aggregate`/`filter`/`analytical` answer from the manifest (`rank` — a corpus-wide
 "highest / rank by amount" — sorts the manifest amounts in Decimal, and `aggregate` — a corpus-wide
-total/average amount — sums them in Decimal, both with no LLM; duration is not a
+total/average amount — sums them in Decimal, and `filter` — a corpus-wide "amount above / below
+X" — compares each with the threshold in Decimal, all with no LLM; duration is not a
 manifest field yet, see PLAN.md Phase B). Every sub-answer runs the
 deterministic route + `Verifier` inside a self-correction ladder (widen k → withhold; a known
 contract id stays filtered on every rung, an id not in the corpus is withheld before retrieval).

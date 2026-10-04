@@ -155,18 +155,18 @@
   },
   {
     "query": "Which contracts have a total amount above 100 million?",
-    "kind": "simple",
+    "kind": "filter",
     "expect": "route"
   },
   {
     "query": "Which contracts have a total contract amount above 100 million?",
-    "kind": "simple",
+    "kind": "filter",
     "expect": "route",
     "note": "A 'which' question selects contracts; an aggregate answers with a value."
   },
   {
     "query": "Which contracts have a total contract amount above 100 million?",
-    "kind": "simple",
+    "kind": "filter",
     "expect": "route",
     "session": "24CM0001",
     "note": "A plural 'which contracts' question selects across the corpus: no session pin."
@@ -204,5 +204,65 @@
     "expect": "answer",
     "anchors": ["419,343,865.39", "83,868,773.08"],
     "ordered": true
+  },
+  {
+    "query": "Which contracts have an amount below PHP 50,000,000?",
+    "kind": "filter",
+    "expect": "route"
+  },
+  {
+    "query": "List the contracts with an amount greater than 90 million.",
+    "kind": "filter",
+    "expect": "route",
+    "note": "A threshold is the stronger cue: it must not enumerate all contracts."
+  },
+  {
+    "query": "Was the amount of contract 24A00153 above 100 million?",
+    "kind": "simple",
+    "expect": "route"
+  },
+  {
+    "query": "Was the amount above 50 million?",
+    "kind": "simple",
+    "expect": "route",
+    "session": "24CM0001",
+    "pinned": ["24CM0001"],
+    "note": "A per-contract threshold follow-up keeps the session pin."
+  },
+  {
+    "query": "Which projects were awarded after 2023?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "A year is not an amount threshold."
+  },
+  {
+    "query": "How many contracts are above 100 million?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "Known limit: no field word before the threshold, so it stays simple."
+  },
+  {
+    "query": "Which contracts have a bid amount above 100 million?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "A bid amount is not the manifest contract amount; HEAD route recorded 2026-10-04."
+  },
+  {
+    "query": "Which contracts have an amount not exceeding 100 million?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "A negated threshold is not parsed: a deterministic route answers only what it fully parsed. HEAD route."
+  },
+  {
+    "query": "Which contracts have an amount above 50 million but below 100 million?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "Two thresholds (a range) are not parsed. HEAD route."
+  },
+  {
+    "query": "What is the average amount of the contracts over 50 million?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "A threshold the aggregate cannot apply: not aggregate (HEAD: aggregate, averaged all contracts)."
   }
 ]

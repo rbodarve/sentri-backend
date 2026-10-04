@@ -8,7 +8,7 @@ running Ollama (generation).
 Each question in eval/eval_agentic.json declares its expected router "kind" and outcome:
 
   kind              -> the router decision this question must produce (simple|fanout|semantic|
-                       analytical|enumerate|rank|aggregate). Checked FIRST, so a misroute fails even if the
+                       analytical|enumerate|rank|aggregate|filter). Checked FIRST, so a misroute fails even if the
                        answer happens to pass -- the gate covers routing, not just answer text.
                        `--routes` checks only this, model-free (no Ollama, no index).
   session="<id>"    -> `--routes` only: ask the question as a follow-up in a conversation on that

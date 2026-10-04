@@ -30,6 +30,7 @@ the same confident-but-incomplete failure the manifest exists to fix.
 from __future__ import annotations
 
 import json
+import operator
 import re
 import sys
 from decimal import ROUND_HALF_UP, Decimal
@@ -238,6 +239,39 @@ def parse_amount(text: str | None) -> Decimal | None:
     return Decimal(m.group(1).replace(",", "")) if m else None
 
 
+# A comparison word right before a peso figure: "above 100 million", "below PHP 50,000,000",
+# "at least 1.5 billion". The words are an explicit list, so "after 2023" is never a threshold.
+_THRESHOLD_RE = re.compile(
+    r"(?:\b(?P<neg>not|no)\s+)?"
+    r"\b(?P<word>above|over|more\s+than|greater\s+than|exceed(?:s|ing)?|below|under|less\s+than|"
+    r"at\s+least|at\s+most)\s+(?:Php|P|₱)?\s*(?P<num>(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)"
+    r"(?:\s*(?P<scale>thousand|million|billion)\b)?", re.I
+)
+_THRESHOLD_OPS = {"below": "<", "under": "<", "less than": "<", "at least": ">=", "at most": "<="}
+_SCALES = {"thousand": 10**3, "million": 10**6, "billion": 10**9}
+_COMPARE = {">": operator.gt, "<": operator.lt, ">=": operator.ge, "<=": operator.le}
+_OP_WORDS = {">": "above", "<": "below", ">=": "at least", "<=": "at most"}
+
+
+def has_threshold(question: str) -> bool:
+    """Whether a question states any 'above / below X' amount, parseable or not."""
+    return bool(_THRESHOLD_RE.search(question))
+
+
+def parse_threshold(question: str) -> tuple[str, Decimal] | None:
+    """(op, Decimal threshold) of a question's one 'above / below X' amount, op in
+    {">", "<", ">=", "<="}. None unless fully parsed: no threshold, a negated one ("not
+    exceeding X") or two or more ("above X but below Y") -- a deterministic route never drops part
+    of a condition."""
+    matches = list(_THRESHOLD_RE.finditer(question))
+    if len(matches) != 1 or matches[0]["neg"]:
+        return None
+    m = matches[0]
+    op = _THRESHOLD_OPS.get(" ".join(m["word"].lower().split()), ">")
+    scale = _SCALES[m["scale"].lower()] if m["scale"] else 1
+    return op, Decimal(m["num"].replace(",", "")) * scale
+
+
 def format_ranking(manifest: list[dict], descending: bool, top_only: bool) -> str:
     """Deterministic answer to a corpus-wide 'highest / rank by amount' question: the verbatim
     manifest amounts compared in Decimal -- no LLM orders numbers. A contract without a parseable
@@ -277,9 +311,26 @@ def format_aggregate(manifest: list[dict], ops: tuple[str, ...]) -> str:
     return "\n".join(lines)
 
 
+def format_filter(manifest: list[dict], op: str, threshold: Decimal) -> str:
+    """Deterministic answer to a corpus-wide 'which contracts have an amount above / below X'
+    question: each manifest amount compared with the threshold in Decimal -- no LLM compares
+    numbers. Matches are listed largest to smallest; a contract without a parseable amount is
+    named as not compared."""
+    stated, unstated = _stated_amounts(manifest)
+    matches = sorted(((a, r) for a, r in stated if _COMPARE[op](a, threshold)),
+                     key=lambda ar: ar[0], reverse=True)
+    head = (f"{len(matches)} of the {len(stated)} contracts with a stated amount have an amount "
+            f"{_OP_WORDS[op]} Php{threshold:,.2f}")
+    lines = [f"{head}, largest to smallest:" if matches else f"{head}."]
+    lines += [f"{i}. {_amount_row(r)}" for i, (_, r) in enumerate(matches, 1)]
+    if unstated:
+        lines.append(f"Not compared {unstated}")
+    return "\n".join(lines)
+
+
 def _stated_amounts(manifest: list[dict]) -> tuple[list[tuple[Decimal, dict]], str]:
     """(every (Decimal amount, row) the manifest states, in manifest order; the tail naming each
-    contract without one with its verbatim value, '' if none) -- shared by rank and aggregate."""
+    contract without one with its verbatim value, '' if none) -- shared by rank, aggregate, filter."""
     parsed = [(parse_amount(r.get("amount")), r) for r in manifest]
     missing = [f"Contract {r['contract_id']} ({r.get('amount') or 'not stated'})"
                for a, r in parsed if a is None]
@@ -288,7 +339,7 @@ def _stated_amounts(manifest: list[dict]) -> tuple[list[tuple[Decimal, dict]], s
 
 
 def _amount_row(r: dict) -> str:
-    """One contract's line in the deterministic amount answers (rank, aggregate)."""
+    """One contract's line in the deterministic amount answers (rank, aggregate, filter)."""
     return f"Contract {r['contract_id']} — {_display_name(r)} — Amount: {r['amount']}"
 
 
@@ -320,6 +371,29 @@ def _self_check() -> None:
         and "1,500.25" in text and text.index("3,000.50") < text.index("1,500.25"), \
         f"a total-and-average question drops a value: {text!r}"
     print("OK: format_aggregate pins")
+    assert parse_threshold("above 100 million") == (">", Decimal("100000000"))
+    assert parse_threshold("below PHP 50,000,000") == ("<", Decimal("50000000"))
+    assert parse_threshold("at least 1.5 billion") == (">=", Decimal("1500000000"))
+    # Only a fully parsed threshold: a negation or a second bound would be silently dropped.
+    for q in ("an amount not exceeding 100 million", "no more than P50,000,000",
+              "above 50 million but below 100 million"):
+        assert parse_threshold(q) is None, f"partly parsed threshold: {q!r} -> {parse_threshold(q)}"
+    rows = [{"contract_id": i, "contract_name": i, "amount": a} for i, a in [
+        ("24A00153", "Php140,274,481.48"), ("24AJ0052", "P19,109,972.23"),
+        ("24BG0272", "P 96,489,983.04"), ("24BJ0005", "P 93,990,000.00"),
+        ("24CC0265", "P69,479,428.64"), ("24CM0001", "not stated")]]
+    ids = lambda text: [i for i in ("24A00153", "24AJ0052", "24BG0272", "24BJ0005", "24CC0265")
+                        if f"Contract {i} " in text]
+    text = format_filter(rows, ">", Decimal("100000000"))
+    assert ids(text) == ["24A00153"], f"above 100M is not exactly 24A00153: {text!r}"
+    assert "Contract 24CM0001 (not stated)" in text, f"filter hides an uncompared contract: {text!r}"
+    text = format_filter(rows, ">", Decimal("90000000"))
+    assert ids(text) == ["24A00153", "24BG0272", "24BJ0005"], f"above 90M wrong set: {text!r}"
+    text = format_filter(rows, ">", Decimal("93990000.00"))
+    assert "24BJ0005" not in ids(text), f"'above' includes the boundary: {text!r}"
+    text = format_filter(rows, ">=", Decimal("93990000.00"))
+    assert "24BJ0005" in ids(text), f"'at least' excludes the boundary: {text!r}"
+    print("OK: parse_threshold / format_filter pins")
 
 
 if __name__ == "__main__":

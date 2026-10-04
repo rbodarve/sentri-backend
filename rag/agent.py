@@ -6,7 +6,8 @@ Composes three behaviors on top of the deterministic pipeline, without replacing
                   "enumerate" (a corpus-wide "list all projects/locations" answered straight
                   from the manifest, deterministically -- no LLM, no retrieval) | "rank" (a
                   corpus-wide "highest / rank by amount", the manifest amounts sorted in Decimal) |
-                  "aggregate" (a corpus-wide total/average amount, computed in Decimal).
+                  "aggregate" (a corpus-wide total/average amount, computed in Decimal) |
+                  "filter" (a corpus-wide "amount above / below X", compared in Decimal).
   fan-out      -- a multi-contract question asking one intent of several contracts -- an
                   explicit id list, a distributive "each/all projects", or a corpus-wide sweep
                   ("... across the documents in the database") -- is split, by rule, into one
@@ -44,7 +45,8 @@ from llama_index.core.prompts import PromptTemplate
 from rag.config import AGENT_MAX_ATTEMPTS, AGENT_WIDE_TOP_N
 from rag.enrich import CONTRACT_ID_RE
 from rag.generate import RagAnswerer
-from rag.manifest import format_aggregate, format_enumeration, format_ranking
+from rag.manifest import (format_aggregate, format_enumeration, format_filter, format_ranking,
+                          has_threshold, parse_threshold)
 from rag.rerank import get_reranker
 from rag.verify import Report
 
@@ -140,10 +142,25 @@ _PER_CONTRACT_RE = re.compile(
 
 
 def is_aggregate_question(question: str) -> bool:
-    """The corpus-wide total/average cue, shared with rag.subject like is_rank_question."""
+    """The corpus-wide total/average cue, shared with rag.subject like is_rank_question. Not when
+    the question states a threshold ("the average ... over X"): summing every amount would drop
+    the condition."""
     return bool((_TOTAL_RE.search(question) or _AVERAGE_RE.search(question))
                 and _AGGREGATE_FIELD_RE.search(question) and _RANK_SCOPE_RE.search(question)
-                and not _PER_CONTRACT_RE.search(question))
+                and not _PER_CONTRACT_RE.search(question) and not has_threshold(question))
+
+
+# Corpus-wide amount filter: a threshold ("above 100 million", see parse_threshold) AND the
+# contract amount named AND corpus scope ("which contracts have an amount above X"). Answered by
+# comparing the manifest amounts in Decimal (see answer()) -- no LLM compares numbers. The field
+# cue is positive: "a bid amount above X" is not the manifest's contract amount.
+_FILTER_FIELD_RE = re.compile(r"\b(?:an|the|contract|awarded|total)\s+amounts?\b", re.I)
+
+
+def is_filter_question(question: str) -> bool:
+    """The corpus-wide amount-threshold cue, shared with rag.subject like is_rank_question."""
+    return bool(_FILTER_FIELD_RE.search(question) and _RANK_SCOPE_RE.search(question)
+                and parse_threshold(question))
 
 
 def is_corpus_wide(question: str) -> bool:
@@ -152,7 +169,8 @@ def is_corpus_wide(question: str) -> bool:
     cannot be added to one and missed in the other."""
     return bool(_LIST_CORPUS_RE.search(question) or _EACH_RE.search(question)
                 or _ANALYTICAL_RE.search(question) or _CORPUS_RE.search(question)
-                or is_rank_question(question) or is_aggregate_question(question))
+                or is_rank_question(question) or is_aggregate_question(question)
+                or is_filter_question(question))
 
 _DECOMPOSE_TEMPLATE = PromptTemplate(
     "Break the question into the minimal list of independent, self-contained sub-questions "
@@ -235,12 +253,17 @@ class AgenticRag:
     # -- routing -------------------------------------------------------------------------
     def classify(self, question: str) -> tuple[str, list[str]]:
         """(kind, ordered contract ids). kind in {"simple","fanout","semantic","analytical",
-        "enumerate","rank","aggregate"}."""
+        "enumerate","rank","aggregate","filter"}."""
         explicit = list(dict.fromkeys(m.upper() for m in CONTRACT_ID_RE.findall(question)))
         resolved = self._rag.resolve_contract_ids(question)  # resolve once, reuse (was up to 3x)
         # A corpus-wide route needs its cue in is_corpus_wide (shared with rag.subject's pin rule).
         if is_corpus_wide(question):
             if not explicit and not resolved:
+                # Corpus-wide amount filter ("which contracts have an amount above X"): each amount
+                # is compared in Decimal from the manifest (see answer()). First: a threshold is the
+                # stronger cue, so "list / rank the contracts above X" filters, never lists all.
+                if is_filter_question(question):
+                    return "filter", sorted(self._known)
                 # Corpus-wide ranking ("which contract has the highest amount"): every contract's
                 # value is needed and the comparison must not be the LLM's, so it is answered by
                 # sorting the manifest (see answer()). Precedes enumerate so "list the contracts by
@@ -374,7 +397,7 @@ class AgenticRag:
         stage = on_stage or (lambda name, data: None)
         kind, ids = self.classify(question)
         stage("route", {"kind": kind, "contract_ids": ids})
-        if kind in ("enumerate", "rank", "aggregate"):
+        if kind in ("enumerate", "rank", "aggregate", "filter"):
             # The complete answer IS the manifest: enumerate it, or rank / total its amounts in
             # Decimal, deterministically (no LLM, no retrieval), so the answer is complete and
             # identical every run. Grounded by construction -- built straight from the oracle -- so
@@ -386,6 +409,8 @@ class AgenticRag:
                 ops = tuple(op for op, cue in (("total", _TOTAL_RE), ("average", _AVERAGE_RE))
                             if cue.search(question))
                 text = format_aggregate(self._rag.manifest, ops)
+            elif kind == "filter":
+                text = format_filter(self._rag.manifest, *parse_threshold(question))
             else:
                 highs = [w.lower() in _HIGH_WORDS for w in _SUPERLATIVE_RE.findall(question)]
                 descending = not highs or highs[0]

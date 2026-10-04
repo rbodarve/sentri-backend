@@ -149,7 +149,7 @@ class StreamFinal:
     """The terminal object handed to `finalize` (Seam 5)."""
 
     question: str
-    kind: str                    # an agent route (simple|fanout|semantic|analytical|enumerate|rank|aggregate),
+    kind: str                    # an agent route (simple|fanout|semantic|analytical|enumerate|rank|aggregate|filter),
                                  # or "transform" | "no_context" for the anaphora sentinels
     contract_ids: list[str]      # contract ids the user typed (resolved/pinned ids are not echoed)
     text: str                    # combined answer (displayable only if report.ok)

@@ -25,7 +25,7 @@ from rag.generate import build_retriever  # shared with production so the gate c
 from rag.index import load_index
 
 EVAL_PATH = Path("eval/eval_retrieval.json")
-_MANIFEST_KINDS = ("rank", "aggregate")  # routes answered from the manifest, not retrieval
+_MANIFEST_KINDS = ("rank", "aggregate", "filter")  # routes answered from the manifest, not retrieval
 TOP_K = int(os.getenv("RAG_TOP_K", "5"))
 FILTER_BY_CONTRACT = os.getenv("RAG_FILTER_BY_CONTRACT", "0") == "1"
 RERANK = os.getenv("RAG_RERANK", "0") == "1"
@@ -202,10 +202,10 @@ if __name__ == "__main__":
             print(f"  {'':<8} chunk_cov={ccov:.3f}  [old: expected chunks in one pass's top-k]")
             if ranked:
                 print(f"  {'':<8} manifest fact_cov={sum(ranked) / len(ranked):.3f}  ({len(ranked)})  "
-                      f"[rank/aggregate routes: answered from the manifest, not retrieval]")
+                      f"[rank/aggregate/filter routes: answered from the manifest, not retrieval]")
     if FILTER_BY_CONTRACT:
         print("  (fact_cov: a no-id question the agent routes to fanout pools one filtered search per contract;"
-              " a rank or aggregate question is scored against the manifest, marked (manifest) below)")
+              " a rank, aggregate or filter question is scored against the manifest, marked (manifest) below)")
     # F3: the ablation is not equal-k -- baseline/filtered score at TOP_K, rerank at RERANK_TOP_N,
     # so "rerank > filtered" mixes the reorder with a bigger window. For an apples-to-apples reader
     # run filtered at the same k: `RAG_FILTER_BY_CONTRACT=1 RAG_TOP_K=10 make eval MODE=filtered`.
