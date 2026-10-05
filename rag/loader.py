@@ -7,7 +7,8 @@ produces exactly one LlamaIndex ``TextNode`` per OCR chunk:
 - ``node.text``    = the chunk's ``content``, verbatim -- except for a short label that says what a
                      chunk is when its text alone doesn't: a role prefix on signature chunks
                      ("Signatory: " / NOTARY_PREFIX) and a page-derived label on a few
-                     context-free text chunks (see the regexes below). index.py strips the
+                     context-free text chunks (see the regexes below), and the header row of a
+                     page-split table on its continuation chunk. index.py strips the
                      signature prefixes again before parsing names.
 - ``node.metadata``= raw source fields later steps need, copied as-is (no derivation)
 
@@ -48,13 +49,31 @@ _APPROVED_RE = re.compile(r"\s*Date Approved:?\s+(.*?\d{4})\s*", re.I)
 # 2024 between ..." -- never "executed"/"date" -- so once the notice dates were labelled they
 # outranked it for "when was the contract agreement executed?". Label it the same way.
 _MADE_THIS_RE = re.compile(r"AGREEMENT,?\s+made this\s+(.*?\d{4})", re.I | re.S)
+# A table split by a page break can leave its header row as a chunk of its own (24cc0265_coa BOQ:
+# header on p2, rows on p3, in different task files). The continuation links back to it through
+# reference_above; without the header, "Unit Cost" and "Total Amount" columns are indistinguishable.
+_ROW_RE = re.compile(r"<tr>.*?</tr>", re.S)
+
+
+def _header_row(chunk: dict, tables: dict[str, dict]) -> str | None:
+    """The header row to stitch onto a continuation table: its reference_above is a header-only table
+    (exactly one row) with the same number of columns. A full table above it is a different table."""
+    above = tables.get(chunk.get("reference_above"))
+    if above is None:
+        return None
+    head, rows = _ROW_RE.findall(above["content"]), _ROW_RE.findall(chunk["content"])
+    if len(head) != 1 or not rows or head[0].count("<td") != rows[0].count("<td"):
+        return None
+    return head[0]
 
 
 def load_nodes(database_dir: str = "database") -> list[TextNode]:
     """Return one TextNode per OCR chunk found in ``database_dir``."""
     nodes: list[TextNode] = []
-    for path in sorted(Path(database_dir).glob("task_*.json")):
-        data = json.loads(path.read_text(encoding="utf-8"))
+    files = [json.loads(p.read_text(encoding="utf-8"))
+             for p in sorted(Path(database_dir).glob("task_*.json"))]
+    tables = {uuid: c for data in files for uuid, c in data.get("table", {}).items()}
+    for data in files:
         titles = {(c["pdfSource"], c["pdfPage"]): _NOTICE_TITLES[c["content"].strip().upper()]
                   for c in data.get("text", {}).values()
                   if c["content"].strip().upper() in _NOTICE_TITLES}
@@ -82,6 +101,8 @@ def load_nodes(database_dir: str = "database") -> list[TextNode]:
                     text = f"Date this BAC Resolution was approved: {approved.group(1)}. {raw}"
                 elif category == "text" and (made := _MADE_THIS_RE.search(raw)):
                     text = f"Date this Contract Agreement was executed: {made.group(1)}. {raw}"
+                elif category == "table" and (header := _header_row(chunk, tables)):
+                    text = raw.replace("<table>", "<table>" + header, 1)
                 else:
                     text = raw
                 nodes.append(
@@ -111,3 +132,8 @@ if __name__ == "__main__":
         print(f"  {category}: {by_cat[category]}")
 
     assert len(nodes) == len(ids), "duplicate node ids: UUIDs are not unique"
+    # The 24cc0265_coa BOQ breaks across p2/p3: its header row is its own chunk (a3e4163a), so the
+    # continuation (e3cc4331) must carry it, or "Total Amount" vs "Unit Cost" is unreadable.
+    boq = next(n for n in nodes if n.id_.startswith("e3cc4331"))
+    assert boq.text.startswith("<table><tr><td>Item Number</td><td>Description</td>"), \
+        "BOQ continuation chunk e3cc4331 does not start with its header row"
