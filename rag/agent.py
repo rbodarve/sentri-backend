@@ -7,7 +7,8 @@ Composes three behaviors on top of the deterministic pipeline, without replacing
                   from the manifest, deterministically -- no LLM, no retrieval) | "rank" (a
                   corpus-wide "highest / rank by amount", the manifest amounts sorted in Decimal) |
                   "aggregate" (a corpus-wide total/average amount, computed in Decimal) |
-                  "filter" (a corpus-wide "amount above / below X", compared in Decimal).
+                  "filter" (a corpus-wide "amount above / below X", compared in Decimal) |
+                  "calc" (arithmetic over one contract's figures; out of scope -> withheld).
   fan-out      -- a multi-contract question asking one intent of several contracts -- an
                   explicit id list, a distributive "each/all projects", or a corpus-wide sweep
                   ("... across the documents in the database") -- is split, by rule, into one
@@ -208,6 +209,86 @@ def is_corpus_wide(question: str) -> bool:
                 or is_rank_question(question) or is_aggregate_question(question)
                 or is_filter_question(question))
 
+
+# Calculation cue (E3): arithmetic over ONE contract's figures. Positive cues only: "total" alone is
+# a lookup ("the total contract amount"), so it never makes a calc. An add, a subtract, or a
+# multi-step word (average, percentage) is a cue; the multi-step ones only so they are withheld.
+_CALC_ADD_RE = re.compile(
+    r"\b(?:combined|sum\s+of|add(?:ed)?\s+(?:up|together))\b|"
+    r"\btotal\s+(?:amount|cost|price|value)\s+of\b[^?]*\bitems\b", re.I  # "the total amount of the Part A items"
+)
+_CALC_SUB_RE = re.compile(
+    r"\b(?:difference|subtract|minus)\b|"
+    r"\bhow\s+much\s+(?:lower|less|larger|more|higher|bigger|smaller|greater)\b[^,?]*?\bthan\b", re.I
+)  # "how much more time was granted" has no "than": a lookup
+# Average over a stated set ("the average X of the three bidders"); a share or percentage of a
+# stated whole. "The average daily output" and "the percentage of completion" are lookups.
+_CALC_MULTI_RE = re.compile(
+    r"\baverage\b[^?]*?\bof\s+(?:the|all|both|two|three|four|five|\d+)\b|"
+    r"\bwhat\s+share\b|\bpercent(?:age)?\s+of\s+the\b", re.I
+)
+# "per" is no cue ("the unit price per meter" is a lookup), but inside a calc part it is a second step.
+_CALC_PER_RE = re.compile(r"\bper\b", re.I)
+# The strict subtract pattern fixes the order: "how much lower/less is A than B" -> B - A,
+# "how much larger/more/higher is A than B" -> A - B. Any other subtract phrasing is withheld.
+_CALC_SUB_STRICT_RE = re.compile(
+    r"\bhow\s+much\s+(lower|less|larger|more|higher)\s+is\s+(.+?)\s+than\s+(.+?)[\s?.]*$", re.I
+)
+# A compound question joins its parts with ", and <wh-word>" ("..., and on what date was ...").
+_CLAUSE_RE = re.compile(
+    r",?\s+and\s+(?=(?:(?:on|in|at|by|for|from)\s+)?(?:what|which|who|whom|whose|when|where|how)\b)", re.I
+)
+
+
+def _calc_cue(clause: str) -> bool:
+    return bool(_CALC_ADD_RE.search(clause) or _CALC_SUB_RE.search(clause)
+                or _CALC_MULTI_RE.search(clause))
+
+
+def is_calc_question(question: str) -> bool:
+    """A calculation cue and no corpus-wide cue. classify() also needs exactly one contract;
+    a corpus-wide sum stays aggregate. Not in is_corpus_wide: a follow-up sum keeps its pin."""
+    return _calc_cue(question) and not is_corpus_wide(question)
+
+
+@dataclass
+class CalcScope:
+    """What calc_scope() found. ``op`` is "" when the question is out of scope (``reason`` says why)."""
+
+    op: str                     # "add" | "subtract" | "" (out of scope: withhold)
+    reason: str = ""            # why it is out of scope
+    calc: str = ""              # the calc part of the question
+    facts: tuple[str, ...] = ()  # a compound question's fact parts, each answered on its own
+    order: tuple[str, ...] = ()  # subtract: (minuend, subtrahend), fixed by the strict pattern
+
+
+def calc_scope(question: str) -> CalcScope:
+    """Split a calc question into its calc part and fact parts, and decide whether one operation
+    covers the calc part. Text only; "all N items" is checked after the request (E4)."""
+    clauses = _CLAUSE_RE.split(question)
+    calcs = [c for c in clauses if _calc_cue(c)]
+    if len(calcs) != 1:
+        return CalcScope("", "more than one calculation in one question")
+    calc = calcs[0]
+    facts = tuple(c for c in clauses if c is not calc)
+    multi = _CALC_MULTI_RE.search(calc) or _CALC_PER_RE.search(calc)
+    if multi:
+        word = multi.group(0).lower()
+        name = "average" if word.startswith("average") else "per" if word == "per" else "percentage"
+        return CalcScope("", f"multi-step calculation ({name})", calc, facts)
+    if _CALC_ADD_RE.search(calc) and _CALC_SUB_RE.search(calc):
+        return CalcScope("", "more than one calculation in one question", calc, facts)
+    if _CALC_SUB_RE.search(calc):
+        m = _CALC_SUB_STRICT_RE.search(calc)
+        if not m:
+            return CalcScope("", "subtract outside the strict pattern "
+                                 "'how much lower/less/larger/more/higher is A than B'", calc, facts)
+        word, a, b = m.groups()
+        order = (b, a) if word.lower() in ("lower", "less") else (a, b)
+        return CalcScope("subtract", "", calc, facts, order)
+    return CalcScope("add", "", calc, facts)
+
+
 _DECOMPOSE_TEMPLATE = PromptTemplate(
     "Break the question into the minimal list of independent, self-contained sub-questions "
     "needed to answer it. Each sub-question must name its own contract id or location so it "
@@ -289,7 +370,7 @@ class AgenticRag:
     # -- routing -------------------------------------------------------------------------
     def classify(self, question: str) -> tuple[str, list[str]]:
         """(kind, ordered contract ids). kind in {"simple","fanout","semantic","analytical",
-        "enumerate","rank","aggregate","filter"}."""
+        "enumerate","rank","aggregate","filter","calc"}."""
         explicit = list(dict.fromkeys(m.upper() for m in CONTRACT_ID_RE.findall(question)))
         resolved = self._rag.resolve_contract_ids(question)  # resolve once, reuse (was up to 3x)
         # A corpus-wide route needs its cue in is_corpus_wide (shared with rag.subject's pin rule).
@@ -344,6 +425,9 @@ class AgenticRag:
                 scope = sorted(resolved) if resolved else sorted(self._known)
                 return ("simple" if len(scope) <= 1 else "fanout"), scope
         ids = explicit or sorted(resolved)
+        # Arithmetic over one contract's figures: computed in Decimal, never by the LLM (see answer()).
+        if len(set(ids)) == 1 and is_calc_question(question):
+            return "calc", ids
         if len(set(ids)) <= 1:
             return "simple", ids
         m = _MULTI_ID_RE.search(question)
@@ -468,7 +552,15 @@ class AgenticRag:
             stage("combine", {"strategy": kind, "ok": True})
             return AgentResult(question, kind, text, Report(blocks=[], flags=[]), [])
 
-        if kind == "simple":
+        if kind == "calc":
+            scope = calc_scope(question)
+            if not scope.op:  # out of scope: withhold with the reason, never compute
+                stage("combine", {"strategy": kind, "ok": False})
+                return AgentResult(question, kind, "", Report(
+                    blocks=[f"calculation out of scope: {scope.reason}"], flags=[]), [])
+            # TODO(E4): the cited calculation request + Decimal evaluator. Until then an in-scope
+            # calc answers through the simple pass, as before E3.
+        if kind in ("simple", "calc"):
             part = self._answer_subquestion(question, stage)
             return AgentResult(question, kind, part.answer, part.report, [part])
 
@@ -553,9 +645,42 @@ def format_result(result: AgentResult) -> str:
     return f"{head}\n{result.text}\n{format_report(result.report)}"
 
 
+def _self_check() -> None:
+    """Model-free calc_scope pins on the E1 held-out DEV rows (`python -m rag.agent --check`).
+    Sealed rows are never read before E5."""
+    rows = [r for r in json.loads(open("eval/calc_heldout.json", encoding="utf-8").read())
+            if r["split"] == "dev"]
+    # kind -> (op, reason fragment); a subtract row also pins (minuend, subtrahend) fragments.
+    expected = {"add2": ("add", ""), "add3": ("add", ""), "all_n": ("add", ""),
+                "split_table": ("add", ""), "compound": ("add", ""), "sub_in": ("subtract", ""),
+                "sub_out": ("", "strict pattern"), "average": ("", "average"),
+                "percent": ("", "percentage"), "multi_calc": ("", "more than one calculation")}
+    order = {"E08": ("5 Jewel", "Amethyst"), "E09": ("Approved Budget", "contract price"),
+             "E10": ("Total Calculated Bid", "Total Bid as Read")}
+    assert {r["kind"] for r in rows} == set(expected), "an E1 kind has no calc_scope pin"
+    for r in rows:
+        q, (op, reason) = r["question"], expected[r["kind"]]
+        scope = calc_scope(q)
+        assert is_calc_question(q), f"{r['id']}: no calc cue: {q!r}"
+        assert scope.op == op and reason in scope.reason, f"{r['id']}: {scope}"
+        if r["kind"] == "compound":
+            assert len(scope.facts) == 1 and "Notice of Award" in scope.facts[0], f"{r['id']}: {scope}"
+        elif op:
+            assert not scope.facts, f"{r['id']}: a fact part split off a plain calc: {scope}"
+        if r["id"] in order:
+            assert all(k in s for k, s in zip(order[r["id"]], scope.order)), f"{r['id']}: {scope.order}"
+    for q in ("What is the total contract amount of 24CC0265?",
+              "What is the unit price per linear meter of the sheet piles in 24CC0265?"):
+        assert not is_calc_question(q), f"a lookup has a calc cue: {q!r}"
+    print(f"OK: calc_scope pins ({len(rows)} E1 dev rows, {len(expected)} kinds)")
+
+
 if __name__ == "__main__":
     import sys
 
+    if "--check" in sys.argv:
+        _self_check()
+        sys.exit()
     agent = AgenticRag()
     questions = sys.argv[1:] or [
         "Who is the District Engineer for contracts 24BJ0005 and 24CC0265?",

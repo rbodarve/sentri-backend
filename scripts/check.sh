@@ -14,6 +14,7 @@ python -m rag.enrich
 python -m rag.relationships
 python -m rag.verify
 python -m rag.manifest --check
+python -m rag.agent --check
 # Router gate (model-free): every eval/eval_agentic.json question must route to its declared kind.
 # It needs the built manifest, which a fresh clone lacks until `make build` -- skip, don't fail.
 if [ -f "${RAG_PERSIST_DIR:-index_store}/manifest.json" ]; then
