@@ -401,17 +401,35 @@
   },
   {
     "query": "What is the highest total contract amount of the contracts above 50 million?",
-    "kind": "filter",
-    "expect": "route",
-    "note": "A rank question with a threshold stays filter (the aggregate rule's rank guard). HEAD route."
+    "kind": "rank",
+    "expect": "answer",
+    "anchors": ["Of the 4 contracts with a stated amount above Php50,000,000.00, the highest is Contract 24A00153"],
+    "note": "Rank on the >50M subset; the header states the threshold (the subset max is the global max, 24A00153). HEAD: filter."
   },
   {
     "query": "What is the highest amount among the contracts below 50 million?",
-    "kind": "simple",
-    "expect": "route",
+    "kind": "rank",
+    "expect": "answer",
     "session": "24CM0001",
     "pinned": [],
-    "note": "A threshold the filter does not catch falls through, unpinned (h2). HEAD: rank, named 24A00153 (Php140,274,481.48), the threshold dropped."
+    "anchors": ["Of the 1 contract with a stated amount below Php50,000,000.00, the highest is Contract 24AJ0052"],
+    "note": "Rank on the <50M subset, unpinned: 24AJ0052, not the global top 24A00153. HEAD: simple (h2 fall-through)."
+  },
+  {
+    "query": "What is the lowest amount among the contracts above 50 million?",
+    "kind": "rank",
+    "expect": "answer",
+    "anchors": ["Of the 4 contracts with a stated amount above Php50,000,000.00, the lowest is Contract 24CC0265"],
+    "note": "Rank on the >50M subset: 24CC0265, not the global lowest 24AJ0052. HEAD: simple."
+  },
+  {
+    "query": "Rank the contracts with an amount above 50 million from smallest to largest.",
+    "kind": "rank",
+    "expect": "answer",
+    "ordered": true,
+    "anchors": ["The 4 contracts with a stated amount above Php50,000,000.00, smallest to largest:",
+                "Contract 24CC0265", "Contract 24BJ0005", "Contract 24BG0272", "Contract 24A00153"],
+    "note": "A rank cue with a parsed threshold ranks the subset (ascending); filter lists largest first. HEAD: filter."
   },
   {
     "query": "What is the highest amount among the contracts with a bid amount above 100 million?",

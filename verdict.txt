@@ -119,7 +119,8 @@ STEPS TO MAKE IT SCALABLE (IN DEPENDENCY ORDER)
    (a few hundred bytes) instead of the whole list. Global/aggregate questions
    ("how many, total amount") get answered by deterministic code/SQL over the
    table. The `rank`, `aggregate` and `filter` routes (rag/agent.py, 2026-10-03/04)
-   already work this way for "highest / rank by amount", "total / average
+   already work this way for "highest / rank by amount (among the contracts
+   above X)", "total / average
    amount (of the contracts above X)" and "amount above / below X": code sorts, sums or compares the
    manifest amounts in Decimal, no prompt -- at scale they become an
    ORDER BY / SUM / AVG / WHERE over the table. This is consistent with the current arithmetic rule (2026-09-26): no

@@ -293,19 +293,30 @@ def parse_threshold(question: str, after: re.Pattern | None = None,
     return op, Decimal(m["num"].replace(",", "")) * scale
 
 
-def format_ranking(manifest: list[dict], descending: bool, top_only: bool) -> str:
+def format_ranking(manifest: list[dict], descending: bool, top_only: bool,
+                   threshold: tuple[str, Decimal] | None = None) -> str:
     """Deterministic answer to a corpus-wide 'highest / rank by amount' question: the verbatim
-    manifest amounts compared in Decimal -- no LLM orders numbers. A contract without a parseable
-    amount is named as not ranked, with its verbatim manifest value, never dropped silently."""
+    manifest amounts compared in Decimal -- no LLM orders numbers. A threshold (op, X) from
+    parse_threshold first keeps only the amounts that compare true ("the lowest amount among the
+    contracts above X"). A contract without a parseable amount is named as not ranked, with its
+    verbatim manifest value, never dropped silently."""
     stated, unstated = _stated_amounts(manifest)
+    cond = ""
+    if threshold:
+        op, x = threshold
+        stated = [(a, r) for a, r in stated if _COMPARE[op](a, x)]
+        cond = f" {_OP_WORDS[op]} Php{x:,.2f}"
     ranked = [r for _, r in sorted(stated, key=lambda ar: ar[0], reverse=descending)]
-    if top_only and ranked:
+    noun = "contract" if len(ranked) == 1 else "contracts"
+    if not ranked:
+        lines = [f"No contract has a stated amount{cond}."]
+    elif top_only:
         word = "highest" if descending else "lowest"
-        lines = [f"Of the {len(ranked)} contracts with a stated amount, the {word} is "
+        lines = [f"Of the {len(ranked)} {noun} with a stated amount{cond}, the {word} is "
                  f"{_amount_row(ranked[0])}."]
     else:
         order = "largest to smallest" if descending else "smallest to largest"
-        lines = [f"The {len(ranked)} contracts with a stated amount, {order}:"]
+        lines = [f"The {len(ranked)} {noun} with a stated amount{cond}, {order}:"]
         lines += [f"{i}. {_amount_row(r)}" for i, r in enumerate(ranked, 1)]
     if unstated:
         lines.append(f"Not ranked {unstated}")
@@ -456,6 +467,26 @@ def _self_check() -> None:
         f"empty subset states a value: {text!r}"
     assert "Contract 24CM0001 (not stated)" in text, f"empty subset hides an unstated contract: {text!r}"
     print("OK: threshold format_aggregate pins")
+    # Threshold ranking: the subset's top / order, not the corpus's; the header states the threshold.
+    by_amount = sorted((parse_amount(r["amount"]), r["contract_id"]) for r in rows
+                       if parse_amount(r["amount"]) is not None)
+    above = [c for a, c in by_amount if a > Decimal("50000000")]
+    text = format_ranking(rows, descending=False, top_only=True, threshold=(">", Decimal("50000000")))
+    assert text.startswith(f"Of the {len(above)} contracts with a stated amount above Php50,000,000.00, "
+                           f"the lowest is Contract {above[0]} ") and above[0] != by_amount[0][1], \
+        f"threshold top-only is not the subset's lowest: {text!r}"
+    assert "Not ranked (no single peso amount in the manifest): Contract 24CM0001 (not stated)" in text, f"top-only drops the not-ranked tail: {text!r}"
+    text = format_ranking(rows, descending=False, top_only=False, threshold=(">", Decimal("50000000")))
+    assert text.startswith(f"The {len(above)} contracts with a stated amount above Php50,000,000.00, "
+                           "smallest to largest:") and sorted(ids(text)) == sorted(above) \
+        and sorted(above, key=lambda c: text.index(f"Contract {c} ")) == above, \
+        f"threshold full list is not the subset in order: {text!r}"
+    assert "Not ranked (no single peso amount in the manifest): Contract 24CM0001 (not stated)" in text, f"full list drops the not-ranked tail: {text!r}"
+    text = format_ranking(rows, descending=True, top_only=True, threshold=(">", Decimal("1000000000")))
+    assert text.startswith("No contract has a stated amount above Php1,000,000,000.00.") \
+        and "highest" not in text and "Not ranked (no single peso amount in the manifest): Contract 24CM0001 (not stated)" in text, \
+        f"empty threshold subset ranks something or hides an unstated contract: {text!r}"
+    print("OK: threshold format_ranking pins")
 
 
 if __name__ == "__main__":
