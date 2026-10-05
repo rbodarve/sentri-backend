@@ -115,7 +115,7 @@ embedding/reranker/LLM for better hardware without touching pipeline code. Defau
 - **Full question set, through the service.** `eval/runs/stream_sim.py` replays all 441
   `docs/queries.txt` questions as SSE client streams against a running `service/` (PART 1 as real
   sessions) and `eval/runs/judge_stream.py` scores them: 415/441 = 94.1% (2026-10-05; single-run noise ~±7). ~4 h per
-  run on two servers; ±1% run-to-run noise.
+  run on two servers.
 - **Verify gate:** `.claude/verify.sh` (a Stop hook) validates `database/` OCR integrity on
   every turn. It must exit 0. It only checks JSON structure — it never re-OCRs.
   `.claude/` is gitignored, so this gate is local-only: a fresh clone has no verify.sh or hook.

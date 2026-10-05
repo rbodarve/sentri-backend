@@ -1,0 +1,1342 @@
+[
+ {
+  "id": "E01",
+  "split": "dev",
+  "kind": "add2",
+  "contract": "24CC0265",
+  "question": "In the 24CC0265 Bill of Quantities, what is the combined Total Amount of the two Structural Steel Sheet Piles items (Furnished and Driven)?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "57035682.72",
+  "reference": "57035682.72",
+  "note": "",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Sheet Piles, Furnished",
+    "column": "Total Amount (P)",
+    "cell": "44,816,184.72"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Sheet Piles, Driven",
+    "column": "Total Amount (P)",
+    "cell": "12,219,498.00"
+   }
+  ]
+ },
+ {
+  "id": "E02",
+  "split": "sealed",
+  "kind": "add2",
+  "contract": "24CC0265",
+  "question": "For contract 24CC0265, what is the combined Total Calculated Bid of Sto. Cristo Construction and Trading Inc. and 5 Jewel's Construction and Supply Corp.?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "143519597.12",
+  "reference": "143519597.12",
+  "note": "",
+  "operands": [
+   {
+    "chunk": "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+    "page": "2",
+    "source": "24CC0265 ROA.pdf",
+    "label": "Sto. Cristo",
+    "column": "Total Calculated Bid (TCB)",
+    "cell": "71,651,188.89"
+   },
+   {
+    "chunk": "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+    "page": "2",
+    "source": "24CC0265 ROA.pdf",
+    "label": "5 Jewel",
+    "column": "Total Calculated Bid (TCB)",
+    "cell": "71,868,408.23"
+   }
+  ]
+ },
+ {
+  "id": "E03",
+  "split": "dev",
+  "kind": "add2",
+  "contract": "24A00153",
+  "question": "For contract 24A00153, what is the combined Total Bid Amount As Read of R.U. Aquino Construction & Dev't. Corp. and Grace Construction Corporation?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "286916740.40",
+  "reference": "286916740.40",
+  "note": "",
+  "operands": [
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "page": "2",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "R.U. Aquino",
+    "column": "Total Bid Amount As Read (Php)",
+    "cell": "143,617,975.00"
+   },
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "page": "2",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "Grace",
+    "column": "Total Bid Amount As Read (Php)",
+    "cell": "143,298,765.40"
+   }
+  ]
+ },
+ {
+  "id": "E04",
+  "split": "dev",
+  "kind": "add3",
+  "contract": "24CC0265",
+  "question": "In the 24CC0265 Bill of Quantities, what is the combined Total Amount of Channel Excavation (Surplus Unclassified), Concrete (Slope Protection) and Metal Structure Accessories (Steel Plate)?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "7102386.08",
+  "reference": "7102386.08",
+  "note": "",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Channel Excavation",
+    "column": "Total Amount (P)",
+    "cell": "444,635.77"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Concrete (Slope Protection)",
+    "column": "Total Amount (P)",
+    "cell": "2,173,544.65"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Steel Plate",
+    "column": "Total Amount (P)",
+    "cell": "4,484,205.66"
+   }
+  ]
+ },
+ {
+  "id": "E05",
+  "split": "dev",
+  "kind": "add3",
+  "contract": "24A00153",
+  "question": "For contract 24A00153, what is the combined Total Bid Amount As Read of Rodekom General Construction and Enterprise, Grace Construction Corporation and R.U. Aquino Construction & Dev't. Corp.?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "430053966.40",
+  "reference": "430053966.40",
+  "note": "",
+  "operands": [
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "page": "2",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "Rodekom",
+    "column": "Total Bid Amount As Read (Php)",
+    "cell": "143,137,226.00"
+   },
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "page": "2",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "Grace",
+    "column": "Total Bid Amount As Read (Php)",
+    "cell": "143,298,765.40"
+   },
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "page": "2",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "R.U. Aquino",
+    "column": "Total Bid Amount As Read (Php)",
+    "cell": "143,617,975.00"
+   }
+  ]
+ },
+ {
+  "id": "E06",
+  "split": "sealed",
+  "kind": "add3",
+  "contract": "24CC0265",
+  "question": "For 24CC0265, what is the combined Total Amount of the Provision of Field Office for the Engineer, Mobilization/Demobilization, and Clearing and Grubbing?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "780780.72",
+  "reference": "780780.72",
+  "note": "",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Field Office for the Engineer (Rental",
+    "column": "Total Amount (P)",
+    "cell": "261,273.60"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Mobilization",
+    "column": "Total Amount (P)",
+    "cell": "509,645.37"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Clearing and Grubbing",
+    "column": "Total Amount (P)",
+    "cell": "9,861.75"
+   }
+  ]
+ },
+ {
+  "id": "E07",
+  "split": "sealed",
+  "kind": "sub_in",
+  "contract": "24A00153",
+  "question": "How much lower is Rodekom General Construction and Enterprise's Total Bid Amount As Calculated than Grace Construction Corporation's, for contract 24A00153?",
+  "expect": "answer",
+  "op": "subtract",
+  "expected": "3024283.92",
+  "reference": "3024283.92",
+  "note": "B - A",
+  "operands": [
+   {
+    "chunk": "f18aef8f-1978-4037-b579-91ff56465294",
+    "page": "3",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "Grace",
+    "column": "Total Bid Amount As Calculated (Php)",
+    "cell": "143,298,765.40"
+   },
+   {
+    "chunk": "f18aef8f-1978-4037-b579-91ff56465294",
+    "page": "3",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "Rodekom",
+    "column": "Total Bid Amount As Calculated (Php)",
+    "cell": "140,274,481.48"
+   }
+  ]
+ },
+ {
+  "id": "E08",
+  "split": "dev",
+  "kind": "sub_in",
+  "contract": "24CC0265",
+  "question": "How much larger is 5 Jewel's Construction and Supply Corp.'s Total Calculated Bid than Amethyst Horizon Builders' Total Calculated Bid, for contract 24CC0265?",
+  "expect": "answer",
+  "op": "subtract",
+  "expected": "2388979.59",
+  "reference": "2388979.59",
+  "note": "A - B",
+  "operands": [
+   {
+    "chunk": "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+    "page": "2",
+    "source": "24CC0265 ROA.pdf",
+    "label": "5 Jewel",
+    "column": "Total Calculated Bid (TCB)",
+    "cell": "71,868,408.23"
+   },
+   {
+    "chunk": "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+    "page": "2",
+    "source": "24CC0265 ROA.pdf",
+    "label": "Amethyst",
+    "column": "Total Calculated Bid (TCB)",
+    "cell": "69,479,428.64"
+   }
+  ]
+ },
+ {
+  "id": "E09",
+  "split": "dev",
+  "kind": "sub_in",
+  "contract": "24AJ0052",
+  "question": "How much lower is the contract price of 24AJ0052 than its Approved Budget for the Contract (ABC)?",
+  "expect": "answer",
+  "op": "subtract",
+  "expected": "490027.77",
+  "reference": "490027.77",
+  "note": "B - A",
+  "operands": [
+   {
+    "chunk": "b892e348-52e1-4b06-aeae-127da35b5981",
+    "page": "1",
+    "source": "I24AJ0052 - ADS - TB 24AJ0052.pdf",
+    "label": "ABC",
+    "column": null,
+    "cell": "19,600,000.00"
+   },
+   {
+    "chunk": "be883897-178d-40cb-bb18-0b2cb11067fa",
+    "page": "1",
+    "source": "24aj0052_notice_of_award.pdf",
+    "label": "contract price",
+    "column": null,
+    "cell": "19,109,972.23"
+   }
+  ]
+ },
+ {
+  "id": "E10",
+  "split": "dev",
+  "kind": "sub_in",
+  "contract": "24CC0265",
+  "question": "How much higher is 5 Jewel's Construction and Supply Corp.'s Total Calculated Bid than its Total Bid as Read, for contract 24CC0265?",
+  "expect": "answer",
+  "op": "subtract",
+  "expected": "34.97",
+  "reference": "34.97",
+  "note": "A - B",
+  "operands": [
+   {
+    "chunk": "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+    "page": "2",
+    "source": "24CC0265 ROA.pdf",
+    "label": "5 Jewel",
+    "column": "Total Calculated Bid (TCB)",
+    "cell": "71,868,408.23"
+   },
+   {
+    "chunk": "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+    "page": "2",
+    "source": "24CC0265 ROA.pdf",
+    "label": "5 Jewel",
+    "column": "Total Bid as Read (TBR)",
+    "cell": "71,868,373.26"
+   }
+  ]
+ },
+ {
+  "id": "E11",
+  "split": "dev",
+  "kind": "sub_out",
+  "contract": "24A00153",
+  "question": "What is the difference between the Approved Budget for the Contract and the contract amount of 24A00153?",
+  "expect": "withhold",
+  "op": "subtract",
+  "expected": null,
+  "reference": "4475518.52",
+  "note": "order not fixed by the strict pattern",
+  "operands": [
+   {
+    "chunk": "efd84e2c-b171-4ed6-a7e8-29912aae3231",
+    "page": "2",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "ABC",
+    "column": null,
+    "cell": "144,750,000.00"
+   },
+   {
+    "chunk": "664114f6-9be4-44e3-b776-c6199d6e8c65",
+    "page": "1",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "contract amount",
+    "column": null,
+    "cell": "140,274,481.48"
+   }
+  ]
+ },
+ {
+  "id": "E12",
+  "split": "dev",
+  "kind": "sub_out",
+  "contract": "24CC0265",
+  "question": "Subtract Sto. Cristo Construction's Total Bid as Read from 5 Jewel's Total Bid as Read in the 24CC0265 resolution.",
+  "expect": "withhold",
+  "op": "subtract",
+  "expected": null,
+  "reference": "217184.37",
+  "note": "outside the strict pattern",
+  "operands": [
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "page": "1",
+    "source": "24CC0265 ROA.pdf",
+    "label": "5 Jewel",
+    "column": "Total Bid as Read",
+    "cell": "71,868,373.26"
+   },
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "page": "1",
+    "source": "24CC0265 ROA.pdf",
+    "label": "Sto. Cristo",
+    "column": "Total Bid as Read",
+    "cell": "71,651,188.89"
+   }
+  ]
+ },
+ {
+  "id": "E13",
+  "split": "sealed",
+  "kind": "sub_out",
+  "contract": "24A00153",
+  "question": "By how much does Rodekom's discounted bid differ from its Total Bid Amount As Read, for contract 24A00153?",
+  "expect": "withhold",
+  "op": "subtract",
+  "expected": null,
+  "reference": "2862744.52",
+  "note": "outside the strict pattern",
+  "operands": [
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "page": "2",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "Rodekom",
+    "column": "Total Bid Amount As Read (Php)",
+    "cell": "143,137,226.00"
+   },
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "page": "2",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "Rodekom",
+    "column": "Discounted Bid",
+    "cell": "140,274,481.48"
+   }
+  ]
+ },
+ {
+  "id": "E14",
+  "split": "dev",
+  "kind": "average",
+  "contract": "24CC0265",
+  "question": "What is the average Total Calculated Bid of the three bidders for contract 24CC0265?",
+  "expect": "withhold",
+  "op": null,
+  "expected": null,
+  "reference": "70999675.25",
+  "note": "multi-step (sum, then divide)",
+  "operands": [
+   {
+    "chunk": "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+    "page": "2",
+    "source": "24CC0265 ROA.pdf",
+    "label": "Amethyst",
+    "column": "Total Calculated Bid (TCB)",
+    "cell": "69,479,428.64"
+   },
+   {
+    "chunk": "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+    "page": "2",
+    "source": "24CC0265 ROA.pdf",
+    "label": "Sto. Cristo",
+    "column": "Total Calculated Bid (TCB)",
+    "cell": "71,651,188.89"
+   },
+   {
+    "chunk": "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+    "page": "2",
+    "source": "24CC0265 ROA.pdf",
+    "label": "5 Jewel",
+    "column": "Total Calculated Bid (TCB)",
+    "cell": "71,868,408.23"
+   }
+  ]
+ },
+ {
+  "id": "E15",
+  "split": "sealed",
+  "kind": "average",
+  "contract": "24CC0265",
+  "question": "In the 24CC0265 Bill of Quantities, what is the average Unit Cost of the three Part C Earthworks items?",
+  "expect": "withhold",
+  "op": null,
+  "expected": null,
+  "reference": "1241.78",
+  "note": "multi-step",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Removal of Structures",
+    "column": "Unit Cost (P)",
+    "cell": "2,783.42"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Clearing and Grubbing",
+    "column": "Unit Cost (P)",
+    "cell": "20.25"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Embankment",
+    "column": "Unit Cost (P)",
+    "cell": "921.66"
+   }
+  ]
+ },
+ {
+  "id": "E16",
+  "split": "sealed",
+  "kind": "percent",
+  "contract": "24A00153",
+  "question": "What percentage of the Approved Budget for the Contract of 24A00153 is its contract amount?",
+  "expect": "withhold",
+  "op": null,
+  "expected": null,
+  "reference": "96.91",
+  "note": "multi-step (divide, then x100)",
+  "operands": [
+   {
+    "chunk": "664114f6-9be4-44e3-b776-c6199d6e8c65",
+    "page": "1",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "contract amount",
+    "column": null,
+    "cell": "140,274,481.48"
+   },
+   {
+    "chunk": "efd84e2c-b171-4ed6-a7e8-29912aae3231",
+    "page": "2",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "ABC",
+    "column": null,
+    "cell": "144,750,000.00"
+   }
+  ]
+ },
+ {
+  "id": "E17",
+  "split": "dev",
+  "kind": "percent",
+  "contract": "24CC0265",
+  "question": "What share, in percent, of the 24CC0265 total contract price do the two Structural Steel Sheet Piles items make up?",
+  "expect": "withhold",
+  "op": null,
+  "expected": null,
+  "reference": "82.09",
+  "note": "multi-step",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Sheet Piles, Furnished",
+    "column": "Total Amount (P)",
+    "cell": "44,816,184.72"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Sheet Piles, Driven",
+    "column": "Total Amount (P)",
+    "cell": "12,219,498.00"
+   },
+   {
+    "chunk": "405c437c-5c7b-47eb-b4ae-14a15ca894fb",
+    "page": "1",
+    "source": "24cc0265_coa.pdf",
+    "label": "contract price",
+    "column": null,
+    "cell": "69,479,428.64"
+   }
+  ]
+ },
+ {
+  "id": "E18",
+  "split": "dev",
+  "kind": "all_n",
+  "contract": "24CC0265",
+  "question": "What is the combined Total Amount of all 5 Part G items in the 24CC0265 Bill of Quantities?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "64138068.80",
+  "reference": "64138068.80",
+  "note": "N=5",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Steel Plate",
+    "column": "Total Amount (P)",
+    "cell": "4,484,205.66"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Channel Excavation",
+    "column": "Total Amount (P)",
+    "cell": "444,635.77"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Concrete (Slope Protection)",
+    "column": "Total Amount (P)",
+    "cell": "2,173,544.65"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Sheet Piles, Furnished",
+    "column": "Total Amount (P)",
+    "cell": "44,816,184.72"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Sheet Piles, Driven",
+    "column": "Total Amount (P)",
+    "cell": "12,219,498.00"
+   }
+  ]
+ },
+ {
+  "id": "E19",
+  "split": "sealed",
+  "kind": "all_n",
+  "contract": "24CC0265",
+  "question": "What is the combined Total Amount of all 4 line items in Part A and Part F of the 24CC0265 Bill of Quantities?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "2892670.36",
+  "reference": "2892670.36",
+  "note": "N=4",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Field Office for the Engineer (Rental",
+    "column": "Total Amount (P)",
+    "cell": "261,273.60"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Furnitures",
+    "column": "Total Amount (P)",
+    "cell": "382,078.90"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Reinforcing Steel",
+    "column": "Total Amount (P)",
+    "cell": "713,356.43"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Structural Concrete",
+    "column": "Total Amount (P)",
+    "cell": "1,535,961.43"
+   }
+  ]
+ },
+ {
+  "id": "E20",
+  "split": "dev",
+  "kind": "all_n",
+  "contract": "24CC0265",
+  "question": "What is the combined Total Amount of all 4 Part C Earthworks items in the 24CC0265 Bill of Quantities?",
+  "expect": "withhold",
+  "op": "add",
+  "expected": null,
+  "reference": "1469726.25",
+  "note": "N=4 stated, Part C has 3 items",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Removal of Structures",
+    "column": "Total Amount (P)",
+    "cell": "467,614.56"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Clearing and Grubbing",
+    "column": "Total Amount (P)",
+    "cell": "9,861.75"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Embankment",
+    "column": "Total Amount (P)",
+    "cell": "992,249.94"
+   }
+  ]
+ },
+ {
+  "id": "E21",
+  "split": "sealed",
+  "kind": "split_table",
+  "contract": "24CC0265",
+  "question": "In the 24CC0265 Bill of Quantities, what is the combined Unit Cost (P) of Structural Steel Sheet Piles, Furnished and Structural Steel Sheet Piles, Driven?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "4820.46",
+  "reference": "4820.46",
+  "note": "Unit Cost column, not Total Amount; both per l.m. (replaces kg + cu.m. sum, user review 2026-10-05)",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Sheet Piles, Furnished",
+    "column": "Unit Cost (P)",
+    "cell": "3,787.71"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Sheet Piles, Driven",
+    "column": "Unit Cost (P)",
+    "cell": "1,032.75"
+   }
+  ]
+ },
+ {
+  "id": "E22",
+  "split": "dev",
+  "kind": "split_table",
+  "contract": "24CC0265",
+  "question": "In the 24CC0265 Bill of Quantities, what is the combined Total Amount of Embankment (from Borrow) and Concrete (Slope Protection)?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "3165794.59",
+  "reference": "3165794.59",
+  "note": "Total Amount column, not Unit Cost",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Embankment",
+    "column": "Total Amount (P)",
+    "cell": "992,249.94"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Concrete (Slope Protection)",
+    "column": "Total Amount (P)",
+    "cell": "2,173,544.65"
+   }
+  ]
+ },
+ {
+  "id": "E23",
+  "split": "sealed",
+  "kind": "compound",
+  "contract": "24CC0265",
+  "question": "For contract 24CC0265, what is the combined Total Bid as Read of Sto. Cristo Construction and Trading Inc. and 5 Jewel's Construction and Supply Corp., and on what date was the BAC resolution approved?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "143519562.15",
+  "reference": "143519562.15",
+  "note": "fact part: Date Approved MAR 21 2024 (task_173 954911c7)",
+  "operands": [
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "page": "1",
+    "source": "24CC0265 ROA.pdf",
+    "label": "Sto. Cristo",
+    "column": "Total Bid as Read",
+    "cell": "71,651,188.89"
+   },
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "page": "1",
+    "source": "24CC0265 ROA.pdf",
+    "label": "5 Jewel",
+    "column": "Total Bid as Read",
+    "cell": "71,868,373.26"
+   }
+  ],
+  "fact": {
+   "chunk": "954911c7-c108-4c77-aa21-10c93142333a",
+   "source": "24CC0265 ROA.pdf",
+   "page": "2",
+   "token": "MAR 21 2024"
+  }
+ },
+ {
+  "id": "E24",
+  "split": "dev",
+  "kind": "compound",
+  "contract": "24A00153",
+  "question": "For contract 24A00153, what is the combined Total Bid Amount As Calculated of Rodekom General Construction and Enterprise and Grace Construction Corporation, and on what date was the Notice of Award issued?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "283573246.88",
+  "reference": "283573246.88",
+  "note": "fact part: NOA date MAR 05 2024 (task_200 86c6c6a5)",
+  "operands": [
+   {
+    "chunk": "f18aef8f-1978-4037-b579-91ff56465294",
+    "page": "3",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "Rodekom",
+    "column": "Total Bid Amount As Calculated (Php)",
+    "cell": "140,274,481.48"
+   },
+   {
+    "chunk": "f18aef8f-1978-4037-b579-91ff56465294",
+    "page": "3",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "Grace",
+    "column": "Total Bid Amount As Calculated (Php)",
+    "cell": "143,298,765.40"
+   }
+  ],
+  "fact": {
+   "chunk": "86c6c6a5-2c98-4b6c-8c88-f55e9b2b940d",
+   "source": "24a00153_noa_bac_reso.pdf",
+   "page": "1",
+   "token": "MAR 05 2024"
+  }
+ },
+ {
+  "id": "E25",
+  "split": "sealed",
+  "kind": "multi_calc",
+  "contract": "24CC0265",
+  "question": "For 24CC0265, what is the combined Total Amount of the two Part A items, and the combined Total Amount of the two Part F items?",
+  "expect": "withhold",
+  "op": null,
+  "expected": null,
+  "reference": null,
+  "note": "two calcs in one question",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Field Office for the Engineer (Rental",
+    "column": "Total Amount (P)",
+    "cell": "261,273.60"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Furnitures",
+    "column": "Total Amount (P)",
+    "cell": "382,078.90"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Reinforcing Steel",
+    "column": "Total Amount (P)",
+    "cell": "713,356.43"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Structural Concrete",
+    "column": "Total Amount (P)",
+    "cell": "1,535,961.43"
+   }
+  ]
+ },
+ {
+  "id": "E26",
+  "split": "dev",
+  "kind": "multi_calc",
+  "contract": "24CC0265",
+  "question": "For contract 24CC0265, what is the combined Total Bid as Read of the three bidders, and how much larger is the highest Total Calculated Bid than the lowest?",
+  "expect": "withhold",
+  "op": null,
+  "expected": null,
+  "reference": null,
+  "note": "two calcs in one question",
+  "operands": [
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "page": "1",
+    "source": "24CC0265 ROA.pdf",
+    "label": "Amethyst",
+    "column": "Total Bid as Read",
+    "cell": "69,479,428.64"
+   },
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "page": "1",
+    "source": "24CC0265 ROA.pdf",
+    "label": "Sto. Cristo",
+    "column": "Total Bid as Read",
+    "cell": "71,651,188.89"
+   },
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "page": "1",
+    "source": "24CC0265 ROA.pdf",
+    "label": "5 Jewel",
+    "column": "Total Bid as Read",
+    "cell": "71,868,373.26"
+   }
+  ]
+ },
+ {
+  "id": "E27",
+  "split": "sealed",
+  "kind": "add2",
+  "contract": "24CC0265",
+  "question": "In the 24CC0265 Bill of Quantities, what is the combined Total Amount of Removal of Structures and Obstruction (Concrete) and Channel Excavation (Surplus Unclassified)?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "912250.33",
+  "reference": "912250.33",
+  "note": "",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Removal of Structures",
+    "column": "Total Amount (P)",
+    "cell": "467,614.56"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Channel Excavation",
+    "column": "Total Amount (P)",
+    "cell": "444,635.77"
+   }
+  ]
+ },
+ {
+  "id": "E28",
+  "split": "sealed",
+  "kind": "add2",
+  "contract": "24CC0265",
+  "question": "For contract 24CC0265, what is the combined Total Bid as Read of Amethyst Horizon Builders and Sto. Cristo Construction and Trading Inc.?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "141130617.53",
+  "reference": "141130617.53",
+  "note": "",
+  "operands": [
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "page": "1",
+    "source": "24CC0265 ROA.pdf",
+    "label": "Amethyst",
+    "column": "Total Bid as Read",
+    "cell": "69,479,428.64"
+   },
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "page": "1",
+    "source": "24CC0265 ROA.pdf",
+    "label": "Sto. Cristo",
+    "column": "Total Bid as Read",
+    "cell": "71,651,188.89"
+   }
+  ]
+ },
+ {
+  "id": "E29",
+  "split": "sealed",
+  "kind": "add2",
+  "contract": "24A00153",
+  "question": "For contract 24A00153, what is the combined Total Bid Amount As Read of Rodekom General Construction and Enterprise and Grace Construction Corporation?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "286435991.40",
+  "reference": "286435991.40",
+  "note": "",
+  "operands": [
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "page": "2",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "Rodekom",
+    "column": "Total Bid Amount As Read (Php)",
+    "cell": "143,137,226.00"
+   },
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "page": "2",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "Grace",
+    "column": "Total Bid Amount As Read (Php)",
+    "cell": "143,298,765.40"
+   }
+  ]
+ },
+ {
+  "id": "E30",
+  "split": "sealed",
+  "kind": "add3",
+  "contract": "24CC0265",
+  "question": "In the 24CC0265 Bill of Quantities, what is the combined Total Amount of the Provision of Furnitures/Fixtures, Equipment & Appliances, the Occupational Safety and Health Program, and Embankment (from Borrow)?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "1823029.20",
+  "reference": "1823029.20",
+  "note": "",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Furnitures",
+    "column": "Total Amount (P)",
+    "cell": "382,078.90"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Occupational Safety",
+    "column": "Total Amount (P)",
+    "cell": "448,700.36"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Embankment",
+    "column": "Total Amount (P)",
+    "cell": "992,249.94"
+   }
+  ]
+ },
+ {
+  "id": "E31",
+  "split": "sealed",
+  "kind": "sub_in",
+  "contract": "24CC0265",
+  "question": "How much lower is Amethyst Horizon Builders' Total Bid as Read than Sto. Cristo Construction and Trading Inc.'s, for contract 24CC0265?",
+  "expect": "answer",
+  "op": "subtract",
+  "expected": "2171760.25",
+  "reference": "2171760.25",
+  "note": "B - A",
+  "operands": [
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "page": "1",
+    "source": "24CC0265 ROA.pdf",
+    "label": "Sto. Cristo",
+    "column": "Total Bid as Read",
+    "cell": "71,651,188.89"
+   },
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "page": "1",
+    "source": "24CC0265 ROA.pdf",
+    "label": "Amethyst",
+    "column": "Total Bid as Read",
+    "cell": "69,479,428.64"
+   }
+  ]
+ },
+ {
+  "id": "E32",
+  "split": "sealed",
+  "kind": "sub_in",
+  "contract": "24A00153",
+  "question": "How much larger is R.U. Aquino Construction & Dev't. Corp.'s Total Bid Amount As Calculated than Grace Construction Corporation's, for contract 24A00153?",
+  "expect": "answer",
+  "op": "subtract",
+  "expected": "319209.60",
+  "reference": "319209.60",
+  "note": "A - B",
+  "operands": [
+   {
+    "chunk": "f18aef8f-1978-4037-b579-91ff56465294",
+    "page": "3",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "R.U. Aquino",
+    "column": "Total Bid Amount As Calculated (Php)",
+    "cell": "143,617,975.00"
+   },
+   {
+    "chunk": "f18aef8f-1978-4037-b579-91ff56465294",
+    "page": "3",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "Grace",
+    "column": "Total Bid Amount As Calculated (Php)",
+    "cell": "143,298,765.40"
+   }
+  ]
+ },
+ {
+  "id": "E33",
+  "split": "sealed",
+  "kind": "all_n",
+  "contract": "24CC0265",
+  "question": "What is the combined Total Amount of all 5 line items in Part C and Part F of the 24CC0265 Bill of Quantities?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "3719044.11",
+  "reference": "3719044.11",
+  "note": "N=5",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Removal of Structures",
+    "column": "Total Amount (P)",
+    "cell": "467,614.56"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Clearing and Grubbing",
+    "column": "Total Amount (P)",
+    "cell": "9,861.75"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Embankment",
+    "column": "Total Amount (P)",
+    "cell": "992,249.94"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Reinforcing Steel",
+    "column": "Total Amount (P)",
+    "cell": "713,356.43"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Structural Concrete",
+    "column": "Total Amount (P)",
+    "cell": "1,535,961.43"
+   }
+  ]
+ },
+ {
+  "id": "E34",
+  "split": "sealed",
+  "kind": "all_n",
+  "contract": "24CC0265",
+  "question": "What is the combined Total Amount of all 5 line items in Part A and Part B of the 24CC0265 Bill of Quantities?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "1622315.73",
+  "reference": "1622315.73",
+  "note": "N=5",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Field Office for the Engineer (Rental",
+    "column": "Total Amount (P)",
+    "cell": "261,273.60"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Furnitures",
+    "column": "Total Amount (P)",
+    "cell": "382,078.90"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Billboard",
+    "column": "Total Amount (P)",
+    "cell": "20,617.50"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Occupational Safety",
+    "column": "Total Amount (P)",
+    "cell": "448,700.36"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Mobilization",
+    "column": "Total Amount (P)",
+    "cell": "509,645.37"
+   }
+  ]
+ },
+ {
+  "id": "E35",
+  "split": "sealed",
+  "kind": "split_table",
+  "contract": "24CC0265",
+  "question": "In the 24CC0265 Bill of Quantities, what is the combined Unit Cost (P) of Channel Excavation (Surplus Unclassified) and Concrete (Slope Protection)?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "10916.09",
+  "reference": "10916.09",
+  "note": "Unit Cost column, not Total Amount; both per cu.m.",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Channel Excavation",
+    "column": "Unit Cost (P)",
+    "cell": "431.07"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Concrete (Slope Protection)",
+    "column": "Unit Cost (P)",
+    "cell": "10,485.02"
+   }
+  ]
+ },
+ {
+  "id": "E36",
+  "split": "sealed",
+  "kind": "split_table",
+  "contract": "24CC0265",
+  "question": "In the 24CC0265 Bill of Quantities, what is the combined Total Amount of Structural Concrete, 20.68 Mpa and Channel Excavation (Surplus Unclassified)?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "1980597.20",
+  "reference": "1980597.20",
+  "note": "Total Amount column, not Unit Cost",
+  "operands": [
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Structural Concrete",
+    "column": "Total Amount (P)",
+    "cell": "1,535,961.43"
+   },
+   {
+    "chunk": "e3cc4331-3b05-4d96-82e9-a7da425aece8",
+    "page": "3",
+    "source": "24cc0265_coa.pdf",
+    "label": "Channel Excavation",
+    "column": "Total Amount (P)",
+    "cell": "444,635.77"
+   }
+  ]
+ },
+ {
+  "id": "E37",
+  "split": "sealed",
+  "kind": "compound",
+  "contract": "24CC0265",
+  "question": "For contract 24CC0265, what is the combined Total Calculated Bid of Amethyst Horizon Builders and 5 Jewel's Construction and Supply Corp., and on what date was the Notice of Award issued?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "141347836.87",
+  "reference": "141347836.87",
+  "note": "fact part: NOA date MAR 22 2024 (task_170 7a59a1f4)",
+  "operands": [
+   {
+    "chunk": "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+    "page": "2",
+    "source": "24CC0265 ROA.pdf",
+    "label": "Amethyst",
+    "column": "Total Calculated Bid (TCB)",
+    "cell": "69,479,428.64"
+   },
+   {
+    "chunk": "0170f067-eb64-4cdf-95f3-a3c0f3e5d917",
+    "page": "2",
+    "source": "24CC0265 ROA.pdf",
+    "label": "5 Jewel",
+    "column": "Total Calculated Bid (TCB)",
+    "cell": "71,868,408.23"
+   }
+  ],
+  "fact": {
+   "chunk": "7a59a1f4-7b73-44a0-813f-515e5d50ad11",
+   "source": "24CC0265 NOA.pdf",
+   "page": "1",
+   "token": "MAR 22 2024"
+  }
+ },
+ {
+  "id": "E38",
+  "split": "sealed",
+  "kind": "compound",
+  "contract": "24A00153",
+  "question": "For contract 24A00153, what is the combined Total Bid Amount As Read of Rodekom General Construction and Enterprise and R.U. Aquino Construction & Dev't. Corp., and on what date was the BAC resolution made?",
+  "expect": "answer",
+  "op": "add",
+  "expected": "286755201.00",
+  "reference": "286755201.00",
+  "note": "fact part: resolution date MAR 04 2024 (task_202 19fe4e65); the sum equals R9 #267's WRONG answer, right here because this asks As Read",
+  "operands": [
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "page": "2",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "Rodekom",
+    "column": "Total Bid Amount As Read (Php)",
+    "cell": "143,137,226.00"
+   },
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "page": "2",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "label": "R.U. Aquino",
+    "column": "Total Bid Amount As Read (Php)",
+    "cell": "143,617,975.00"
+   }
+  ],
+  "fact": {
+   "chunk": "19fe4e65-7e42-478f-8548-db71e858b458",
+   "source": "24a00153_noa_bac_reso.pdf",
+   "page": "3",
+   "token": "MAR 04 2024"
+  }
+ }
+]
