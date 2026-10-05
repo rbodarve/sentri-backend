@@ -114,7 +114,7 @@ embedding/reranker/LLM for better hardware without touching pipeline code. Defau
   only if the agent correctly withholds. It needs Ollama and is separate from the recall gate.
 - **Full question set, through the service.** `eval/runs/stream_sim.py` replays all 441
   `docs/queries.txt` questions as SSE client streams against a running `service/` (PART 1 as real
-  sessions) and `eval/runs/judge_stream.py` scores them: 413/441 = 93.7% (2026-09-28). ~4 h per
+  sessions) and `eval/runs/judge_stream.py` scores them: 415/441 = 94.1% (2026-10-05; single-run noise ~±7). ~4 h per
   run on two servers; ±1% run-to-run noise.
 - **Verify gate:** `.claude/verify.sh` (a Stop hook) validates `database/` OCR integrity on
   every turn. It must exit 0. It only checks JSON structure — it never re-OCRs.
