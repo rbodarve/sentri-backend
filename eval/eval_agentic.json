@@ -548,43 +548,43 @@
     "query": "In the 24CC0265 Bill of Quantities, what is the combined Total Amount of the two Structural Steel Sheet Piles items (Furnished and Driven)?",
     "kind": "calc",
     "expect": "route",
-    "note": "E3 (E01, add2): routes calc. E4 turns it into an answer row on the Decimal value."
+    "note": "E4-C (E01, add2): routes calc (option C lists cited operands; the dev outcome is measured in the C5 table, not here)."
   },
   {
     "query": "For contract 24A00153, what is the combined Total Bid Amount As Read of R.U. Aquino Construction & Dev't. Corp. and Grace Construction Corporation?",
     "kind": "calc",
     "expect": "route",
-    "note": "E3 (E03, add2): routes calc. E4 turns it into an answer row on the Decimal value."
+    "note": "E4-C (E03, add2): routes calc (option C lists cited operands; the dev outcome is measured in the C5 table, not here)."
   },
   {
     "query": "In the 24CC0265 Bill of Quantities, what is the combined Total Amount of Channel Excavation (Surplus Unclassified), Concrete (Slope Protection) and Metal Structure Accessories (Steel Plate)?",
     "kind": "calc",
     "expect": "route",
-    "note": "E3 (E04, add3): routes calc. E4 turns it into an answer row on the Decimal value."
+    "note": "E4-C (E04, add3): routes calc (option C lists cited operands; the dev outcome is measured in the C5 table, not here)."
   },
   {
     "query": "For contract 24A00153, what is the combined Total Bid Amount As Read of Rodekom General Construction and Enterprise, Grace Construction Corporation and R.U. Aquino Construction & Dev't. Corp.?",
     "kind": "calc",
     "expect": "route",
-    "note": "E3 (E05, add3): routes calc. E4 turns it into an answer row on the Decimal value."
+    "note": "E4-C (E05, add3): routes calc (option C lists cited operands; the dev outcome is measured in the C5 table, not here)."
   },
   {
     "query": "How much larger is 5 Jewel's Construction and Supply Corp.'s Total Calculated Bid than Amethyst Horizon Builders' Total Calculated Bid, for contract 24CC0265?",
     "kind": "calc",
     "expect": "route",
-    "note": "E3 (E08, sub_in): routes calc. E4 turns it into an answer row on the Decimal value."
+    "note": "E4-C (E08, sub_in): routes calc (option C lists cited operands; the dev outcome is measured in the C5 table, not here)."
   },
   {
     "query": "How much lower is the contract price of 24AJ0052 than its Approved Budget for the Contract (ABC)?",
     "kind": "calc",
     "expect": "route",
-    "note": "E3 (E09, sub_in): routes calc. E4 turns it into an answer row on the Decimal value."
+    "note": "E4-C (E09, sub_in): routes calc (option C lists cited operands; the dev outcome is measured in the C5 table, not here)."
   },
   {
     "query": "How much higher is 5 Jewel's Construction and Supply Corp.'s Total Calculated Bid than its Total Bid as Read, for contract 24CC0265?",
     "kind": "calc",
     "expect": "route",
-    "note": "E3 (E10, sub_in): routes calc. E4 turns it into an answer row on the Decimal value."
+    "note": "E4-C (E10, sub_in): routes calc (option C lists cited operands; the dev outcome is measured in the C5 table, not here)."
   },
   {
     "query": "What is the difference between the Approved Budget for the Contract and the contract amount of 24A00153?",
@@ -629,26 +629,30 @@
   {
     "query": "What is the combined Total Amount of all 5 Part G items in the 24CC0265 Bill of Quantities?",
     "kind": "calc",
-    "expect": "route",
-    "note": "E3 (E18, all_n): routes calc. E4 turns it into an answer row on the Decimal value."
+    "expect": "withhold",
+    "anchors": [],
+    "withhold_reason": ["names no items to cite"],
+    "note": "E4-C (E18, all_n): calc_scope withholds -- an 'all N' clause names no items to cite."
   },
   {
     "query": "What is the combined Total Amount of all 4 Part C Earthworks items in the 24CC0265 Bill of Quantities?",
     "kind": "calc",
-    "expect": "route",
-    "note": "E3 (E20, all_n): routes calc. E4 turns it into an answer row on the Decimal value."
+    "expect": "withhold",
+    "anchors": [],
+    "withhold_reason": ["names no items to cite"],
+    "note": "E4-C (E20, all_n): calc_scope withholds -- an 'all N' clause names no items to cite."
   },
   {
     "query": "In the 24CC0265 Bill of Quantities, what is the combined Total Amount of Embankment (from Borrow) and Concrete (Slope Protection)?",
     "kind": "calc",
     "expect": "route",
-    "note": "E3 (E22, split_table): routes calc. E4 turns it into an answer row on the Decimal value."
+    "note": "E4-C (E22, split_table): routes calc (option C lists cited operands; the dev outcome is measured in the C5 table, not here)."
   },
   {
     "query": "For contract 24A00153, what is the combined Total Bid Amount As Calculated of Rodekom General Construction and Enterprise and Grace Construction Corporation, and on what date was the Notice of Award issued?",
     "kind": "calc",
     "expect": "route",
-    "note": "E3 (E24, compound): routes calc. E4 turns it into an answer row on the Decimal value."
+    "note": "E4-C (E24, compound): routes calc (option C lists cited operands; the dev outcome is measured in the C5 table, not here)."
   },
   {
     "query": "For contract 24CC0265, what is the combined Total Bid as Read of the three bidders, and how much larger is the highest Total Calculated Bid than the lowest?",

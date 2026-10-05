@@ -27,8 +27,8 @@ Composes three behaviors on top of the deterministic pipeline, without replacing
 Design constraints this module honors (see CLAUDE.md / the plan):
   * Recall stays 1.000: it reuses RagAnswerer.answer_once unchanged; widening only keeps more
     already-retrieved chunks. It never adds a new retrieval path.
-  * No LLM arithmetic: the decompose/combine prompts forbid sums/totals. The agreed replacement
-    (a cited calculation request evaluated in Decimal, never by a model) is not wired yet.
+  * No LLM arithmetic: the decompose/combine prompts forbid sums/totals. The calc route asks only
+    for cited operands + one op (rag.calc); deterministic guards check them and Decimal computes.
   * A bad LLM split cannot emit an unverified claim: every sub-answer passes the deterministic
     route + Verifier before it is combined.
 """
@@ -42,8 +42,11 @@ from decimal import Decimal
 from typing import Any, Callable
 
 from llama_index.core import Settings
+from llama_index.core.base.response.schema import Response
+from llama_index.core.llms import ChatMessage
 from llama_index.core.prompts import PromptTemplate
 
+from rag import calc
 from rag.config import AGENT_MAX_ATTEMPTS, AGENT_WIDE_TOP_N
 from rag.enrich import CONTRACT_ID_RE
 from rag.generate import RagAnswerer
@@ -229,6 +232,8 @@ _CALC_MULTI_RE = re.compile(
 )
 # "per" is no cue ("the unit price per meter" is a lookup), but inside a calc part it is a second step.
 _CALC_PER_RE = re.compile(r"\bper\b", re.I)
+# "all N items": the clause names a set, not the items, so no operand label can be bound (E4-C).
+_CALC_ALL_N_RE = re.compile(r"\ball (?:\d+|two|three|four|five|six|seven|eight|nine|ten)\b", re.I)
 # The strict subtract pattern fixes the order: "how much lower/less is A than B" -> B - A,
 # "how much larger/more/higher is A than B" -> A - B. Any other subtract phrasing is withheld.
 _CALC_SUB_STRICT_RE = re.compile(
@@ -276,6 +281,8 @@ def calc_scope(question: str) -> CalcScope:
         word = multi.group(0).lower()
         name = "average" if word.startswith("average") else "per" if word == "per" else "percentage"
         return CalcScope("", f"multi-step calculation ({name})", calc, facts)
+    if _CALC_ALL_N_RE.search(calc):
+        return CalcScope("", "the question names no items to cite", calc, facts)
     if _CALC_ADD_RE.search(calc) and _CALC_SUB_RE.search(calc):
         return CalcScope("", "more than one calculation in one question", calc, facts)
     if _CALC_SUB_RE.search(calc):
@@ -289,6 +296,36 @@ def calc_scope(question: str) -> CalcScope:
     return CalcScope("add", "", calc, facts)
 
 
+def _join_parts(parts: list[Part], show_reason: bool = False) -> tuple[str, Report]:
+    """One line per verified part; a failed part withholds only itself (its reason stays on the
+    part, and shows in the line with ``show_reason``). All parts failed -> withhold the answer."""
+    def why(p: Part) -> str:
+        return "; ".join(p.report.blocks) if show_reason else "it failed the grounding check"
+    text = "\n".join(f"- {p.answer}" if p.report.ok else
+                     f"- {p.contract_id}: answer withheld ({why(p)})" for p in parts)
+    report = Report() if any(p.report.ok for p in parts) else Report(
+        blocks=[b for p in parts for b in p.report.blocks],
+        flags=[f for p in parts for f in p.report.flags])
+    return text, report
+
+
+_LEAD_AND_RE = re.compile(r"^[\s,]*(?:and\b)?\s*", re.I)
+
+
+def fact_question(fact: str, contract_id: str) -> str:
+    """A compound question's fact part as a standalone sub-question, filtered to the route's
+    contract id (the fact clause alone names no contract)."""
+    return f"For contract {contract_id}, {_LEAD_AND_RE.sub('', fact).strip()}"
+
+
+_CALC_TEMPLATE = PromptTemplate(
+    "Pick the operands of this calculation from the document chunks below. Do NOT compute.\n"
+    "For each operand give: label = the item or bidder name as written in its table row or "
+    "sentence; value = the number copied exactly as written in the chunk (the whole cell), in "
+    "digits, commas and a point only -- never the amount in words; chunk = the handle (C1, C2, ...) "
+    "of the chunk the value is copied from. Then op = the one operation the calculation asks for."
+    "\nCalculation: {query_str}\n\n{chunks_str}\n"
+)
 _DECOMPOSE_TEMPLATE = PromptTemplate(
     "Break the question into the minimal list of independent, self-contained sub-questions "
     "needed to answer it. Each sub-question must name its own contract id or location so it "
@@ -489,6 +526,33 @@ class AgenticRag:
         stage("subanswer", {"part": part})
         return part
 
+    def _answer_calc(self, scope: CalcScope, contract_id: str,
+                     stage: Callable[[str, dict], None]) -> Part:
+        """Option C (E4-C): one schema-constrained request for operands + op over this pass's
+        document chunks; every guard checks each operand; the answer lists them with citations and
+        computes nothing. Any failed check withholds, with no retry (the same chunks again)."""
+        _, search_query, route = self._rag.route(scope.calc)
+        chunks = calc.handles(calc.doc_chunks(
+            self._rag.context(scope.calc, contract_id, search_query)))
+        text, reason, picked = "", "no document chunk retrieved", []
+        if chunks:
+            prompt = _CALC_TEMPLATE.format(query_str=scope.calc, chunks_str="\n\n".join(
+                f"[{h}]\n{n.node.text}" for h, n in chunks.items()))
+            raw = Settings.llm.chat([ChatMessage(role="user", content=prompt)],
+                                    format=calc.schema(list(chunks))).message.content
+            try:
+                request = json.loads(raw, parse_float=Decimal)
+            except json.JSONDecodeError:
+                request = {}
+            picked, reason = calc.check(request, chunks, scope.calc, scope.op, scope.order)
+            text = calc.cite(picked) if picked else ""
+        report = self._verifier.check(text) if text else Report(
+            blocks=[f"calculation withheld: {reason}"], flags=[])
+        part = Part(scope.calc, text, report, contract_id, route,
+                    Response(response=text, source_nodes=[n for _, _, n in picked]))
+        stage("subanswer", {"part": part})
+        return part
+
     # -- decomposition -------------------------------------------------------------------
     def _fanout_subquestions(self, question: str, ids: list[str]) -> list[str]:
         """Rewrite a multi-contract question into one single-contract question per id: an explicit
@@ -558,9 +622,16 @@ class AgenticRag:
                 stage("combine", {"strategy": kind, "ok": False})
                 return AgentResult(question, kind, "", Report(
                     blocks=[f"calculation out of scope: {scope.reason}"], flags=[]), [])
-            # TODO(E4): the cited calculation request + Decimal evaluator. Until then an in-scope
-            # calc answers through the simple pass, as before E3.
-        if kind in ("simple", "calc"):
+            part = self._answer_calc(scope, ids[0], stage)
+            if not scope.facts:
+                return AgentResult(question, kind, part.answer, part.report, [part])
+            # Compound: each fact part is its own filtered, verified sub-question (the fan-out join).
+            parts = [part] + [self._answer_subquestion(fact_question(f, ids[0]), stage)
+                              for f in scope.facts]
+            text, report = _join_parts(parts, show_reason=True)
+            stage("combine", {"strategy": kind, "ok": report.ok})
+            return AgentResult(question, kind, text, report, parts)
+        if kind == "simple":
             part = self._answer_subquestion(question, stage)
             return AgentResult(question, kind, part.answer, part.report, [part])
 
@@ -587,12 +658,7 @@ class AgenticRag:
             # only itself (its text never shows; the reason stays on the part) -- withholding the
             # whole list threw away every verified part (a corpus sweep lost 5 of 6 over one
             # invented id). All parts failed -> withhold the answer, as before.
-            text = "\n".join(f"- {p.answer}" if p.report.ok else
-                             f"- {p.contract_id}: answer withheld (it failed the grounding check)"
-                             for p in parts)
-            report = Report() if any(p.report.ok for p in parts) else Report(
-                blocks=[b for p in parts for b in p.report.blocks],
-                flags=[f for p in parts for f in p.report.flags])
+            text, report = _join_parts(parts)
             stage("combine", {"strategy": "fanout", "ok": report.ok})
             return AgentResult(question, kind, text, report, parts)
 
@@ -651,7 +717,7 @@ def _self_check() -> None:
     rows = [r for r in json.loads(open("eval/calc_heldout.json", encoding="utf-8").read())
             if r["split"] == "dev"]
     # kind -> (op, reason fragment); a subtract row also pins (minuend, subtrahend) fragments.
-    expected = {"add2": ("add", ""), "add3": ("add", ""), "all_n": ("add", ""),
+    expected = {"add2": ("add", ""), "add3": ("add", ""), "all_n": ("", "names no items to cite"),
                 "split_table": ("add", ""), "compound": ("add", ""), "sub_in": ("subtract", ""),
                 "sub_out": ("", "strict pattern"), "average": ("", "average"),
                 "percent": ("", "percentage"), "multi_calc": ("", "more than one calculation")}
@@ -673,6 +739,155 @@ def _self_check() -> None:
               "What is the unit price per linear meter of the sheet piles in 24CC0265?"):
         assert not is_calc_question(q), f"a lookup has a calc cue: {q!r}"
     print(f"OK: calc_scope pins ({len(rows)} E1 dev rows, {len(expected)} kinds)")
+    failed = [name for name, ok in _calc_pins(rows) if not ok]
+    assert not failed, f"calc pins failed: {failed}"
+
+
+def _calc_pins(rows: list[dict]) -> list[tuple[str, bool]]:
+    """E4 guard + evaluator pins, model-free, on database/ chunks and E1 DEV rows only (expected
+    values from calc_heldout.json). Prints one line per pin; an exception counts as a fail."""
+    from llama_index.core.schema import NodeWithScore, TextNode
+
+    from rag.loader import load_nodes
+
+    nodes = {n.node_id: NodeWithScore(node=n, score=1.0) for n in load_nodes()}
+    record = NodeWithScore(node=TextNode(  # the contract record node: is_manifest, never citable
+        text="CONTRACT RECORD (the contract in question): Contract 24AJ0052 | contract price: "
+             "19,109,972.23", metadata={"is_manifest": True}), score=1.0)
+    by_id = {r["id"]: r for r in rows}
+    boq = "e3cc4331-3b05-4d96-82e9-a7da425aece8"
+
+    def outcome(r: dict, operands: list[dict], extra: tuple = (), question: str = "",
+                compute: bool = False) -> tuple[str, str]:
+        """(text, reason) of the option-C path (calc.check + calc.cite) on these operands, in a
+        context of their chunks + the record; ``compute`` uses the dead calc.run path instead (the
+        evaluator pins). ``question`` replaces the row's question (a pin's variant)."""
+        scope = calc_scope(question or r["question"])
+        ids = dict.fromkeys([o["chunk"] for o in operands if o["chunk"] in nodes] + list(extra))
+        context = [nodes[i] for i in ids] + [record]
+        chunks = calc.handles(calc.doc_chunks(context))
+        # Cite by handle, as the model does; an id with no handle (the record) stays as it is.
+        to_handle = {n.node.node_id: h for h, n in chunks.items()}
+        request = {"operands": [{**o, "chunk": to_handle.get(o["chunk"], o["chunk"])}
+                                for o in operands], "op": scope.op}
+        if compute:
+            tape, reason, _ = calc.run(request, chunks, scope.calc, scope.op, scope.order)
+            return tape, reason
+        picked, reason = calc.check(request, chunks, scope.calc, scope.op, scope.order)
+        return (calc.cite(picked) if picked else ""), reason
+
+    def gold(r: dict) -> list[dict]:
+        return [{"label": o["label"], "value": o["cell"], "chunk": o["chunk"]} for o in r["operands"]]
+
+    def answers(r: dict, operands: list[dict]) -> bool:
+        """Option C: lists every gold cell, says the total is not computed, and shows no total."""
+        text, _ = outcome(r, operands)
+        return (all(o["cell"] in text for o in r["operands"]) and "The total is not computed." in text
+                and f"{Decimal(r['expected']):,.2f}" not in text)
+
+    def computes(r: dict, operands: list[dict]) -> bool:
+        """The dead evaluator path (calc.run): the tape ends in the expected value."""
+        tape, _ = outcome(r, operands, compute=True)
+        return tape.endswith(f"= {Decimal(r['expected']):,.2f}")
+
+    def no_evaluate() -> bool:
+        """The option-C path never calls evaluate(): E01 gold still answers when it raises."""
+        real = calc.evaluate
+        calc.evaluate = lambda op, values: 1 / 0
+        try:
+            return answers(e01, gold(e01))
+        finally:
+            calc.evaluate = real
+
+    def withholds(r: dict, operands: list[dict], extra: tuple = (), question: str = "") -> bool:
+        tape, reason = outcome(r, operands, extra, question)
+        return not tape and bool(reason)
+
+    e01, e04, e05 = by_id["E01"], by_id["E04"], by_id["E05"]
+    # E05 asks Rodekom + Grace + R.U. Aquino; this variant drops Grace from the question.
+    no_grace = e05["question"].replace("Rodekom General Construction and Enterprise, Grace "
+                                       "Construction Corporation and", "Rodekom General "
+                                       "Construction and Enterprise and")
+    # E04 lists three items without a count; this variant states it ("the three items").
+    three_items = e04["question"].replace("combined Total Amount of", "combined Total Amount of "
+                                          "the three items")
+    # E01 with the OSH program in place of the Furnished item, so its label is a named item.
+    osh = e01["question"].replace("the two Structural Steel Sheet Piles items (Furnished and Driven)",
+                                  "Occupational Safety and Health Program and Structural Steel "
+                                  "Sheet Piles, Driven")
+    furnished = {"label": "Sheet Piles, Furnished", "chunk": boq}
+    # The BAC-resolution sentence "... Rodekom ... total Calculated Bid ... (Php140,274,481.48)".
+    e05_text = next(i for i in nodes if i.startswith("94353284"))
+
+    def e20_try2_withholds() -> bool:
+        """E20's logged try-2 request (item-number labels), checked as an add over the BOQ. E20 is
+        out of scope in calc_scope, so this calls calc.check directly: binding alone must stop it."""
+        q = by_id["E20"]["question"]
+        chunks = calc.handles(calc.doc_chunks([nodes[boq]]))
+        request = {"op": "add", "operands": [
+            {"label": lab, "value": val, "chunk": "C1"} for lab, val in
+            (("801(6)", "467,614.56"), ("1700(1)", "9,861.75"), ("1704(1)b", "992,249.94"),
+             ("1701(4)", "444,635.77"))]}
+        picked, reason = calc.check(request, chunks, q, "add")
+        return not picked and "not an item the question names" in reason
+
+    pins = {
+        # False-withhold check (option C): the gold operands of every in-scope dev answer row are
+        # listed with citations and no total. Evaluator pins (dead path): a subtract row in both
+        # orders computes the expected value (a sign flip or wrong minuend fails).
+        **{f"gold {r['id']}": (lambda r=r: answers(r, gold(r)))
+           for r in rows if r["expect"] == "answer" and calc_scope(r["question"]).op},
+        **{f"gold reversed {i} (evaluator)": (lambda i=i: computes(by_id[i], gold(by_id[i])[::-1]))
+           for i in ("E08", "E09", "E10")},
+        "C path never calls evaluate()": no_evaluate,
+        "text field: E05 Rodekom from the 'Calculated Bid' sentence on the As Read question":
+            lambda: withholds(e05, [{"label": "Rodekom", "value": "140,274,481.48",
+                                     "chunk": e05_text}] + gold(e05)[1:]),
+        "binding, no 'all N' exemption: E20's try-2 request -> withhold": e20_try2_withholds,
+        "forged value": lambda: withholds(e01, [{**furnished, "value": "44,816,185.72"},
+                                                gold(e01)[1]]),
+        "value from another chunk": lambda: withholds(  # an E03 cell of 3611e9c0, cited as the BOQ
+            e01, [{**furnished, "value": "143,617,975.00"}, gold(e01)[1]],
+            extra=(by_id["E03"]["operands"][0]["chunk"],)),
+        "partial cell 448,700 of 448,700.36": lambda: "Occupational" in osh and withholds(e01, [
+            {"label": "Occupational Safety and Health Program", "value": "448,700", "chunk": boq},
+            gold(e01)[1]], question=osh),
+        "wrong column (Unit Cost, not Total Amount)": lambda: withholds(
+            e01, [{**furnished, "value": "3,787.71"}, gold(e01)[1]]),
+        "wrong row (OSH Total Amount as Sheet Piles)": lambda: withholds(
+            e01, [{**furnished, "value": "448,700.36"}, gold(e01)[1]]),
+        "value cited from the record node": lambda: withholds(by_id["E09"], [  # E09 names it
+            {"label": "contract price", "value": "19,109,972.23", "chunk": record.node.node_id},
+            gold(by_id["E09"])[0]]),
+        "question binding: Grace on a Rodekom + R.U. Aquino question": lambda: (
+            "Grace" not in no_grace and withholds(e05, gold(e05), question=no_grace)),
+        "duplicate operand (#256 shape: one cell twice)": lambda: withholds(
+            e01, [gold(e01)[0], gold(e01)[0]]),
+        "stated count: 'the three items', 2 operands (E04 variant)": lambda: (
+            "the three items" in three_items and withholds(e04, gold(e04)[:2], question=three_items)),
+        "divide by zero": lambda: calc.evaluate("divide", [Decimal("5"), Decimal("0")]) is None,
+        "handles are C1..Cn in context order": lambda: list(calc.handles(calc.doc_chunks(
+            [nodes[boq], record, nodes[by_id["E03"]["operands"][0]["chunk"]]]))) == ["C1", "C2"],
+        "unknown handle C99 -> withhold": lambda: withholds(e01, [{**gold(e01)[0], "chunk": "C99"},
+                                                                  gold(e01)[1]]),
+        "compound join shows the calc withhold reason": lambda: "two operands cite the same cell" in
+            _join_parts([Part("calc", "", Report(blocks=["calculation withheld: two operands cite "
+                                                         "the same cell"], flags=[]), "24A00153"),
+                         Part("fact", "MAR 05 2024", Report(), "24A00153")], show_reason=True)[0],
+        "E24 fact part routed to 24A00153": lambda: (
+            m := CONTRACT_ID_RE.search(fact_question(calc_scope(by_id["E24"]["question"]).facts[0],
+                                                     "24A00153"))) is not None
+            and m.group(0).upper() == "24A00153",
+    }
+    results = []
+    for name, pin in pins.items():
+        try:
+            ok = bool(pin())
+        except Exception as exc:  # noqa: BLE001 -- a crash is a failed pin, never a pass
+            ok, name = False, f"{name} ({type(exc).__name__}: {exc})"
+        print(f"  {'PASS' if ok else 'FAIL'}  {name}")
+        results.append((name, ok))
+    return results
 
 
 if __name__ == "__main__":
