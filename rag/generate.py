@@ -321,12 +321,11 @@ class RagAnswerer:
             best = candidate
         return best
 
-    def answer_once(self, question: str, contract_id: str | None, search_query: str,
-                    reranker=None, trace: QueryTrace | None = None):
-        """Single filtered+reranked retrieval pass under a manifest header, then synthesized.
-
-        The reusable core of answer(): the agent (rag.agent) calls it per sub-question and can
-        pass a wider ``reranker`` to widen k during self-correction."""
+    def context(self, question: str, contract_id: str | None, search_query: str,
+                reranker=None, trace: QueryTrace | None = None) -> list[NodeWithScore]:
+        """The context answer_once synthesizes from: one filtered+reranked retrieval pass under a
+        manifest header, trimmed and neighbour-expanded to fit one GEN_NUM_CTX window. The agent's
+        calc route builds its cited calculation request from the same nodes."""
         nodes = self._retriever(contract_id, trace, reranker).retrieve(search_query)
         head = [self._manifest_node]
         if contract_id:
@@ -339,6 +338,15 @@ class RagAnswerer:
         context = head + self._expand_neighbors(question, head, nodes)
         if trace is not None:
             trace.emit("context", nodes=context, manifest_included=True)
+        return context
+
+    def answer_once(self, question: str, contract_id: str | None, search_query: str,
+                    reranker=None, trace: QueryTrace | None = None):
+        """Single filtered+reranked retrieval pass under a manifest header, then synthesized.
+
+        The reusable core of answer(): the agent (rag.agent) calls it per sub-question and can
+        pass a wider ``reranker`` to widen k during self-correction."""
+        context = self.context(question, contract_id, search_query, reranker, trace)
         response = self._synthesizer.synthesize(question, context)
         if trace is not None:
             trace.emit("generate", answer=str(response).strip(),
