@@ -35,6 +35,7 @@ from __future__ import annotations
 import re
 import sys
 from dataclasses import dataclass, field
+from decimal import Decimal
 
 from rag.enrich import CONTRACT_ID_RE
 
@@ -264,6 +265,33 @@ class Verifier:
                     report.flags.append(msg)
 
 
+# Numeric grounding guard (PLAN.md Phase F, token rule F0a, frozen). A figure is a number whose
+# integer part has >= 4 digits, not a bare year 1900-2099. One the sources do not hold (compared
+# as Decimal) was most likely computed by the model. Contract ids, citation labels, "sources:"
+# lines and the pin banner are stripped from the answer first; nothing is stripped from sources.
+_PIN_BANNER_RE = re.compile(  # rag.subject.pin_note (not imported: subject -> agent -> verify)
+    r"\(Answering about contracts? .*?Name a contract or place to change it\.\)", re.S)
+_LABEL_RE = re.compile(r"/[A-Z_]+ p\d+")
+_SOURCES_LINE_RE = re.compile(r"^\s*sources?:.*$", re.I | re.M)
+_CURRENCY_RE = re.compile(r"₱|PHP|Php|P(?=\s?\d)")
+_NUMBER_RE = re.compile(r"(?<![\w.,])(\d{1,3}(?:(?:, ?| )\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)(?!\w)")
+
+
+def _numbers(text: str) -> list[tuple[str, Decimal]]:
+    text = _CURRENCY_RE.sub(" ", text.replace(" ", " ").replace("\xa0", " "))
+    return [(m.group(1), Decimal(re.sub(r"[, ]", "", m.group(1)))) for m in _NUMBER_RE.finditer(text)]
+
+
+def ungrounded_figures(part_text: str, sources: list[str]) -> list[str]:
+    """The figures in ``part_text`` that no source holds, in order, each once. Pure: no model."""
+    for pattern in (_PIN_BANNER_RE, _SOURCES_LINE_RE, _LABEL_RE, CONTRACT_ID_RE):
+        part_text = pattern.sub(" ", part_text)
+    held = {value for s in sources for _, value in _numbers(s)}
+    return list(dict.fromkeys(
+        raw for raw, value in _numbers(part_text)
+        if value >= 1000 and not (raw.isdigit() and 1900 <= value <= 2099) and value not in held))
+
+
 def format_report(report: Report) -> str:
     """Render the check outcome as a compact banner (the terminal, and the service's withhold
     `notice`). Any grounding failure -- an invented contract or a mis-bound location, contractor
@@ -308,3 +336,11 @@ if __name__ == "__main__":
             )
     print(f"OK: {len(summaries)} signatory summaries, {bullets} listed names all recoverable "
           "by the verifier's parser (index._person_from_chunk <-> verify._extract_sig_names)")
+
+    # Pin (Phase F1b): the LLM must not see a summary's source_node_ids -- it copied the UUID
+    # list into fanout answers (R9 #215 #255).
+    from llama_index.core.schema import MetadataMode
+    for node in summaries:
+        assert "source_node_ids" not in node.get_content(metadata_mode=MetadataMode.LLM), (
+            f"{node.node_id}: source_node_ids is LLM-visible")
+    print(f"OK: {len(summaries)} signatory summaries hide source_node_ids from the LLM")

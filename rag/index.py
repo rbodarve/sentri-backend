@@ -20,7 +20,7 @@ from llama_index.core import (
 from llama_index.core.schema import TextNode
 
 from rag.config import PERSIST_DIR, get_embed_model
-from rag.enrich import enrich_nodes
+from rag.enrich import _EXCLUDED_LLM, enrich_nodes
 from rag.loader import NOTARY_PREFIX, load_nodes
 from rag.relationships import link_reading_order, stitch_split_table_headers
 
@@ -110,6 +110,9 @@ def _signatory_summaries(nodes: list) -> list[TextNode]:
                 "coordinate": None,
                 "source_node_ids": source_ids[cid],
             },
+            # Built after enrich_nodes, so set here: hide the UUID list from the LLM (it copied
+            # it into answers). Embed text is left as it was.
+            excluded_llm_metadata_keys=_EXCLUDED_LLM + ["source_node_ids"],
         ))
     return summaries
 

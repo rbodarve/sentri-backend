@@ -45,6 +45,7 @@ from llama_index.core import Settings
 from llama_index.core.base.response.schema import Response
 from llama_index.core.llms import ChatMessage
 from llama_index.core.prompts import PromptTemplate
+from llama_index.core.schema import MetadataMode
 
 from rag import calc
 from rag.config import AGENT_MAX_ATTEMPTS, AGENT_WIDE_TOP_N
@@ -53,7 +54,7 @@ from rag.generate import RagAnswerer
 from rag.manifest import (format_aggregate, format_enumeration, format_filter, format_ranking,
                           has_threshold, parse_threshold, threshold_ends_clause)
 from rag.rerank import get_reranker
-from rag.verify import Report
+from rag.verify import Report, ungrounded_figures
 
 _ID = CONTRACT_ID_RE.pattern
 # A contiguous list of >=2 contract ids ("contracts X, Y and Z" / "for X and Y"): the signal
@@ -310,6 +311,20 @@ def _join_parts(parts: list[Part], show_reason: bool = False) -> tuple[str, Repo
     return text, report
 
 
+def _guard(text: str, report: Report, sources: list[str]) -> Report:
+    """Numeric grounding guard (Phase F) on model-written text: a figure no source holds withholds
+    the part, with no retry (the same context again). Deterministic routes never call it."""
+    bad = ungrounded_figures(text, sources) if report.ok else []
+    return Report(blocks=[f"states {', '.join(bad)}, which no cited source holds"]) if bad else report
+
+
+def _sources(question: str, *responses) -> list[str]:
+    """The guard's sources: the question + what the model saw (every context node, the id and
+    record nodes included)."""
+    return [question] + [n.node.get_content(metadata_mode=MetadataMode.LLM)
+                         for r in responses if r is not None for n in r.source_nodes]
+
+
 _LEAD_AND_RE = re.compile(r"^[\s,]*(?:and\b)?\s*", re.I)
 
 
@@ -523,6 +538,7 @@ class AgenticRag:
     def _answer_subquestion(self, subq: str, stage: Callable[[str, dict], None]) -> Part:
         contract_id, search_query, route = self._rag.route(subq)
         answer, report, resp = self._answer_verified(subq, contract_id, search_query)
+        report = _guard(answer, report, _sources(subq, resp))
         part = Part(subq, answer, report, contract_id, route, resp)
         stage("subanswer", {"part": part})
         return part
@@ -651,7 +667,8 @@ class AgenticRag:
             manifest_str = self._rag.manifest_text
             text = str(Settings.llm.complete(
                 _ANALYTICAL_TEMPLATE.format(manifest_str=manifest_str, query_str=question))).strip()
-            report = self._verifier.check(text, check_bindings=False)
+            report = _guard(text, self._verifier.check(text, check_bindings=False),
+                            [question, manifest_str])
             stage("combine", {"strategy": "analytical", "ok": report.ok})
             return AgentResult(question, kind, text, report, [])
 
@@ -673,7 +690,8 @@ class AgenticRag:
         context = "\n\n".join(f"Sub-question: {p.question}\nAnswer: {p.answer}" for p in parts)
         combined = str(Settings.llm.complete(
             _COMBINE_TEMPLATE.format(context_str=context, query_str=question))).strip()
-        report = self._verifier.check(combined)
+        report = _guard(combined, self._verifier.check(combined),
+                        _sources(question, *(p.response for p in parts)))
         stage("combine", {"strategy": "semantic", "ok": report.ok})
         return AgentResult(question, kind, combined, report, parts)
 
@@ -752,6 +770,130 @@ def _self_check() -> None:
     print(f"OK: calc_scope pins ({len(rows)} E1 dev rows, {len(expected)} kinds)")
     failed = [name for name, ok in _calc_pins(rows) if not ok]
     assert not failed, f"calc pins failed: {failed}"
+    failed = [name for name, ok in _guard_pins() if not ok]
+    assert not failed, f"numeric guard pins failed: {failed}"
+    print("OK: numeric guard pins")
+
+
+def _guard_pins() -> list[tuple[str, bool]]:
+    """Phase F3 numeric-guard pins, model-free: retrieval, Verifier and LLM are stubs; figures come
+    from F2 DEV rows of eval/numeric_heldout.json and their database/ chunks (sealed rows are never
+    read). Prints one line per pin; an exception counts as a fail."""
+    from pathlib import Path
+
+    from llama_index.core.llms import CompletionResponse, CustomLLM, LLMMetadata
+    from llama_index.core.schema import NodeWithScore, TextNode
+
+    from rag.manifest import load_manifest
+    from rag.subject import pin_note
+
+    def ungrounded_figures(text, srcs):  # imported per call: a missing guard fails each pin
+        from rag.verify import ungrounded_figures as guard
+        return guard(text, srcs)
+
+    dev = [r for r in json.loads(open("eval/numeric_heldout.json", encoding="utf-8").read())
+           if r["split"] == "dev"]
+    differ = next(r for r in dev if r["kind"] == "differ")
+    cid = CONTRACT_ID_RE.search(differ["question"]).group(0).upper()
+    other = next(c for c in ("24AJ0052", "24BG0272") if c != cid)
+    cells = [o["cell"] for o in differ["operands"]]
+    computed = f"{abs(Decimal(differ['reference'])):,.2f}"   # the E13 shape: a model subtraction
+    db = {k: c["content"] for p in sorted(Path("database").glob("*.json"))
+          for sec in json.loads(p.read_text(encoding="utf-8")).values() if isinstance(sec, dict)
+          for k, c in sec.items() if isinstance(c, dict) and "content" in c}
+    context = [NodeWithScore(node=TextNode(text=db[o["chunk"]]), score=1.0)
+               for o in differ["operands"]]
+    sources = [n.node.text for n in context]
+    grounded = f"The bid as read is {cells[0]}."
+    e13 = f"The two differ by {computed} ({cells[0]} - {cells[1]})."
+
+    class StubRag:
+        manifest_text = "\n".join(sources)
+
+        def __init__(self, answers: dict):
+            self.answers, self.calls = answers, 0
+
+        def route(self, q):
+            m = CONTRACT_ID_RE.search(q)
+            return (m.group(0).upper() if m else None), q, "explicit_id"
+
+        def answer_once(self, q, contract_id, search_query, reranker=None):
+            self.calls += 1
+            return Response(response=self.answers[contract_id], source_nodes=context)
+
+    class StubVerifier:
+        def check(self, text, **_):
+            return Report()
+
+    class FixedLLM(CustomLLM):
+        text: str = ""
+
+        @property
+        def metadata(self) -> LLMMetadata:
+            return LLMMetadata()
+
+        def complete(self, prompt, formatted=False, **kwargs):
+            return CompletionResponse(text=self.text)
+
+        def stream_complete(self, prompt, formatted=False, **kwargs):
+            raise NotImplementedError
+
+    def agent(answers: dict, kind: str = "simple", llm_text: str = "") -> AgenticRag:
+        a = AgenticRag.__new__(AgenticRag)
+        a._rag, a._verifier, a._known = StubRag(answers), StubVerifier(), set(answers)
+        a._wide_reranker, a._max_attempts = object(), 1
+        a.classify = lambda q: (kind, [cid])
+        Settings.llm = FixedLLM(text=llm_text)
+        return a
+
+    def part(text: str) -> Part:
+        return agent({cid: text})._answer_subquestion(differ["question"], lambda *_: None)
+
+    def held(p) -> bool:
+        return not p.report.ok and p.report.blocks == [f"states {computed}, which no cited source holds"]
+
+    def no_retry() -> bool:
+        a = agent({cid: e13})
+        return held(a._answer_subquestion(differ["question"], lambda *_: None)) and a._rag.calls == 1
+
+    def fanout_alone() -> bool:
+        a = agent({cid: grounded, other: e13})
+        text, report = _join_parts([a._answer_subquestion(f"What is it for {c}?", lambda *_: None)
+                                    for c in (cid, other)])
+        return report.ok and text.count("answer withheld") == 1 and f"- {other}: answer withheld" in text
+
+    def aggregate_passes() -> bool:
+        a = agent({cid: grounded}, kind="aggregate")
+        a._rag.manifest = load_manifest()
+        r = a.answer("What is the total contract amount of all the contracts?")
+        return r.ok and "419,343,865.39" in r.text
+
+    pins = {
+        "E13 shape: a computed difference (F2 dev cells) withholds": lambda: held(part(e13)),
+        "a grounded figure passes": lambda: ungrounded_figures(grounded, sources) == []
+            and part(grounded).report.ok,
+        "ignored: contract id, source line, pin banner, bare year": lambda: ungrounded_figures(
+            f"{pin_note([cid])}\n\nContract {cid} was signed in 2024 [{cid}/ROA p1].\n"
+            f"sources: {cid}/ROA p1, {cid}/NOA p1", []) == [],
+        "token rule frozen: a UUID group is a figure (#362)": lambda: ungrounded_figures(
+            "source_node_ids: ['275ded08-3497-4bf8']", []) == ["3497"],
+        "no retry rung on a guard hit": no_retry,
+        "fanout: the ungrounded part is withheld alone": fanout_alone,
+        "analytical answer guarded": lambda: not agent({cid: grounded}, "analytical", e13).answer(
+            "q").ok,
+        "semantic combine guarded": lambda: not agent({cid: grounded}, "semantic", e13).answer(
+            f"q {cid}").ok,
+        "deterministic route skips the guard: an aggregate total passes": aggregate_passes,
+    }
+    results = []
+    for name, pin in pins.items():
+        try:
+            ok = bool(pin())
+        except Exception as exc:  # noqa: BLE001 -- a crash is a failed pin, never a pass
+            ok, name = False, f"{name} ({type(exc).__name__}: {exc})"
+        print(f"  {'PASS' if ok else 'FAIL'}  {name}")
+        results.append((name, ok))
+    return results
 
 
 def _calc_pins(rows: list[dict]) -> list[tuple[str, bool]]:
