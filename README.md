@@ -117,7 +117,12 @@ flowchart LR
 | Agent | [`rag/agent.py`](rag/agent.py) | Routes each question (`simple`, `fanout`, `semantic`, `enumerate`, `rank`, `aggregate`, `filter` or `analytical`) and fans corpus-wide questions out per contract. `rank` ("which contract has the highest amount", optionally "among the contracts above X") sorts the manifest amounts in code, `aggregate` ("the total / average amount of the contracts", optionally "above X") sums them in code, and `filter` ("which / how many contracts have an amount above 100 million") compares each with the threshold in code; no LLM compares or adds numbers. Failed answers retry through a verifier-driven ladder: widen k, then withhold. |
 | Subject | [`rag/subject.py`](rag/subject.py) | Carries a conversation's contract into follow-up questions ("who signed *it*?"). |
 
-The **LLM never does arithmetic**, and the verifier's pass only confirms contract ids, locations and
+A calc-cued question about one contract ("the total / combined / difference of ...") routes `calc`:
+the answer cites each operand from its chunk, guards check them, and no total is stated. This stops
+wrong sums; it does not compute sums. An un-cued phrasing (for example "how much does A differ from
+B") still routes `simple`, and the model can subtract wrongly there.
+
+The **LLM is not trusted with arithmetic**, and the verifier's pass only confirms contract ids, locations and
 contractors. The agent's prompts and [`rag/verify.py`](rag/verify.py) spell out both limits.
 
 ## Configuration
@@ -183,8 +188,9 @@ tunnel and test it from a simulated remote client.
   queryable manifest table.
 - **Model size.** Most of the remaining answer-level misses come from the 3B generator reading a
   long context poorly. The pipeline is built to swap in a stronger model through `RAG_GEN_MODEL`.
-- **Arithmetic.** Questions that need a sum are not yet answered by a deterministic evaluator, and
-  the local LLM is not trusted to compute.
+- **Arithmetic.** A one-contract sum gets no computed total: the `calc` route cites the operands and
+  stops there. Questions without a calc cue word still reach the model, which can
+  compute a wrong figure; a numeric grounding guard on every route is planned.
 
 ## Repository layout
 

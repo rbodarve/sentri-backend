@@ -79,9 +79,11 @@ manifest field yet, see PLAN.md Phase B). Every sub-answer runs the
 deterministic route + `Verifier` inside a self-correction ladder (widen k → withhold; a known
 contract id stays filtered on every rung, an id not in the corpus is withheld before retrieval).
 A contract-filtered pass sees only its own manifest row. It reuses `RagAnswerer.answer_once`,
-so it never adds a retrieval path and can't move recall. No LLM computes: prompts forbid
-sums, and the agreed replacement (a cited calculation request evaluated in Decimal) is not
-wired yet.
+so it never adds a retrieval path and can't move recall. The rule is that no LLM computes: prompts forbid
+sums. A calc-cued one-contract question ("total / combined / difference ...") routes `calc`: the
+answer cites guarded operands and states no total (it stops wrong sums; it does not compute
+sums). An un-cued phrasing (e.g. "differ") still routes `simple`, and the model can subtract
+there (sealed E13, 2026-10-06); PLAN.md Phase F proposes a numeric grounding guard on every route.
 `evaluate_agentic.py` scores it at the answer level.
 
 Data & artifacts:
