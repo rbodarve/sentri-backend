@@ -115,6 +115,7 @@ if __name__ == "__main__":
     assert [(n.metadata["pdf_source"], n.metadata["pdf_page"]) for n in stitched] == [("24cc0265_coa.pdf", "3")]
     assert stitched[0].text.startswith("<table><tr><td>Item Number</td>")
     assert "Total Amount (P)" in stitched[0].text and "261,273.60" in stitched[0].text
+    assert stitched[0].text.count("<td>Item Number</td>") == 1, "BOQ header row stitched more than once"
 
     # 4) eyeball reading order for one document
     doc = "24CC0265 ROA.pdf"

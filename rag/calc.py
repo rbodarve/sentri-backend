@@ -61,11 +61,6 @@ def handles(chunks: dict) -> dict:
     return {f"C{i}": n for i, n in enumerate(chunks.values(), 1)}
 
 
-def lookup(chunks: dict, handle: str):
-    """The chunk a handle names, or None (withhold): an unknown handle never falls back."""
-    return chunks.get(handle)
-
-
 def schema(chunk_ids: list[str]) -> dict:
     """The Ollama `format` JSON schema: operands first, then op. A value is a string: no float."""
     operand = {"type": "object",
@@ -98,8 +93,8 @@ def slots(text: str) -> list[Slot]:
 
 def guard_binding(label: str, question: str) -> bool:
     """Every content word of the label appears in the calc clause: the operand is an item the
-    question names. No exemption: an "all N items" clause names no items, so calc_scope puts it out
-    of scope before any request (E4-C; the try-2 exemption let E20's item numbers through)."""
+    question names. No exemption (the try-2 exemption let E20's item numbers through): an "all N
+    items" clause binds only the operands whose labels it names (E5 CR4)."""
     return _words(label) <= _words(question)
 
 
@@ -115,7 +110,12 @@ def guard_column(found: list[Slot], question: str) -> list[Slot]:
     """The table cells whose column header words (bracketed unit marks dropped) all appear in the
     question. A text-chunk slot has no column."""
     asked = _words(question)
-    return [s for s in found if not s.header or _words(_BRACKET_RE.sub(" ", s.header)) <= asked]
+    return [s for s in found if not s.header or _names_field(s.header, asked)]
+
+
+def _names_field(header: str, asked: set[str]) -> bool:
+    """A column header whose words (bracketed unit marks dropped) all appear in the asked words."""
+    return _words(_BRACKET_RE.sub(" ", header)) <= asked
 
 
 def guard_row(found: list[Slot], label: str) -> list[Slot]:
@@ -178,8 +178,9 @@ def guard_text_field(picked: list, chunks: dict, question: str) -> str:
     """The text-field rule (the E05 hole): when the calc clause names a field that is a column header
     of a table chunk in this pass, an operand cited from a text chunk (no column) withholds -- a
     sentence cannot show which field its number is. A reason, or "" when it holds."""
+    asked = _words(question)
     fields = {s.header for n in chunks.values() for s in slots(n.node.text)
-              if s.header and _words(_BRACKET_RE.sub(" ", s.header)) <= _words(question)}
+              if s.header and _names_field(s.header, asked)}
     texts = [label for label, s, _ in picked if not s.header]
     if fields and texts:
         return (f"operand {texts[0]!r} is cited from text, but the question names the table field "
@@ -200,7 +201,7 @@ def check(request: dict, chunks: dict, question: str, op: str,
     picked = []
     for o in operands:
         label, value, cid = (str(o.get(k, "")) for k in ("label", "value", "chunk"))
-        node = lookup(chunks, cid)
+        node = chunks.get(cid)  # an unknown handle never falls back: withhold
         if node is None:
             return [], f"operand {label!r} cites {cid!r}, not a retrieved document chunk"
         if not guard_binding(label, question):

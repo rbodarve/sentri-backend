@@ -629,18 +629,14 @@
   {
     "query": "What is the combined Total Amount of all 5 Part G items in the 24CC0265 Bill of Quantities?",
     "kind": "calc",
-    "expect": "withhold",
-    "anchors": [],
-    "withhold_reason": ["names no items to cite"],
-    "note": "E4-C (E18, all_n): calc_scope withholds -- an 'all N' clause names no items to cite."
+    "expect": "route",
+    "note": "E5 CR4 (E18, all_n): routes calc; binding (no exemption) + stated count check the operands."
   },
   {
     "query": "What is the combined Total Amount of all 4 Part C Earthworks items in the 24CC0265 Bill of Quantities?",
     "kind": "calc",
-    "expect": "withhold",
-    "anchors": [],
-    "withhold_reason": ["names no items to cite"],
-    "note": "E4-C (E20, all_n): calc_scope withholds -- an 'all N' clause names no items to cite."
+    "expect": "route",
+    "note": "E5 CR4 (E20, all_n): routes calc; binding (no exemption) + stated count check the operands."
   },
   {
     "query": "In the 24CC0265 Bill of Quantities, what is the combined Total Amount of Embankment (from Borrow) and Concrete (Slope Protection)?",
@@ -709,5 +705,11 @@
     "kind": "simple",
     "expect": "route",
     "note": "E3 look-alike: lookup, not a calc"
+  },
+  {
+    "query": "What is the total cost of 24CC0265, and which items are listed in Part A?",
+    "kind": "simple",
+    "expect": "route",
+    "note": "E5 CR2 look-alike: the sum cue spans a clause break; no single clause is a calc"
   }
 ]

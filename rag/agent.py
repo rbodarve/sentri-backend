@@ -232,8 +232,6 @@ _CALC_MULTI_RE = re.compile(
 )
 # "per" is no cue ("the unit price per meter" is a lookup), but inside a calc part it is a second step.
 _CALC_PER_RE = re.compile(r"\bper\b", re.I)
-# "all N items": the clause names a set, not the items, so no operand label can be bound (E4-C).
-_CALC_ALL_N_RE = re.compile(r"\ball (?:\d+|two|three|four|five|six|seven|eight|nine|ten)\b", re.I)
 # The strict subtract pattern fixes the order: "how much lower/less is A than B" -> B - A,
 # "how much larger/more/higher is A than B" -> A - B. Any other subtract phrasing is withheld.
 _CALC_SUB_STRICT_RE = re.compile(
@@ -251,9 +249,10 @@ def _calc_cue(clause: str) -> bool:
 
 
 def is_calc_question(question: str) -> bool:
-    """A calculation cue and no corpus-wide cue. classify() also needs exactly one contract;
-    a corpus-wide sum stays aggregate. Not in is_corpus_wide: a follow-up sum keeps its pin."""
-    return _calc_cue(question) and not is_corpus_wide(question)
+    """A calculation cue inside one clause (calc_scope's split) and no corpus-wide cue. classify()
+    also needs exactly one contract; a corpus-wide sum stays aggregate. Not in is_corpus_wide: a
+    follow-up sum keeps its pin."""
+    return any(_calc_cue(c) for c in _CLAUSE_RE.split(question)) and not is_corpus_wide(question)
 
 
 @dataclass
@@ -269,9 +268,12 @@ class CalcScope:
 
 def calc_scope(question: str) -> CalcScope:
     """Split a calc question into its calc part and fact parts, and decide whether one operation
-    covers the calc part. Text only; "all N items" is checked after the request (E4)."""
+    covers the calc part. Text only; an "all N items" clause is in scope: binding (no exemption)
+    and the stated count check its operands after the request (E5 CR4)."""
     clauses = _CLAUSE_RE.split(question)
     calcs = [c for c in clauses if _calc_cue(c)]
+    if not calcs:
+        return CalcScope("", "no calculation inside one clause")
     if len(calcs) != 1:
         return CalcScope("", "more than one calculation in one question")
     calc = calcs[0]
@@ -281,11 +283,10 @@ def calc_scope(question: str) -> CalcScope:
         word = multi.group(0).lower()
         name = "average" if word.startswith("average") else "per" if word == "per" else "percentage"
         return CalcScope("", f"multi-step calculation ({name})", calc, facts)
-    if _CALC_ALL_N_RE.search(calc):
-        return CalcScope("", "the question names no items to cite", calc, facts)
-    if _CALC_ADD_RE.search(calc) and _CALC_SUB_RE.search(calc):
+    sub = _CALC_SUB_RE.search(calc)
+    if _CALC_ADD_RE.search(calc) and sub:
         return CalcScope("", "more than one calculation in one question", calc, facts)
-    if _CALC_SUB_RE.search(calc):
+    if sub:
         m = _CALC_SUB_STRICT_RE.search(calc)
         if not m:
             return CalcScope("", "subtract outside the strict pattern "
@@ -531,6 +532,12 @@ class AgenticRag:
         """Option C (E4-C): one schema-constrained request for operands + op over this pass's
         document chunks; every guard checks each operand; the answer lists them with citations and
         computes nothing. Any failed check withholds, with no retry (the same chunks again)."""
+        if contract_id not in self._known:  # as _answer_verified: withhold before retrieval
+            part = Part(scope.calc, "", Report(
+                blocks=[f"names contract {contract_id}, which is not in the corpus"], flags=[]),
+                contract_id)
+            stage("subanswer", {"part": part})
+            return part
         _, search_query, route = self._rag.route(scope.calc)
         chunks = calc.handles(calc.doc_chunks(
             self._rag.context(scope.calc, contract_id, search_query)))
@@ -546,7 +553,7 @@ class AgenticRag:
                 request = {}
             picked, reason = calc.check(request, chunks, scope.calc, scope.op, scope.order)
             text = calc.cite(picked) if picked else ""
-        report = self._verifier.check(text) if text else Report(
+        report = self._verifier.check(text, contract_id=contract_id) if text else Report(
             blocks=[f"calculation withheld: {reason}"], flags=[])
         part = Part(scope.calc, text, report, contract_id, route,
                     Response(response=text, source_nodes=[n for _, _, n in picked]))
@@ -717,7 +724,7 @@ def _self_check() -> None:
     rows = [r for r in json.loads(open("eval/calc_heldout.json", encoding="utf-8").read())
             if r["split"] == "dev"]
     # kind -> (op, reason fragment); a subtract row also pins (minuend, subtrahend) fragments.
-    expected = {"add2": ("add", ""), "add3": ("add", ""), "all_n": ("", "names no items to cite"),
+    expected = {"add2": ("add", ""), "add3": ("add", ""), "all_n": ("add", ""),
                 "split_table": ("add", ""), "compound": ("add", ""), "sub_in": ("subtract", ""),
                 "sub_out": ("", "strict pattern"), "average": ("", "average"),
                 "percent": ("", "percentage"), "multi_calc": ("", "more than one calculation")}
@@ -736,8 +743,12 @@ def _self_check() -> None:
         if r["id"] in order:
             assert all(k in s for k, s in zip(order[r["id"]], scope.order)), f"{r['id']}: {scope.order}"
     for q in ("What is the total contract amount of 24CC0265?",
-              "What is the unit price per linear meter of the sheet piles in 24CC0265?"):
+              "What is the unit price per linear meter of the sheet piles in 24CC0265?",
+              # CR2: "total cost of ... items" matched across the clause break; no clause has a cue
+              "What is the total cost of 24CC0265, and which items are listed in Part A?"):
         assert not is_calc_question(q), f"a lookup has a calc cue: {q!r}"
+    scope = calc_scope("What is the total cost of 24CC0265, and which items are listed in Part A?")
+    assert not scope.op and "no calculation" in scope.reason, f"CR5: 0 calc clauses: {scope}"
     print(f"OK: calc_scope pins ({len(rows)} E1 dev rows, {len(expected)} kinds)")
     failed = [name for name, ok in _calc_pins(rows) if not ok]
     assert not failed, f"calc pins failed: {failed}"
@@ -748,9 +759,9 @@ def _calc_pins(rows: list[dict]) -> list[tuple[str, bool]]:
     values from calc_heldout.json). Prints one line per pin; an exception counts as a fail."""
     from llama_index.core.schema import NodeWithScore, TextNode
 
-    from rag.loader import load_nodes
+    from rag.index import build_nodes  # the indexed layer: split-table headers stitched (290b09e)
 
-    nodes = {n.node_id: NodeWithScore(node=n, score=1.0) for n in load_nodes()}
+    nodes = {n.node_id: NodeWithScore(node=n, score=1.0) for n in build_nodes()}
     record = NodeWithScore(node=TextNode(  # the contract record node: is_manifest, never citable
         text="CONTRACT RECORD (the contract in question): Contract 24AJ0052 | contract price: "
              "19,109,972.23", metadata={"is_manifest": True}), score=1.0)
@@ -831,12 +842,24 @@ def _calc_pins(rows: list[dict]) -> list[tuple[str, bool]]:
         picked, reason = calc.check(request, chunks, q, "add")
         return not picked and "not an item the question names" in reason
 
+    def unknown_id_part() -> Part:
+        """The calc route on an invented id, with no index or model loaded (CR1: it crashed in the
+        filtered retrieval instead of withholding)."""
+        agent = AgenticRag.__new__(AgenticRag)
+        agent._known = set()
+        q = "What is the combined Total Amount of Embankment and Riprap in contract 24ZZ9999?"
+        return agent._answer_calc(calc_scope(q), "24ZZ9999", lambda *_: None)
+
     pins = {
         # False-withhold check (option C): the gold operands of every in-scope dev answer row are
         # listed with citations and no total. Evaluator pins (dead path): a subtract row in both
         # orders computes the expected value (a sign flip or wrong minuend fails).
         **{f"gold {r['id']}": (lambda r=r: answers(r, gold(r)))
-           for r in rows if r["expect"] == "answer" and calc_scope(r["question"]).op},
+           for r in rows if r["expect"] == "answer" and calc_scope(r["question"]).op
+           and r["kind"] != "all_n"},
+        # CR4: "all N" is in scope, but a clause that names no items binds no label (no exemption).
+        "all N naming no items: E18 gold operands -> binding withhold": lambda: (
+            "not an item the question names" in outcome(by_id["E18"], gold(by_id["E18"]))[1]),
         **{f"gold reversed {i} (evaluator)": (lambda i=i: computes(by_id[i], gold(by_id[i])[::-1]))
            for i in ("E08", "E09", "E10")},
         "C path never calls evaluate()": no_evaluate,
@@ -874,6 +897,8 @@ def _calc_pins(rows: list[dict]) -> list[tuple[str, bool]]:
             _join_parts([Part("calc", "", Report(blocks=["calculation withheld: two operands cite "
                                                          "the same cell"], flags=[]), "24A00153"),
                          Part("fact", "MAR 05 2024", Report(), "24A00153")], show_reason=True)[0],
+        "calc route: invented id 24ZZ9999 withholds, no exception": lambda: (
+            (p := unknown_id_part()).answer == "" and "not in the corpus" in p.report.blocks[0]),
         "E24 fact part routed to 24A00153": lambda: (
             m := CONTRACT_ID_RE.search(fact_question(calc_scope(by_id["E24"]["question"]).facts[0],
                                                      "24A00153"))) is not None
