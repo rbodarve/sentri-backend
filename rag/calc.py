@@ -27,10 +27,19 @@ _N_WORDS = {"both": 2, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "se
 # A stated count: "the two ... items", "all 5 Part G items", "both bidders" (<= 5 words between).
 _STATED_N_RE = re.compile(r"\b(\d+|" + "|".join(_N_WORDS) + r")\b(?:\s+\S+){0,5}?\s+(?:items|bidders)\b",
                           re.I)
+_TOTAL_COST_RE = re.compile(r"\btotal\s+costs?\b", re.I)
 
 
 def _words(text: str) -> set[str]:
     return set(_WORD_RE.findall(text.lower())) - _STOP
+
+
+def _field_words(question: str) -> set[str]:
+    """The words a question names fields with. G-synonym (C2): the adjacent phrase "total cost(s)"
+    also names {total, amount} (the BoQ "Total Amount (P)"). One phrase, not a word map: "the
+    total of the unit costs" names no Total Amount."""
+    asked = _words(question)
+    return asked | {"total", "amount"} if _TOTAL_COST_RE.search(question) else asked
 
 
 def _plain(value: str) -> str:
@@ -46,6 +55,7 @@ class Slot:
     header: str
     row: str
     pos: int = 0    # the slot's index in its chunk: (chunk, pos) is one cell (row + column)
+    cells: tuple = ()  # the table row's cells (() in a text chunk): the row's item, for G7
 
 
 def doc_chunks(nodes: list) -> dict:
@@ -78,10 +88,10 @@ def schema(chunk_ids: list[str]) -> dict:
 def slots(text: str) -> list[Slot]:
     """Every value position of a chunk: each table cell under its column header (the first row),
     or each numeric token of a text chunk in its sentence."""
-    rows = [[html.unescape(c).strip() for c in _CELL_RE.findall(r)] for r in _ROW_RE.findall(text)]
+    rows = _rows(text)
     if rows:
         head = rows[0]
-        found = [Slot(c, head[i] if i < len(head) else "", " ".join(r))
+        found = [Slot(c, head[i] if i < len(head) else "", " ".join(r), cells=tuple(r))
                  for r in rows[1:] for i, c in enumerate(r)]
     else:
         found = [Slot(m.group(0), "", s)
@@ -91,11 +101,70 @@ def slots(text: str) -> list[Slot]:
     return found
 
 
-def guard_binding(label: str, question: str) -> bool:
-    """Every content word of the label appears in the calc clause: the operand is an item the
-    question names. No exemption (the try-2 exemption let E20's item numbers through): an "all N
-    items" clause binds only the operands whose labels it names (E5 CR4)."""
-    return _words(label) <= _words(question)
+def _seq(text: str) -> list[str]:
+    """The content words of a text, in order."""
+    return [w for w in _WORD_RE.findall(text.lower()) if w not in _STOP]
+
+
+def _held(text: str, have: str, skip: frozenset | set = frozenset()) -> bool:
+    """THE word matcher (binding, row guard, G7's named-row count): every content word of ``text``
+    not in ``skip`` is a word of ``have``. G-glue (C7, OCR glue): or the word joined to its ADJACENT
+    word of ``text`` is a word of ``have`` ("project" + "billboard" = "projectbillboard"), or it is
+    two ADJACENT words of ``have`` joined. Adjacent words only, no other merges."""
+    need, seen = _WORD_RE.findall(text.lower()), _WORD_RE.findall(have.lower())
+    words, glued = set(seen), {a + b for a, b in zip(seen, seen[1:])}
+    for i, w in enumerate(need):
+        if w in _STOP or w in skip or w in words or w in glued:
+            continue
+        if (i and need[i - 1] + w in words) or (i + 1 < len(need) and w + need[i + 1] in words):
+            continue
+        return False
+    return True
+
+
+def _rows(text: str) -> list[list[str]]:
+    """The rows of a table chunk as cell lists, header first; [] for text."""
+    return [[html.unescape(c).strip() for c in _CELL_RE.findall(r)] for r in _ROW_RE.findall(text)]
+
+
+def row_cells(text: str) -> list[list[str]]:
+    """The body rows of a table chunk as cell lists (the header row dropped); [] for text."""
+    return _rows(text)[1:]
+
+
+def _is_number(cell: str) -> bool:
+    return bool(_PLAIN_RE.fullmatch(_plain(cell)))
+
+
+def _item(cells) -> tuple:
+    """A table row's item: the content words of its first non-numeric cell with any (the BoQ item
+    number, the bidder name). The same item in two tables (ROA p1 and p2) has one key."""
+    return next((tuple(_seq(c)) for c in cells if not _is_number(c) and _seq(c)), ())
+
+
+def _column(header: str) -> frozenset:
+    """A column header's words, bracketed unit marks dropped: "Total Bid as Read (TBR)" on ROA p2
+    and "Total Bid as Read" on p1 are one column."""
+    return frozenset(_words(_BRACKET_RE.sub(" ", header)))
+
+
+def guard_binding(label: str, question: str, rows: list[list[str]] = ()) -> bool:
+    """THE matcher for "an item the question names" (binding now; G7's named-row count too).
+    Every content word of the label appears in the calc clause. No exemption (the try-2 exemption
+    let E20's item numbers through): an "all N items" clause binds only the operands whose labels it
+    names (E5 CR4). G-short (C3): or the question holds the label's first k >= 2 content words,
+    contiguous, and exactly one of ``rows`` (the table's body rows) has a non-numeric cell that
+    starts with them ("Amethyst Horizon Builders" -> the full legal name)."""
+    if _held(label, question):
+        return True
+    lab, asked = _seq(label), _seq(question)
+    held = [k for k in range(2, len(lab) + 1)
+            if any(asked[i:i + k] == lab[:k] for i in range(len(asked)))]
+    if not held:
+        return False
+    k = max(held)
+    return sum(any(_seq(c)[:k] == lab[:k] for c in r if not _PLAIN_RE.fullmatch(_plain(c)))
+               for r in rows) == 1
 
 
 def guard_value(value: str, found: list[Slot]) -> list[Slot]:
@@ -109,7 +178,7 @@ def guard_value(value: str, found: list[Slot]) -> list[Slot]:
 def guard_column(found: list[Slot], question: str) -> list[Slot]:
     """The table cells whose column header words (bracketed unit marks dropped) all appear in the
     question. A text-chunk slot has no column."""
-    asked = _words(question)
+    asked = _field_words(question)
     return [s for s in found if not s.header or _names_field(s.header, asked)]
 
 
@@ -122,8 +191,8 @@ def guard_row(found: list[Slot], label: str) -> list[Slot]:
     """The slots whose row (table row, or text sentence) holds every label word that is not a word
     of the slot's column header."""
     def holds(s: Slot) -> bool:
-        need = _words(label) - _words(s.header)
-        return bool(need) and need <= _words(s.row)
+        head = _words(s.header)
+        return bool(_words(label) - head) and _held(label, s.row, skip=head)
     return [s for s in found if holds(s)]
 
 
@@ -144,9 +213,12 @@ def guard_count(operands: list, question: str) -> str:
 
 
 def guard_duplicate(picked: list) -> str:
-    """Two operands on the same cell (chunk, row, column) -> a reason (the #256 shape: one operand
-    copied twice). The same row in two columns (E10) is two cells. "" when all differ."""
-    cells = [(n.node.node_id, s.pos) for _, s, n in picked]
+    """Two operands on the same cell -> a reason (the #256 shape: one operand copied twice). A table
+    cell is keyed by (item, column), across chunks too: the same item and column from ROA p1 and p2
+    is one figure twice (reviewer probe). The same row in two columns (E10) is two cells. A text
+    number is keyed by (chunk, position). "" when all differ."""
+    cells = [(_item(s.cells), _column(s.header)) if s.cells else (n.node.node_id, s.pos)
+             for _, s, n in picked]
     return "two operands cite the same cell" if len(set(cells)) < len(cells) else ""
 
 
@@ -174,49 +246,62 @@ def evaluate(op: str, values: list[Decimal]) -> Decimal | None:
 
 
 
-def guard_text_field(picked: list, chunks: dict, question: str) -> str:
-    """The text-field rule (the E05 hole): when the calc clause names a field that is a column header
-    of a table chunk in this pass, an operand cited from a text chunk (no column) withholds -- a
-    sentence cannot show which field its number is. A reason, or "" when it holds."""
-    asked = _words(question)
-    fields = {s.header for n in chunks.values() for s in slots(n.node.text)
-              if s.header and _names_field(s.header, asked)}
-    texts = [label for label, s, _ in picked if not s.header]
-    if fields and texts:
-        return (f"operand {texts[0]!r} is cited from text, but the question names the table field "
-                f"{sorted(fields)[0]!r}")
-    return ""
+def asked_fields(chunks: dict, question: str) -> set[str]:
+    """The column headers of this pass's table chunks that the calc clause names."""
+    asked = _field_words(question)
+    return {s.header for n in chunks.values() for s in slots(n.node.text)
+            if s.header and _names_field(s.header, asked)}
+
+
+def guard_text_field(found: list, fields: set[str]) -> list:
+    """The text-field rule (the E05 hole), over the G-chunk search: when the calc clause names a
+    table field of this pass, a slot with no column -- a text sentence or an empty-header cell --
+    is dropped: it cannot show which field its number is. ``found`` is [(slot, node)]."""
+    return [(s, n) for s, n in found if s.header] if fields else found
 
 
 def check(request: dict, chunks: dict, question: str, op: str,
           order: tuple[str, ...] = ()) -> tuple[list, str]:
     """Run every guard on a parsed request. Returns (picked, "") -- picked = [(label, slot, node)]
     -- or ([], reason) to withhold. ``chunks`` is handles(doc_chunks()) of this pass; ``question``
-    is the calc part."""
+    is the calc part. G-chunk (C5): the value is searched in EVERY document chunk of the pass, the
+    cited one first; the cited handle must still be one of them. A table cell is cited first."""
     operands = request.get("operands") or []
     if request.get("op") != op:
         return [], f"the request's op {request.get('op')!r} is not the question's {op!r}"
     if reason := guard_count(operands, question):
         return [], reason
+    fields = asked_fields(chunks, question)
     picked = []
     for o in operands:
         label, value, cid = (str(o.get(k, "")) for k in ("label", "value", "chunk"))
-        node = chunks.get(cid)  # an unknown handle never falls back: withhold
-        if node is None:
+        cited = chunks.get(cid)  # an unknown handle never falls back: withhold
+        if cited is None:
             return [], f"operand {label!r} cites {cid!r}, not a retrieved document chunk"
-        if not guard_binding(label, question):
+        # Binding per table: a G-short name binds only where its prefix starts exactly one row.
+        binds = [n for n in chunks.values() if guard_binding(label, question, row_cells(n.node.text))]
+        if not binds:
             return [], f"operand {label!r} is not an item the question names"
-        found = guard_value(value, slots(node.node.text))
+        search = [cited] + [n for n in chunks.values() if n is not cited]
+        found = [(s, n) for n in search for s in guard_value(value, slots(n.node.text))]
         if not found:
-            return [], f"operand {label!r}: {value!r} is not a whole cell or number of its chunk"
-        found = guard_column(found, question)
+            return [], f"operand {label!r}: {value!r} is not a whole cell or number of a retrieved chunk"
+        found = [(s, n) for s, n in found if any(n is b for b in binds)]
+        if not found:
+            return [], f"operand {label!r} is not an item the question names"
+        found = guard_text_field(found, fields)
+        if not found:
+            return [], (f"operand {label!r} is cited from text, but the question names the table "
+                        f"field {sorted(fields)[0]!r}")
+        found = [(s, n) for s, n in found if guard_column([s], question)]
         if not found:
             return [], f"operand {label!r}: {value!r} is not in a column the question names"
-        found = guard_row(found, label)
+        found = [(s, n) for s, n in found if guard_row([s], label)]
         if not found:
             return [], f"operand {label!r}: {value!r} is not in a row that names {label!r}"
-        picked.append((label, found[0], node))
-    if reason := guard_duplicate(picked) or guard_text_field(picked, chunks, question):
+        s, n = sorted(found, key=lambda f: not f[0].header)[0]  # stable: cited chunk first
+        picked.append((label, s, n))
+    if reason := guard_duplicate(picked):
         return [], reason
     if op == "subtract":
         picked = order_operands(picked, order)
@@ -241,6 +326,47 @@ def run_tape(picked: list, op: str) -> str:
     return f" {_SYMBOL[op]} ".join(_cited(*p) for p in picked) + f" = {result:,.2f}"
 
 
+def pinned(picked: list, question: str) -> bool:
+    """G-total (C1): is the add's operand set pinned? When every operand is a table cell, the
+    DISTINCT items the question names in the operands' tables -- rows with a number in an operand's
+    column, named by guard_binding (THE matcher: glue and short names count) -- must be a subset of
+    the operands' items, also under a stated count ("the two items A, B and C" with 2 operands is
+    not pinned: reviewer probe). Then (a) a stated count equals the operand count, or (b) no stated
+    count: the named items equal the operands' items, and there are >= 2. A text operand cannot be
+    counted: only (a). A missed operand leaves a named item over; an extra named row only blocks a
+    total; a clause that names no rows ("all 5 Part G items") still totals under (a)."""
+    n = stated_count(question)
+    if any(not s.cells for _, s, _ in picked):
+        return n is not None and n == len(picked)
+    columns = {_column(s.header) for _, s, _ in picked}
+    named = set()
+    for node in {id(n): n for _, _, n in picked}.values():
+        head, *body = _rows(node.node.text)
+        for r in body:
+            in_column = any(i < len(head) and _column(head[i]) in columns and _is_number(c)
+                            for i, c in enumerate(r))
+            if in_column and any(_seq(c) and guard_binding(c, question, body)
+                                 for c in r if not _is_number(c)):
+                named.add(_item(r))
+    items = {_item(s.cells) for _, s, _ in picked}
+    if not named <= items:
+        return False
+    return n == len(picked) if n is not None else len(picked) >= 2 and named == items
+
+
+def answer_text(picked: list, question: str, op: str) -> str:
+    """THE place that decides and writes the calc answer (the agent and the --check pins both call
+    it): the Decimal tape with its total when the operands are pinned -- a subtract's 2 operands in
+    the strict order (check() fixed it), or an add that pinned() accepts -- else option C (the cited
+    operands, no total). No LLM computes."""
+    if op == "subtract" or pinned(picked, question):
+        tape = run_tape(picked, op)
+        if tape:
+            return tape
+    return cite(picked)
+
+
+# DEAD: no caller (G7: answer_text is the only total path). Restored unchanged on review.
 def run(request: dict, chunks: dict, question: str, op: str,
         order: tuple[str, ...] = ()) -> tuple[str, str, list]:
     """DEAD under option C (E4-C, user 2026-10-06): kept with its pins, not called by the agent.

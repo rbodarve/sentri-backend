@@ -568,7 +568,7 @@ class AgenticRag:
             except json.JSONDecodeError:
                 request = {}
             picked, reason = calc.check(request, chunks, scope.calc, scope.op, scope.order)
-            text = calc.cite(picked) if picked else ""
+            text = calc.answer_text(picked, scope.calc, scope.op) if picked else ""
         report = self._verifier.check(text, contract_id=contract_id) if text else Report(
             blocks=[f"calculation withheld: {reason}"], flags=[])
         part = Part(scope.calc, text, report, contract_id, route,
@@ -768,11 +768,13 @@ def _self_check() -> None:
     scope = calc_scope("What is the total cost of 24CC0265, and which items are listed in Part A?")
     assert not scope.op and "no calculation" in scope.reason, f"CR5: 0 calc clauses: {scope}"
     print(f"OK: calc_scope pins ({len(rows)} E1 dev rows, {len(expected)} kinds)")
-    failed = [name for name, ok in _calc_pins(rows) if not ok]
-    assert not failed, f"calc pins failed: {failed}"
-    failed = [name for name, ok in _guard_pins() if not ok]
-    assert not failed, f"numeric guard pins failed: {failed}"
-    print("OK: numeric guard pins")
+    # Both pin sets run and print before one assert: a failing calc pin never hides a guard pin.
+    calc_results, guard_results = _calc_pins(rows), _guard_pins()
+    failed = [name for name, ok in calc_results + guard_results if not ok]
+    print(f"calc pins {sum(ok for _, ok in calc_results)}/{len(calc_results)} PASS; numeric guard pins "
+          f"{sum(ok for _, ok in guard_results)}/{len(guard_results)} PASS")
+    assert not failed, f"pins failed: {failed}"
+    print("OK: calc + numeric guard pins")
 
 
 def _guard_pins() -> list[tuple[str, bool]]:
@@ -905,11 +907,10 @@ def _calc_pins(rows: list[dict]) -> list[tuple[str, bool]]:
     by_id = {r["id"]: r for r in rows}
     boq = "e3cc4331-3b05-4d96-82e9-a7da425aece8"
 
-    def outcome(r: dict, operands: list[dict], extra: tuple = (), question: str = "",
-                compute: bool = False) -> tuple[str, str]:
-        """(text, reason) of the option-C path (calc.check + calc.cite) on these operands, in a
-        context of their chunks + the record; ``compute`` uses the dead calc.run path instead (the
-        evaluator pins). ``question`` replaces the row's question (a pin's variant)."""
+    def outcome(r: dict, operands: list[dict], extra: tuple = (), question: str = "") -> tuple[str, str]:
+        """(text, reason) of the agent's calc path (calc.check + calc.answer_text, as _answer_calc)
+        on these operands, in a context of their chunks + the record. ``question`` replaces the
+        row's question (a pin's variant)."""
         scope = calc_scope(question or r["question"])
         ids = dict.fromkeys([o["chunk"] for o in operands if o["chunk"] in nodes] + list(extra))
         context = [nodes[i] for i in ids] + [record]
@@ -918,38 +919,36 @@ def _calc_pins(rows: list[dict]) -> list[tuple[str, bool]]:
         to_handle = {n.node.node_id: h for h, n in chunks.items()}
         request = {"operands": [{**o, "chunk": to_handle.get(o["chunk"], o["chunk"])}
                                 for o in operands], "op": scope.op}
-        if compute:
-            tape, reason, _ = calc.run(request, chunks, scope.calc, scope.op, scope.order)
-            return tape, reason
         picked, reason = calc.check(request, chunks, scope.calc, scope.op, scope.order)
-        return (calc.cite(picked) if picked else ""), reason
+        return (calc.answer_text(picked, scope.calc, scope.op) if picked else ""), reason
 
     def gold(r: dict) -> list[dict]:
         return [{"label": o["label"], "value": o["cell"], "chunk": o["chunk"]} for o in r["operands"]]
 
     def answers(r: dict, operands: list[dict]) -> bool:
-        """Option C: lists every gold cell, says the total is not computed, and shows no total."""
+        """G7: the tape lists every gold cell and ends in the expected total (every in-scope dev
+        answer row is pinned: a stated count, its named items, or a subtract)."""
         text, _ = outcome(r, operands)
-        return (all(o["cell"] in text for o in r["operands"]) and "The total is not computed." in text
-                and f"{Decimal(r['expected']):,.2f}" not in text)
-
-    def computes(r: dict, operands: list[dict]) -> bool:
-        """The dead evaluator path (calc.run): the tape ends in the expected value."""
-        tape, _ = outcome(r, operands, compute=True)
-        return tape.endswith(f"= {Decimal(r['expected']):,.2f}")
+        return (all(o["cell"] in text for o in r["operands"])
+                and text.endswith(f"= {Decimal(r['expected']):,.2f}"))
 
     def no_evaluate() -> bool:
-        """The option-C path never calls evaluate(): E01 gold still answers when it raises."""
+        """An unpinned add never calls evaluate(): E04 with Concrete omitted (2 of 3 named) still
+        cites both operands, with no total, when it raises."""
         real = calc.evaluate
         calc.evaluate = lambda op, values: 1 / 0
         try:
-            return answers(e01, gold(e01))
+            text, _ = outcome(e04, [gold(e04)[0], gold(e04)[2]])
+            return (all(o["cell"] in text for o in (e04["operands"][0], e04["operands"][2]))
+                    and "The total is not computed." in text)
         finally:
             calc.evaluate = real
 
-    def withholds(r: dict, operands: list[dict], extra: tuple = (), question: str = "") -> bool:
+    def withholds(r: dict, operands: list[dict], extra: tuple = (), question: str = "",
+                  why: str = "") -> bool:
+        """Withheld; with ``why``, through the guard whose reason holds that fragment."""
         tape, reason = outcome(r, operands, extra, question)
-        return not tape and bool(reason)
+        return not tape and bool(reason) and why in reason
 
     e01, e04, e05 = by_id["E01"], by_id["E04"], by_id["E05"]
     # E05 asks Rodekom + Grace + R.U. Aquino; this variant drops Grace from the question.
@@ -979,6 +978,160 @@ def _calc_pins(rows: list[dict]) -> list[tuple[str, bool]]:
         picked, reason = calc.check(request, chunks, q, "add")
         return not picked and "not an item the question names" in reason
 
+    # Phase G pins (G2). "Must answer" pins fail on HEAD (option C states no total); false-pass
+    # pins pass on HEAD (it is strict) and guard the loosenings G3-G7.
+    def total(r: dict, operands: list[dict], want: str, question: str = "") -> bool:
+        """G-total must answer: the calc path states the total ``want`` (a tape "... = want")."""
+        return f"= {Decimal(want):,.2f}" in outcome(r, operands, question=question)[0]
+
+    def no_total(r: dict, operands: list[dict], question: str = "") -> bool:
+        """G-total must not answer: withheld, or operands cited with no "= total"."""
+        return "=" not in outcome(r, operands, question=question)[0]
+
+    def op(label: str, value: str, chunk: str) -> dict:
+        return {"label": label, "value": value, "chunk": chunk}
+
+    def cites(r: dict, operands: list[dict], question: str = "", extra: tuple = ()) -> bool:
+        """G3-G6 must answer: not withheld, and every operand value is in the answer. Prints the
+        withhold reason, so a HEAD failure shows which guard stopped it."""
+        text, reason = outcome(r, operands, extra, question)
+        if reason:
+            print(f"        reason: {reason}")
+        return not reason and all(o["value"] in text for o in operands)
+
+    col, txt, item, row = ("not in a column the question names", "cited from text",
+                           "not an item the question names", "not in a row that names")
+    header_only = "a3e4163a-2e35-4bca-b8ae-7756e6847f88"  # BoQ p2: the header row alone
+    roa_p1 = by_id["E12"]["operands"][0]["chunk"]  # 24CC0265 ROA p1 (Total Bid as Read)
+    coa_q = "For project 24cc0265_coa.pdf, what is the combined "
+
+    e03, e08, e22 = by_id["E03"], by_id["E08"], by_id["E22"]
+    roa = e08["operands"][0]["chunk"]  # 24CC0265 ROA p2 (TBR / TCB, 3 bidders)
+    # The glued BoQ row "ProjectBillboard/Signboard" named in full, its operand omitted.
+    billboard_q = ("In the 24CC0265 Bill of Quantities, what is the combined Total Amount of Project "
+                   "Billboard/Signboard, Mobilization/Demobilization and Occupational Safety and "
+                   "Health Program?")
+    mob_osh = [op("Mobilization/Demobilization", "509,645.37", boq),
+               op("Occupational Safety and Health Program", "448,700.36", boq)]
+    # The index view has no number under an empty header (9 table nodes): a synthetic table holds
+    # one, beside the named field the E03 question asks.
+    empty = "g2-empty-header"
+    nodes[empty] = NodeWithScore(node=TextNode(id_=empty, text=(
+        "<table><tr><td>Name of Bidder</td><td>Total Bid Amount As Read (Php)</td><td></td></tr>"
+        "<tr><td>R.U. Aquino Construction &amp; Dev't. Corp.</td><td>143,617,975.00</td>"
+        "<td>143,600,000.00</td></tr></table>"), metadata={"pdf_source": "synthetic", "pdf_page": "0"}),
+        score=1.0)
+    unit_costs = [op("Channel Excavation (Surplus Unclassified)", "444,635.77", boq),
+                  op("Concrete (Slope Protection)", "2,173,544.65", boq)]
+    boq_q = "In the 24CC0265 Bill of Quantities, what is the combined "
+    g2 = {
+        # G-total
+        "G2 G-total stated count, must answer: E01 'the two ... items' gold -> = 57,035,682.72":
+            lambda: total(e01, gold(e01), e01["expected"]),
+        "G2 G-total named rows, must answer: E22 (2 named, no count) gold -> = 3,165,794.59":
+            lambda: total(e22, gold(e22), e22["expected"]),
+        "G2 G-total 2-of-3, must not answer: E04 (3 named, no count), Concrete omitted -> no total":
+            lambda: no_total(e04, [gold(e04)[0], gold(e04)[2]]),
+        "G2 G-total glued item omitted, must not answer: Billboard/Signboard named -> no total":
+            lambda: no_total(e01, mob_osh, question=billboard_q),
+        "G7 R10 #256 as asked (3 named, Billboard '20617.50'), must answer -> = 978,963.23":
+            lambda: total(e22, [op("Project Billboard/Signboard", "20617.50", boq)] + mob_osh[::-1],
+                          "978963.23", question=coa_q + "total cost of the three Part B 'Other "
+                          "General Requirements' line items (Project Billboard/Signboard, "
+                          "Occupational Safety and Health Program, and Mobilization/Demobilization) "
+                          "in the Bill of Quantities?"),
+        # Reviewer probe (exists on HEAD): one item cited from ROA p1 and p2 is two cells to
+        # guard_duplicate (it keys on chunk + pos); after G7 it would state a doubled total.
+        "G7 same item twice via two tables, must not answer -> no total": lambda: no_total(e08, [
+            op("5 Jewel's Construction and Supply Corp.", "71,868,373.26", roa_p1),
+            op("5 Jewel's Construction and Supply Corp.", "71,868,373.26", roa)],
+            question="For contract 24CC0265, what is the combined Total Bid as Read of Amethyst "
+                     "Horizon Builders and Gen. Contractor and Development Corp. and 5 Jewel's "
+                     "Construction and Supply Corp.?"),
+        "G7 same item twice via two tables, stated count, must not answer": lambda: no_total(e08, [
+            op("5 Jewel's Construction and Supply Corp.", "71,868,373.26", roa_p1),
+            op("5 Jewel's Construction and Supply Corp.", "71,868,373.26", roa)],
+            question="For contract 24CC0265, what is the combined Total Bid as Read of the two "
+                     "bidders Amethyst Horizon Builders and Gen. Contractor and Development Corp. "
+                     "and 5 Jewel's Construction and Supply Corp.?"),
+        # The only shape found that reaches the duplicate rule: binding and the subset rule block
+        # every natural phrasing (defense in depth). Without the rule: "= 143,736,746.52".
+        "G7 duplicate rule: stated count over only the doubled item, must not answer": lambda: (
+            withholds(e08, [
+                op("5 Jewel's Construction and Supply Corp.", "71,868,373.26", roa_p1),
+                op("5 Jewel's Construction and Supply Corp.", "71,868,373.26", roa)],
+                question="For contract 24CC0265, what is the combined value of the two Total Bid "
+                         "as Read items of 5 Jewel's Construction and Supply Corp.?",
+                why="two operands cite the same cell")),
+        # Reviewer probe: a stated count skipped the named-item check (C&G + Embankment summed,
+        # Concrete omitted, "= 1,002,111.69").
+        "G7 stated count but a named item omitted, must not answer -> no total": lambda: no_total(
+            e22, [op("Clearing and Grubbing", "9,861.75", boq),
+                  op("Embankment (from Borrow)", "992,249.94", boq)],
+            question=boq_q + "Total Amount of the two items Clearing and Grubbing, Embankment (from "
+                             "Borrow) and Concrete (Slope Protection)?"),
+        # G-chunk
+        "G2 G-chunk E05 shape, must not answer: Rodekom 140,274,481.48 (the Calculated-Bid "
+        "sentence) cited to the As Read table": lambda: withholds(
+            e05, [op("Rodekom", "140,274,481.48", e05["operands"][0]["chunk"])] + gold(e05)[1:],
+            extra=(e05_text,), why=col),
+        "G2 G-chunk empty header, must not answer: E03 R.U. Aquino from an empty-header cell":
+            lambda: withholds(e03, [op("R.U. Aquino", "143,600,000.00", empty), gold(e03)[1]],
+                              why=txt),
+        "G2 G-chunk #194, must answer: Removal of Structures cited to the header-only BoQ chunk "
+        "('Total Amount' asked)": lambda: cites(e22, [
+            op("Removal of Structures and Obstruction (Concrete)", "467,614.56", header_only),
+            op("Clearing and Grubbing", "9,861.75", boq), op("Embankment (from Borrow)", "992,249.94", boq)],
+            question=coa_q + "Total Amount of the three Earthwork sub-items listed in Part C: Removal "
+                             "of Structures and Obstruction (Concrete), Clearing and Grubbing, and "
+                             "Embankment (from Borrow)?"),
+        # G-synonym
+        "G2 G-synonym, must not answer: 'combined unit costs' bound to Total Amount cells":
+            lambda: withholds(e22, unit_costs, question=boq_q + "unit costs of Channel Excavation "
+                              "(Surplus Unclassified) and Concrete (Slope Protection)?", why=col),
+        "G2 G-synonym, must not answer: 'combined total of the unit costs' bound to Total Amount":
+            lambda: withholds(e22, unit_costs, question=boq_q + "total of the unit costs of Channel "
+                              "Excavation (Surplus Unclassified) and Concrete (Slope Protection)?",
+                              why=col),
+        "G2 G-synonym #256, must answer: 'combined total cost' of OSH and Mobilization (no glued item)":
+            lambda: cites(e22, mob_osh, question=coa_q + "total cost of the two Part B 'Other General "
+                          "Requirements' line items (Occupational Safety and Health Program and "
+                          "Mobilization/Demobilization) in the Bill of Quantities?"),
+        # G-short
+        "G2 G-short one word, must not answer: 'Amethyst' binds the full legal name":
+            lambda: withholds(e08, [
+                op("Amethyst Horizon Builders and Gen. Contractor and Development Corp.",
+                   "69,479,428.64", roa),
+                op("5 Jewel's Construction and Supply Corp.", "71,868,408.23", roa)],
+                question="For contract 24CC0265, what is the combined Total Calculated Bid of "
+                         "Amethyst and 5 Jewel's Construction and Supply Corp.?", why=item),
+        "G2 G-short shared prefix, must not answer: 'Structural Steel' starts 2 BoQ rows":
+            lambda: withholds(e22, [op("Structural Steel Sheet Piles, Furnished", "44,816,184.72", boq),
+                                    op("Concrete (Slope Protection)", "2,173,544.65", boq)],
+                              question=boq_q + "Total Amount of the Structural Steel and Concrete "
+                                               "(Slope Protection) items?", why=item),
+        "G2 G-short #258, must answer: short bidder names bind the full legal names (ROA p1)":
+            lambda: cites(by_id["E12"], [
+                op("Amethyst Horizon Builders and Gen. Contractor and Development Corp.",
+                   "69,479,428.64", roa_p1),
+                op("Sto. Cristo Construction and Trading Inc.", "71,651,188.89", roa_p1),
+                op("5 Jewel's Construction and Supply Corp.", "71,868,373.26", roa_p1)],
+                question="For project 24CC0265 ROA.pdf, what is the combined total of the Total Bid "
+                         "as Read values for all three bidders (Amethyst Horizon Builders, Sto. "
+                         "Cristo Construction, and 5 Jewel's Construction) on page 1?"),
+        # G-glue
+        "G2 G-glue non-adjacent, must not answer: 'Project Signboard/Billboard' on row "
+        "'ProjectBillboard/Signboard'": lambda: withholds(e22, [
+            op("Project Signboard/Billboard", "20,617.50", boq),
+            op("Mobilization/Demobilization", "509,645.37", boq)],
+            question=boq_q + "Total Amount of Project Signboard/Billboard and "
+                             "Mobilization/Demobilization?", why=row),
+        "G2 G-glue E04, must answer: 'Metal Structure Accessories (Steel Plate)' on row "
+        "'Metal StructureAccessories (Steel Plate)'": lambda: cites(e04, [
+            gold(e04)[0], gold(e04)[1],
+            op("Metal Structure Accessories (Steel Plate)", "4,484,205.66", boq)]),
+    }
+
     def unknown_id_part() -> Part:
         """The calc route on an invented id, with no index or model loaded (CR1: it crashed in the
         filtered retrieval instead of withholding)."""
@@ -997,9 +1150,9 @@ def _calc_pins(rows: list[dict]) -> list[tuple[str, bool]]:
         # CR4: "all N" is in scope, but a clause that names no items binds no label (no exemption).
         "all N naming no items: E18 gold operands -> binding withhold": lambda: (
             "not an item the question names" in outcome(by_id["E18"], gold(by_id["E18"]))[1]),
-        **{f"gold reversed {i} (evaluator)": (lambda i=i: computes(by_id[i], gold(by_id[i])[::-1]))
+        **{f"gold reversed {i} (evaluator)": (lambda i=i: answers(by_id[i], gold(by_id[i])[::-1]))
            for i in ("E08", "E09", "E10")},
-        "C path never calls evaluate()": no_evaluate,
+        "unpinned add never calls evaluate()": no_evaluate,
         "text field: E05 Rodekom from the 'Calculated Bid' sentence on the As Read question":
             lambda: withholds(e05, [{"label": "Rodekom", "value": "140,274,481.48",
                                      "chunk": e05_text}] + gold(e05)[1:]),
@@ -1040,6 +1193,7 @@ def _calc_pins(rows: list[dict]) -> list[tuple[str, bool]]:
             m := CONTRACT_ID_RE.search(fact_question(calc_scope(by_id["E24"]["question"]).facts[0],
                                                      "24A00153"))) is not None
             and m.group(0).upper() == "24A00153",
+        **g2,
     }
     results = []
     for name, pin in pins.items():
