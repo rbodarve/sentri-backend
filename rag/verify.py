@@ -300,8 +300,13 @@ def format_report(report: Report) -> str:
     if report.ok:
         return ("✓ grounding check passed -- but this ONLY confirms contract IDs, locations & "
                 "contractors against the manifest.\n"
-                "  ⚠ NOT verified here: amounts/figures, district engineers, offices, dates and "
-                "every other detail -- treat those as unconfirmed and check the source documents.")
+                "  ⚠ Figures: in a MODEL-written agent answer, a figure >= 1,000 that no cited source "
+                "holds is withheld; not checked: that a held figure is the right one, figures "
+                "< 1,000, amounts in words. Rank / aggregate / filter figures are computed by code "
+                "from the manifest (not checked here). The single-pass `make ask` / `make chat` "
+                "path checks no figures.\n"
+                "  ⚠ NOT verified here: district engineers, offices, dates and every other detail "
+                "-- treat those as unconfirmed and check the source documents.")
     lines = ["⛔ verification: the model appears to be hallucinating -- answer withheld "
              "(failed the manifest grounding check):"]
     lines += [f"    - {r}" for r in report.blocks + report.flags]

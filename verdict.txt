@@ -126,8 +126,12 @@ STEPS TO MAKE IT SCALABLE (IN DEPENDENCY ORDER)
    ORDER BY / SUM / AVG / WHERE over the table. This is consistent with the current arithmetic rule (2026-09-26): no
    LLM ever computes -- a calc-cued question routes `calc`, which cites
    guarded operands and states no total (it stops wrong sums; it does not
-   compute sums); an un-cued phrasing still reaches the model, which can
-   subtract (a numeric grounding guard on every route is planned). At 100k rows the
+   compute sums; through the service it answered 1 of 7 sums, 0 wrong); an
+   un-cued phrasing still reaches the model, and a numeric grounding guard
+   withholds any model-written figure >= 1,000 that no cited source holds
+   (sealed: 0 of 11 leaked, bound < ~27%; figures < 1,000 and amounts in words
+   are not checked). The guard compares against the pass's context, so it
+   scales with the context, not the corpus. At 100k rows the
    operands can't come from a prompt either, so the table must supply them.
    Corpus-wide field sweeps (blocker 6) move here too: extract the recurring
    fields (dates, signatories, notary entries, addresses) into the table at

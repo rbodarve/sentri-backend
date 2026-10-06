@@ -119,11 +119,19 @@ flowchart LR
 
 A calc-cued question about one contract ("the total / combined / difference of ...") routes `calc`:
 the answer cites each operand from its chunk, guards check them, and no total is stated. This stops
-wrong sums; it does not compute sums. An un-cued phrasing (for example "how much does A differ from
-B") still routes `simple`, and the model can subtract wrongly there.
+wrong sums; it does not compute sums. It is safe but strict: through the service it answered 1 of
+7 sums from the queries set (0 wrong, no total stated) and withheld the other 6.
+
+An un-cued phrasing (for example "how much does A differ from B") still routes `simple`, and the
+model can compute there. A **numeric grounding guard** checks every model-written answer part: a
+figure >= 1,000 that no cited source (or the question) holds withholds that part. Measured on a
+held-out set: 0 of 11 sealed computed-figure questions leaked a figure, over 3 runs (a true leak
+rate below about 27%, rule of three), and 0 of 4 sealed lookup controls were withheld by the
+guard. Figures below 1,000 (percents, day counts, small differences) and amounts in words are not
+checked, and a held figure is not checked to be the right one.
 
 The **LLM is not trusted with arithmetic**, and the verifier's pass only confirms contract ids, locations and
-contractors. The agent's prompts and [`rag/verify.py`](rag/verify.py) spell out both limits.
+contractors (plus, on the agent path, the figure rule above). The agent's prompts and [`rag/verify.py`](rag/verify.py) spell out both limits.
 
 ## Configuration
 
@@ -189,8 +197,9 @@ tunnel and test it from a simulated remote client.
 - **Model size.** Most of the remaining answer-level misses come from the 3B generator reading a
   long context poorly. The pipeline is built to swap in a stronger model through `RAG_GEN_MODEL`.
 - **Arithmetic.** A one-contract sum gets no computed total: the `calc` route cites the operands and
-  stops there. Questions without a calc cue word still reach the model, which can
-  compute a wrong figure; a numeric grounding guard on every route is planned.
+  stops there, and its guards withhold most sums (1 of 7 answered through the service). Questions
+  without a calc cue word still reach the model; the numeric grounding guard withholds a computed
+  figure >= 1,000 that no source holds, but not a figure below 1,000 or an amount in words.
 
 ## Repository layout
 

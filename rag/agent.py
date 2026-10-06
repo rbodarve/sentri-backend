@@ -787,10 +787,6 @@ def _guard_pins() -> list[tuple[str, bool]]:
     from rag.manifest import load_manifest
     from rag.subject import pin_note
 
-    def ungrounded_figures(text, srcs):  # imported per call: a missing guard fails each pin
-        from rag.verify import ungrounded_figures as guard
-        return guard(text, srcs)
-
     dev = [r for r in json.loads(open("eval/numeric_heldout.json", encoding="utf-8").read())
            if r["split"] == "dev"]
     differ = next(r for r in dev if r["kind"] == "differ")
@@ -801,9 +797,8 @@ def _guard_pins() -> list[tuple[str, bool]]:
     db = {k: c["content"] for p in sorted(Path("database").glob("*.json"))
           for sec in json.loads(p.read_text(encoding="utf-8")).values() if isinstance(sec, dict)
           for k, c in sec.items() if isinstance(c, dict) and "content" in c}
-    context = [NodeWithScore(node=TextNode(text=db[o["chunk"]]), score=1.0)
-               for o in differ["operands"]]
-    sources = [n.node.text for n in context]
+    sources = [db[o["chunk"]] for o in differ["operands"]]
+    context = [NodeWithScore(node=TextNode(text=t), score=1.0) for t in sources]
     grounded = f"The bid as read is {cells[0]}."
     e13 = f"The two differ by {computed} ({cells[0]} - {cells[1]})."
 

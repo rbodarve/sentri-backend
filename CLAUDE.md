@@ -82,8 +82,12 @@ A contract-filtered pass sees only its own manifest row. It reuses `RagAnswerer.
 so it never adds a retrieval path and can't move recall. The rule is that no LLM computes: prompts forbid
 sums. A calc-cued one-contract question ("total / combined / difference ...") routes `calc`: the
 answer cites guarded operands and states no total (it stops wrong sums; it does not compute
-sums). An un-cued phrasing (e.g. "differ") still routes `simple`, and the model can subtract
-there (sealed E13, 2026-10-06); PLAN.md Phase F proposes a numeric grounding guard on every route.
+sums); it is strict: 1 of 7 service sums answered, 6 withheld, 0 wrong. An un-cued phrasing (e.g.
+"differ") still routes `simple`, and the model can compute there (sealed E13). The numeric grounding
+guard (`rag.verify.ungrounded_figures`, called by `agent._guard` on every model-written part, no retry)
+withholds a figure >= 1,000 that no context node or the question holds: sealed 0 of 11 leaked
+(bound < ~27%), 0 lookup controls withheld. Figures < 1,000 and amounts in words are not checked.
+Its token rule is frozen (PLAN.md Phase F).
 `evaluate_agentic.py` scores it at the answer level.
 
 Data & artifacts:

@@ -1,0 +1,897 @@
+[
+ {
+  "id": "N01",
+  "split": "sealed",
+  "kind": "differ",
+  "route": "simple",
+  "question": "By how much does Sto. Cristo Construction and Trading Inc.'s Total Bid as Read differ from the contract amount of 24CC0265?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "2171760.25",
+  "operands": [
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "source": "24CC0265 ROA.pdf",
+    "page": "1",
+    "label": "Sto. Cristo",
+    "cell": "71,651,188.89"
+   },
+   {
+    "chunk": "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+    "source": "24CC0265 NOA.pdf",
+    "page": "1",
+    "label": "24CC0265 contract amount",
+    "cell": "69,479,428.64"
+   }
+  ]
+ },
+ {
+  "id": "N02",
+  "split": "dev",
+  "kind": "differ",
+  "route": "simple",
+  "question": "By how much does Grace Construction Corporation's bid as read differ from R.U. Aquino Construction's bid as read for 24A00153?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "319209.60",
+  "operands": [
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "2",
+    "label": "R.U. Aquino",
+    "cell": "143,617,975.00"
+   },
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "2",
+    "label": "Grace",
+    "cell": "143,298,765.40"
+   }
+  ]
+ },
+ {
+  "id": "N03",
+  "split": "dev",
+  "kind": "gap",
+  "route": "simple",
+  "question": "What is the gap between the Approved Budget for the Contract and the contract amount of 24AJ0052?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "490027.77",
+  "operands": [
+   {
+    "chunk": "b892e348-52e1-4b06-aeae-127da35b5981",
+    "source": "I24AJ0052 - ADS - TB 24AJ0052.pdf",
+    "page": "1",
+    "label": "24AJ0052 ABC",
+    "cell": "19,600,000.00"
+   },
+   {
+    "chunk": "be883897-178d-40cb-bb18-0b2cb11067fa",
+    "source": "24aj0052_notice_of_award.pdf",
+    "page": "1",
+    "label": "24AJ0052 contract amount",
+    "cell": "19,109,972.23"
+   }
+  ]
+ },
+ {
+  "id": "N04",
+  "split": "sealed",
+  "kind": "gap",
+  "route": "simple",
+  "question": "What is the gap between the bids as read of 5 Jewel's Construction and Supply Corp. and Amethyst Horizon Builders for 24CC0265?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "2388944.62",
+  "operands": [
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "source": "24CC0265 ROA.pdf",
+    "page": "1",
+    "label": "5 Jewel",
+    "cell": "71,868,373.26"
+   },
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "source": "24CC0265 ROA.pdf",
+    "page": "1",
+    "label": "Amethyst",
+    "cell": "69,479,428.64"
+   }
+  ]
+ },
+ {
+  "id": "N05",
+  "split": "dev",
+  "kind": "exceed",
+  "route": "simple",
+  "question": "By what amount does the Approved Budget for the Contract of 24A00153 exceed its contract amount?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "4475518.52",
+  "operands": [
+   {
+    "chunk": "efd84e2c-b171-4ed6-a7e8-29912aae3231",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "2",
+    "label": "24A00153 ABC",
+    "cell": "144,750,000.00"
+   },
+   {
+    "chunk": "664114f6-9be4-44e3-b776-c6199d6e8c65",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "1",
+    "label": "24A00153 contract amount",
+    "cell": "140,274,481.48"
+   }
+  ]
+ },
+ {
+  "id": "N06",
+  "split": "sealed",
+  "kind": "exceed",
+  "route": "simple",
+  "question": "By how much does the bid as read of 5 Jewel's Construction and Supply Corp. exceed that of Sto. Cristo Construction and Trading Inc. for 24CC0265?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "217184.37",
+  "operands": [
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "source": "24CC0265 ROA.pdf",
+    "page": "1",
+    "label": "5 Jewel",
+    "cell": "71,868,373.26"
+   },
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "source": "24CC0265 ROA.pdf",
+    "page": "1",
+    "label": "Sto. Cristo",
+    "cell": "71,651,188.89"
+   }
+  ]
+ },
+ {
+  "id": "N07",
+  "split": "sealed",
+  "kind": "net",
+  "route": "simple",
+  "question": "What are the net savings against the Approved Budget for the Contract of 24AJ0052?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "490027.77",
+  "operands": [
+   {
+    "chunk": "b892e348-52e1-4b06-aeae-127da35b5981",
+    "source": "I24AJ0052 - ADS - TB 24AJ0052.pdf",
+    "page": "1",
+    "label": "24AJ0052 ABC",
+    "cell": "19,600,000.00"
+   },
+   {
+    "chunk": "be883897-178d-40cb-bb18-0b2cb11067fa",
+    "source": "24aj0052_notice_of_award.pdf",
+    "page": "1",
+    "label": "24AJ0052 contract amount",
+    "cell": "19,109,972.23"
+   }
+  ]
+ },
+ {
+  "id": "N08",
+  "split": "dev",
+  "kind": "net",
+  "route": "simple",
+  "question": "What is the net savings of 24A00153 against its Approved Budget for the Contract?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "4475518.52",
+  "operands": [
+   {
+    "chunk": "efd84e2c-b171-4ed6-a7e8-29912aae3231",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "2",
+    "label": "24A00153 ABC",
+    "cell": "144,750,000.00"
+   },
+   {
+    "chunk": "664114f6-9be4-44e3-b776-c6199d6e8c65",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "1",
+    "label": "24A00153 contract amount",
+    "cell": "140,274,481.48"
+   }
+  ]
+ },
+ {
+  "id": "N09",
+  "split": "sealed",
+  "kind": "remaining",
+  "route": "simple",
+  "question": "After paying the contract amount of 24AJ0052, how much of the Approved Budget for the Contract remains?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "490027.77",
+  "operands": [
+   {
+    "chunk": "b892e348-52e1-4b06-aeae-127da35b5981",
+    "source": "I24AJ0052 - ADS - TB 24AJ0052.pdf",
+    "page": "1",
+    "label": "24AJ0052 ABC",
+    "cell": "19,600,000.00"
+   },
+   {
+    "chunk": "be883897-178d-40cb-bb18-0b2cb11067fa",
+    "source": "24aj0052_notice_of_award.pdf",
+    "page": "1",
+    "label": "24AJ0052 contract amount",
+    "cell": "19,109,972.23"
+   }
+  ]
+ },
+ {
+  "id": "N10",
+  "split": "dev",
+  "kind": "remaining",
+  "route": "simple",
+  "question": "How much of the 24A00153 Approved Budget for the Contract remains unspent after the award?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "4475518.52",
+  "operands": [
+   {
+    "chunk": "efd84e2c-b171-4ed6-a7e8-29912aae3231",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "2",
+    "label": "24A00153 ABC",
+    "cell": "144,750,000.00"
+   },
+   {
+    "chunk": "664114f6-9be4-44e3-b776-c6199d6e8c65",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "1",
+    "label": "24A00153 contract amount",
+    "cell": "140,274,481.48"
+   }
+  ]
+ },
+ {
+  "id": "N11",
+  "split": "sealed",
+  "kind": "per_unit",
+  "route": "simple",
+  "question": "What is the contract amount of 24BG0272 for each calendar day of the contract duration?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "300591.85",
+  "operands": [
+   {
+    "chunk": "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
+    "source": "24bg0272-noa.pdf",
+    "page": "1",
+    "label": "24BG0272 contract amount",
+    "cell": "96,489,983.04"
+   },
+   {
+    "chunk": "5315ba1f-0cd7-4bf6-a8ac-8b6147b37e75",
+    "source": "24bg0272-contract_agreement.pdf",
+    "page": "1",
+    "label": "24BG0272 contract days",
+    "cell": "(321) calendar days"
+   }
+  ]
+ },
+ {
+  "id": "N12",
+  "split": "dev",
+  "kind": "per_unit",
+  "route": "simple",
+  "question": "What is the Approved Budget for the Contract of 24AJ0052 per calendar day of the required completion time?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "120245.40",
+  "operands": [
+   {
+    "chunk": "b892e348-52e1-4b06-aeae-127da35b5981",
+    "source": "I24AJ0052 - ADS - TB 24AJ0052.pdf",
+    "page": "1",
+    "label": "24AJ0052 ABC",
+    "cell": "19,600,000.00"
+   },
+   {
+    "chunk": "b892e348-52e1-4b06-aeae-127da35b5981",
+    "source": "I24AJ0052 - ADS - TB 24AJ0052.pdf",
+    "page": "1",
+    "label": "24AJ0052 completion days",
+    "cell": "163 Calendar Days"
+   }
+  ]
+ },
+ {
+  "id": "N13",
+  "split": "sealed",
+  "kind": "percent",
+  "route": "simple",
+  "question": "By what percent is the bid as read of Sto. Cristo Construction and Trading Inc. above the contract amount of 24CC0265?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "3.13",
+  "operands": [
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "source": "24CC0265 ROA.pdf",
+    "page": "1",
+    "label": "Sto. Cristo",
+    "cell": "71,651,188.89"
+   },
+   {
+    "chunk": "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+    "source": "24CC0265 NOA.pdf",
+    "page": "1",
+    "label": "24CC0265 contract amount",
+    "cell": "69,479,428.64"
+   }
+  ]
+ },
+ {
+  "id": "N14",
+  "split": "dev",
+  "kind": "percent",
+  "route": "simple",
+  "question": "What percentage of its Approved Budget for the Contract is the contract amount of 24A00153?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "96.91",
+  "operands": [
+   {
+    "chunk": "664114f6-9be4-44e3-b776-c6199d6e8c65",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "1",
+    "label": "24A00153 contract amount",
+    "cell": "140,274,481.48"
+   },
+   {
+    "chunk": "efd84e2c-b171-4ed6-a7e8-29912aae3231",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "2",
+    "label": "24A00153 ABC",
+    "cell": "144,750,000.00"
+   }
+  ]
+ },
+ {
+  "id": "N15",
+  "split": "sealed",
+  "kind": "share",
+  "route": "simple",
+  "question": "What fraction of the Approved Budget for the Contract of 24AJ0052 does the contract amount represent?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "0.9750",
+  "operands": [
+   {
+    "chunk": "be883897-178d-40cb-bb18-0b2cb11067fa",
+    "source": "24aj0052_notice_of_award.pdf",
+    "page": "1",
+    "label": "24AJ0052 contract amount",
+    "cell": "19,109,972.23"
+   },
+   {
+    "chunk": "b892e348-52e1-4b06-aeae-127da35b5981",
+    "source": "I24AJ0052 - ADS - TB 24AJ0052.pdf",
+    "page": "1",
+    "label": "24AJ0052 ABC",
+    "cell": "19,600,000.00"
+   }
+  ]
+ },
+ {
+  "id": "N16",
+  "split": "dev",
+  "kind": "share",
+  "route": "simple",
+  "question": "What portion of the three bids as read for 24CC0265 belongs to Amethyst Horizon Builders?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": "0.3262",
+  "operands": [
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "source": "24CC0265 ROA.pdf",
+    "page": "1",
+    "label": "Amethyst",
+    "cell": "69,479,428.64"
+   },
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "source": "24CC0265 ROA.pdf",
+    "page": "1",
+    "label": "Sto. Cristo",
+    "cell": "71,651,188.89"
+   },
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "source": "24CC0265 ROA.pdf",
+    "page": "1",
+    "label": "5 Jewel",
+    "cell": "71,868,373.26"
+   }
+  ]
+ },
+ {
+  "id": "N17",
+  "split": "dev",
+  "kind": "lookup_simple",
+  "route": "simple",
+  "question": "What is the Approved Budget for the Contract of 24AJ0052?",
+  "expect": "answer",
+  "expected": [
+   "19600000.00"
+  ],
+  "reference": null,
+  "operands": [
+   {
+    "chunk": "b892e348-52e1-4b06-aeae-127da35b5981",
+    "source": "I24AJ0052 - ADS - TB 24AJ0052.pdf",
+    "page": "1",
+    "label": "24AJ0052 ABC",
+    "cell": "19,600,000.00"
+   }
+  ]
+ },
+ {
+  "id": "N18",
+  "split": "sealed",
+  "kind": "lookup_simple",
+  "route": "simple",
+  "question": "What is the Total Bid as Read of Sto. Cristo Construction and Trading Inc. for 24CC0265?",
+  "expect": "answer",
+  "expected": [
+   "71651188.89"
+  ],
+  "reference": null,
+  "operands": [
+   {
+    "chunk": "b7e9dfb6-4434-4b8f-80d4-0424b7e98401",
+    "source": "24CC0265 ROA.pdf",
+    "page": "1",
+    "label": "Sto. Cristo",
+    "cell": "71,651,188.89"
+   }
+  ]
+ },
+ {
+  "id": "N19",
+  "split": "dev",
+  "kind": "lookup_simple",
+  "route": "simple",
+  "question": "What is the discounted bid of Rodekom General Construction and Enterprise for 24A00153?",
+  "expect": "answer",
+  "expected": [
+   "140274481.48"
+  ],
+  "reference": null,
+  "operands": [
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "2",
+    "label": "Rodekom",
+    "cell": "140,274,481.48"
+   }
+  ]
+ },
+ {
+  "id": "N20",
+  "split": "dev",
+  "kind": "lookup_simple",
+  "route": "simple",
+  "question": "What is the contract amount of 24BG0272?",
+  "expect": "answer",
+  "expected": [
+   "96489983.04"
+  ],
+  "reference": null,
+  "operands": [
+   {
+    "chunk": "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
+    "source": "24bg0272-noa.pdf",
+    "page": "1",
+    "label": "24BG0272 contract amount",
+    "cell": "96,489,983.04"
+   }
+  ]
+ },
+ {
+  "id": "N21",
+  "split": "dev",
+  "kind": "lookup_simple",
+  "route": "simple",
+  "question": "What is the Approved Budget for the Contract of 24A00153?",
+  "expect": "answer",
+  "expected": [
+   "144750000.00"
+  ],
+  "reference": null,
+  "operands": [
+   {
+    "chunk": "efd84e2c-b171-4ed6-a7e8-29912aae3231",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "2",
+    "label": "24A00153 ABC",
+    "cell": "144,750,000.00"
+   }
+  ]
+ },
+ {
+  "id": "N22",
+  "split": "dev",
+  "kind": "lookup_simple",
+  "route": "simple",
+  "question": "What is the bid as read of Grace Construction Corporation for 24A00153?",
+  "expect": "answer",
+  "expected": [
+   "143298765.40"
+  ],
+  "reference": null,
+  "operands": [
+   {
+    "chunk": "3611e9c0-74d1-411b-bd11-6e8e41e46b37",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "2",
+    "label": "Grace",
+    "cell": "143,298,765.40"
+   }
+  ]
+ },
+ {
+  "id": "N23",
+  "split": "dev",
+  "kind": "lookup_fanout",
+  "route": "fanout",
+  "question": "What are the contract amounts of 24BJ0005 and 24BG0272?",
+  "expect": "answer",
+  "expected": [
+   "93990000.00",
+   "96489983.04"
+  ],
+  "reference": null,
+  "operands": [
+   {
+    "chunk": "850d2a06-83b3-4e2e-9aa6-109e0ec91f0c",
+    "source": "24bj0005_noa.pdf",
+    "page": "1",
+    "label": "24BJ0005 contract amount",
+    "cell": "93,990,000.00"
+   },
+   {
+    "chunk": "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
+    "source": "24bg0272-noa.pdf",
+    "page": "1",
+    "label": "24BG0272 contract amount",
+    "cell": "96,489,983.04"
+   }
+  ]
+ },
+ {
+  "id": "N24",
+  "split": "dev",
+  "kind": "lookup_fanout",
+  "route": "fanout",
+  "question": "What is the contract amount of each of 24AJ0052 and 24CC0265?",
+  "expect": "answer",
+  "expected": [
+   "19109972.23",
+   "69479428.64"
+  ],
+  "reference": null,
+  "operands": [
+   {
+    "chunk": "be883897-178d-40cb-bb18-0b2cb11067fa",
+    "source": "24aj0052_notice_of_award.pdf",
+    "page": "1",
+    "label": "24AJ0052 contract amount",
+    "cell": "19,109,972.23"
+   },
+   {
+    "chunk": "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+    "source": "24CC0265 NOA.pdf",
+    "page": "1",
+    "label": "24CC0265 contract amount",
+    "cell": "69,479,428.64"
+   }
+  ]
+ },
+ {
+  "id": "N25",
+  "split": "sealed",
+  "kind": "lookup_fanout",
+  "route": "fanout",
+  "question": "What is the contract amount for 24AJ0052, 24BG0272 and 24BJ0005?",
+  "expect": "answer",
+  "expected": [
+   "19109972.23",
+   "96489983.04",
+   "93990000.00"
+  ],
+  "reference": null,
+  "operands": [
+   {
+    "chunk": "be883897-178d-40cb-bb18-0b2cb11067fa",
+    "source": "24aj0052_notice_of_award.pdf",
+    "page": "1",
+    "label": "24AJ0052 contract amount",
+    "cell": "19,109,972.23"
+   },
+   {
+    "chunk": "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
+    "source": "24bg0272-noa.pdf",
+    "page": "1",
+    "label": "24BG0272 contract amount",
+    "cell": "96,489,983.04"
+   },
+   {
+    "chunk": "850d2a06-83b3-4e2e-9aa6-109e0ec91f0c",
+    "source": "24bj0005_noa.pdf",
+    "page": "1",
+    "label": "24BJ0005 contract amount",
+    "cell": "93,990,000.00"
+   }
+  ]
+ },
+ {
+  "id": "N26",
+  "split": "sealed",
+  "kind": "rank",
+  "route": "rank",
+  "question": "Which contract has the highest contract amount?",
+  "expect": "answer",
+  "expected": [
+   "140274481.48"
+  ],
+  "reference": null,
+  "operands": [
+   {
+    "chunk": "664114f6-9be4-44e3-b776-c6199d6e8c65",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "1",
+    "label": "24A00153 contract amount",
+    "cell": "140,274,481.48"
+   },
+   {
+    "chunk": "be883897-178d-40cb-bb18-0b2cb11067fa",
+    "source": "24aj0052_notice_of_award.pdf",
+    "page": "1",
+    "label": "24AJ0052 contract amount",
+    "cell": "19,109,972.23"
+   },
+   {
+    "chunk": "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
+    "source": "24bg0272-noa.pdf",
+    "page": "1",
+    "label": "24BG0272 contract amount",
+    "cell": "96,489,983.04"
+   },
+   {
+    "chunk": "850d2a06-83b3-4e2e-9aa6-109e0ec91f0c",
+    "source": "24bj0005_noa.pdf",
+    "page": "1",
+    "label": "24BJ0005 contract amount",
+    "cell": "93,990,000.00"
+   },
+   {
+    "chunk": "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+    "source": "24CC0265 NOA.pdf",
+    "page": "1",
+    "label": "24CC0265 contract amount",
+    "cell": "69,479,428.64"
+   }
+  ]
+ },
+ {
+  "id": "N27",
+  "split": "dev",
+  "kind": "rank",
+  "route": "rank",
+  "question": "Which contract has the lowest contract amount?",
+  "expect": "answer",
+  "expected": [
+   "19109972.23"
+  ],
+  "reference": null,
+  "operands": [
+   {
+    "chunk": "664114f6-9be4-44e3-b776-c6199d6e8c65",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "1",
+    "label": "24A00153 contract amount",
+    "cell": "140,274,481.48"
+   },
+   {
+    "chunk": "be883897-178d-40cb-bb18-0b2cb11067fa",
+    "source": "24aj0052_notice_of_award.pdf",
+    "page": "1",
+    "label": "24AJ0052 contract amount",
+    "cell": "19,109,972.23"
+   },
+   {
+    "chunk": "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
+    "source": "24bg0272-noa.pdf",
+    "page": "1",
+    "label": "24BG0272 contract amount",
+    "cell": "96,489,983.04"
+   },
+   {
+    "chunk": "850d2a06-83b3-4e2e-9aa6-109e0ec91f0c",
+    "source": "24bj0005_noa.pdf",
+    "page": "1",
+    "label": "24BJ0005 contract amount",
+    "cell": "93,990,000.00"
+   },
+   {
+    "chunk": "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+    "source": "24CC0265 NOA.pdf",
+    "page": "1",
+    "label": "24CC0265 contract amount",
+    "cell": "69,479,428.64"
+   }
+  ]
+ },
+ {
+  "id": "N28",
+  "split": "dev",
+  "kind": "aggregate",
+  "route": "aggregate",
+  "question": "What is the total contract amount of all the contracts?",
+  "expect": "answer",
+  "expected": [
+   "419343865.39"
+  ],
+  "reference": null,
+  "operands": [
+   {
+    "chunk": "664114f6-9be4-44e3-b776-c6199d6e8c65",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "1",
+    "label": "24A00153 contract amount",
+    "cell": "140,274,481.48"
+   },
+   {
+    "chunk": "be883897-178d-40cb-bb18-0b2cb11067fa",
+    "source": "24aj0052_notice_of_award.pdf",
+    "page": "1",
+    "label": "24AJ0052 contract amount",
+    "cell": "19,109,972.23"
+   },
+   {
+    "chunk": "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
+    "source": "24bg0272-noa.pdf",
+    "page": "1",
+    "label": "24BG0272 contract amount",
+    "cell": "96,489,983.04"
+   },
+   {
+    "chunk": "850d2a06-83b3-4e2e-9aa6-109e0ec91f0c",
+    "source": "24bj0005_noa.pdf",
+    "page": "1",
+    "label": "24BJ0005 contract amount",
+    "cell": "93,990,000.00"
+   },
+   {
+    "chunk": "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+    "source": "24CC0265 NOA.pdf",
+    "page": "1",
+    "label": "24CC0265 contract amount",
+    "cell": "69,479,428.64"
+   }
+  ]
+ },
+ {
+  "id": "N29",
+  "split": "sealed",
+  "kind": "aggregate",
+  "route": "aggregate",
+  "question": "What is the average awarded contract amount across all the contracts?",
+  "expect": "answer",
+  "expected": [
+   "83868773.08"
+  ],
+  "reference": null,
+  "operands": [
+   {
+    "chunk": "664114f6-9be4-44e3-b776-c6199d6e8c65",
+    "source": "24a00153_noa_bac_reso.pdf",
+    "page": "1",
+    "label": "24A00153 contract amount",
+    "cell": "140,274,481.48"
+   },
+   {
+    "chunk": "be883897-178d-40cb-bb18-0b2cb11067fa",
+    "source": "24aj0052_notice_of_award.pdf",
+    "page": "1",
+    "label": "24AJ0052 contract amount",
+    "cell": "19,109,972.23"
+   },
+   {
+    "chunk": "51c9f9af-7ef9-4520-8c30-dfbf17a59145",
+    "source": "24bg0272-noa.pdf",
+    "page": "1",
+    "label": "24BG0272 contract amount",
+    "cell": "96,489,983.04"
+   },
+   {
+    "chunk": "850d2a06-83b3-4e2e-9aa6-109e0ec91f0c",
+    "source": "24bj0005_noa.pdf",
+    "page": "1",
+    "label": "24BJ0005 contract amount",
+    "cell": "93,990,000.00"
+   },
+   {
+    "chunk": "afd8664e-570d-45ca-aed6-85e114aa1fc0",
+    "source": "24CC0265 NOA.pdf",
+    "page": "1",
+    "label": "24CC0265 contract amount",
+    "cell": "69,479,428.64"
+   }
+  ]
+ },
+ {
+  "id": "U01",
+  "split": "sealed",
+  "kind": "user",
+  "route": "simple",
+  "question": "By what amount did Amethyst Horizon Builders undercut 5 Jewel's Construction and Supply Corp.'s bid as read for 24CC0265?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": null,
+  "operands": []
+ },
+ {
+  "id": "U02",
+  "split": "sealed",
+  "kind": "user",
+  "route": "simple",
+  "question": "What value separates the highest and the lowest bid as read for 24A00153?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": null,
+  "operands": []
+ },
+ {
+  "id": "U03",
+  "split": "sealed",
+  "kind": "user",
+  "route": "simple",
+  "question": "What savings did the government realize on 24AJ0052 relative to the Approved Budget for the Contract?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": null,
+  "operands": []
+ },
+ {
+  "id": "U04",
+  "split": "sealed",
+  "kind": "user",
+  "route": "simple",
+  "question": "By what figure did the R.U. Aquino Construction's bid fall off from the Approved Budget for the Contract 24A00153?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": null,
+  "operands": []
+ },
+ {
+  "id": "U05",
+  "split": "sealed",
+  "kind": "user",
+  "route": "simple",
+  "question": "What was the monetary gap between the bids of Grace Construction Corporation and Rodekom General Construction and Enterprise for 24A00153?",
+  "expect": "withhold",
+  "expected": null,
+  "reference": null,
+  "operands": []
+ }
+]
