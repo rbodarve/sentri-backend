@@ -81,8 +81,11 @@ contract id stays filtered on every rung, an id not in the corpus is withheld be
 A contract-filtered pass sees only its own manifest row. It reuses `RagAnswerer.answer_once`,
 so it never adds a retrieval path and can't move recall. The rule is that no LLM computes: prompts forbid
 sums. A calc-cued one-contract question ("total / combined / difference ...") routes `calc`: the
-answer cites guarded operands and states no total (it stops wrong sums; it does not compute
-sums); it is strict: 1 of 7 service sums answered, 6 withheld, 0 wrong. An un-cued phrasing (e.g.
+answer cites guarded operands; when the operand set is pinned, `rag/calc.py` states the total in
+Decimal (168191b), else it states no total. Sealed G10: 1 of 18 correct, 1 wrong (G04, a calc
+phrasing routed `simple`); calc route 8 rows: 1 correct, 7 withheld, 0 wrong. Routing of new calc
+phrasings is unmeasured. Known limit (G-total residual): a named item whose row is in no retrieved
+chunk, with no stated count, can give a total that misses that item. An un-cued phrasing (e.g.
 "differ") still routes `simple`, and the model can compute there (sealed E13). The numeric grounding
 guard (`rag.verify.ungrounded_figures`, called by `agent._guard` on every model-written part, no retry)
 withholds a figure >= 1,000 that no context node or the question holds: sealed 0 of 11 leaked
@@ -122,7 +125,7 @@ embedding/reranker/LLM for better hardware without touching pipeline code. Defau
   `docs/queries.txt` questions as SSE client streams against a running `service/` (PART 1 as real
   sessions) and `eval/runs/judge_stream.py` scores them: 407/441 = 92.3% (R10, 2026-10-06;
   single-run noise ~±7). The calc route removed R9's 5 wrong model sums and lost 4 correct ones;
-  it states no total (R9: 415/441). ~4 h per run on two servers.
+  R10 predates 168191b, so it stated no total (R9: 415/441). ~4 h per run on two servers.
 - **Verify gate:** `.claude/verify.sh` (a Stop hook) validates `database/` OCR integrity on
   every turn. It must exit 0. It only checks JSON structure — it never re-OCRs.
   `.claude/` is gitignored, so this gate is local-only: a fresh clone has no verify.sh or hook.

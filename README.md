@@ -118,9 +118,12 @@ flowchart LR
 | Subject | [`rag/subject.py`](rag/subject.py) | Carries a conversation's contract into follow-up questions ("who signed *it*?"). |
 
 A calc-cued question about one contract ("the total / combined / difference of ...") routes `calc`:
-the answer cites each operand from its chunk, guards check them, and no total is stated. This stops
-wrong sums; it does not compute sums. It is safe but strict: through the service it answered 1 of
-7 sums from the queries set (0 wrong, no total stated) and withheld the other 6.
+the answer cites each operand from its chunk, and guards check them. When the operand set is pinned,
+[`rag/calc.py`](rag/calc.py) states the total in Decimal (since 168191b); otherwise no total is
+stated. On a sealed set of 24 rows (18 gated) it answered 1 of 18 correctly; the calc route took
+8 rows (1 correct, 7 withheld, 0 wrong), and the 1 wrong answer came from a calc phrasing routed
+`simple`. How the router handles new calc phrasings is unmeasured. Known limit: if a named item's
+row is in no retrieved chunk and the question states no count, the total can miss that item.
 
 An un-cued phrasing (for example "how much does A differ from B") still routes `simple`, and the
 model can compute there. A **numeric grounding guard** checks every model-written answer part: a
@@ -196,10 +199,12 @@ tunnel and test it from a simulated remote client.
   queryable manifest table.
 - **Model size.** Most of the remaining answer-level misses come from the 3B generator reading a
   long context poorly. The pipeline is built to swap in a stronger model through `RAG_GEN_MODEL`.
-- **Arithmetic.** A one-contract sum gets no computed total: the `calc` route cites the operands and
-  stops there, and its guards withhold most sums (1 of 7 answered through the service). Questions
-  without a calc cue word still reach the model; the numeric grounding guard withholds a computed
-  figure >= 1,000 that no source holds, but not a figure below 1,000 or an amount in words.
+- **Arithmetic.** The `calc` route states a Decimal total only when the operand set is pinned, and
+  its guards withhold most sums (sealed: 1 of 18 correct, calc route 0 wrong). Routing of new calc
+  phrasings is unmeasured, and a total can miss a named item whose row no retrieved chunk holds and
+  whose count the question does not state. Questions without a calc cue word still reach the model;
+  the numeric grounding guard withholds a computed figure >= 1,000 that no source holds, but not a
+  figure below 1,000 or an amount in words.
 
 ## Repository layout
 
