@@ -124,7 +124,8 @@ embedding/reranker/LLM for better hardware without touching pipeline code. Defau
 - **Full question set, through the service.** `eval/runs/stream_sim.py` replays all 441
   `docs/queries.txt` questions as SSE client streams against a running `service/` (PART 1 as real
   sessions) and `eval/runs/judge_stream.py` scores them: 407/441 = 92.3% (R10, 2026-10-06;
-  single-run noise ~±7). The calc route removed R9's 5 wrong model sums and lost 4 correct ones;
+  single-run noise ~±7); 408/441 with the 2026-10-08 judge, which scores a withhold like a decline
+  (PLAN.md Phase H; only #68 moves). The calc route removed R9's 5 wrong model sums and lost 4 correct ones;
   R10 predates 168191b, so it stated no total (R9: 415/441). ~4 h per run on two servers.
 - **Verify gate:** `.claude/verify.sh` (a Stop hook) validates `database/` OCR integrity on
   every turn. It must exit 0. It only checks JSON structure — it never re-OCRs.
