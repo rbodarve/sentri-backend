@@ -179,7 +179,7 @@ The remaining misses are:
 with [FastAPI](https://fastapi.tiangolo.com/):
 
 ```bash
-make serve    # POST /query, GET /health, GET /trace
+make serve    # POST /query, GET /health (GET /trace only with RAG_TRACE_ROUTE=1; then also HOST=127.0.0.1)
 curl -N -X POST localhost:8000/query -H 'content-type: application/json' \
   -d '{"query": "Which contractor was awarded contract 24AJ0052?", "session_id": "s1"}'
 ```

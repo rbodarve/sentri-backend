@@ -52,14 +52,16 @@ app = create_app(
 )
 
 # Disk-backed, time-bounded trace of every /query and its full SSE stream.
-# Read at GET /trace and /trace/{n}; finished records are appended to
-# service/traces.jsonl (gitignored) and survive a restart, with anything older
-# than the retention window (7 days) pruned on startup. Wrap AFTER the FastAPI
-# app is built so /trace is reachable through the middleware (which only taps
-# POST /query and passes everything else straight through).
+# Finished records are appended to service/traces.jsonl (gitignored) and
+# survive a restart, with anything older than the retention window (7 days)
+# pruned on startup. Wrap AFTER the FastAPI app is built so the middleware
+# (which only taps POST /query) passes everything else straight through.
+# GET /trace and /trace/{n} return every user's queries and answers with no
+# auth, so they exist only with RAG_TRACE_ROUTE=1. serve_ngrok.sh clears it.
 _trace_store = TraceStore()
 _session_store = SessionStore()
-add_trace_route(app, _trace_store)
+if os.getenv("RAG_TRACE_ROUTE") == "1":
+    add_trace_route(app, _trace_store)
 app = TracingMiddleware(app, _trace_store, _session_store)
 
 

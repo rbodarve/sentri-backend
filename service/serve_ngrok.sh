@@ -16,7 +16,9 @@ NGROK_LOG="/tmp/ngrok_sentri-backend.log"
 
 # Bind uvicorn to localhost only — ngrok is the public front door, so there's no
 # reason to also listen on 0.0.0.0. serve.sh execs uvicorn, so $! is the server.
-HOST=127.0.0.1 PORT="$PORT" bash "$HERE/serve.sh" &
+# RAG_TRACE_ROUTE= : never serve the unauthenticated /trace through the public
+# tunnel, even if the caller's shell exported RAG_TRACE_ROUTE=1.
+RAG_TRACE_ROUTE= HOST=127.0.0.1 PORT="$PORT" bash "$HERE/serve.sh" &
 SERVER_PID=$!
 
 cleanup() {

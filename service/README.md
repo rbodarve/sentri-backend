@@ -17,7 +17,7 @@ the single-pass RAG), streamed over HTTP as Server-Sent Events.
 | `pipeline.py` | **Seam 2/3** — `StreamingAgenticRag` wraps `rag.agent.AgenticRag` in the `run_stream(query, tracer, cancel_check)` contract and records per-stage progress. |
 | `seams.py` | **Seams 1, 4, 5 + augment** — `build_pipeline`, `summarize_stage`, `finalize`, `passthrough_query`. |
 | `app.py` | `create_app(...)` wiring + `uvicorn` entrypoint. |
-| `trace_recorder.py` | Session-history replay (`SessionStore`) + query tracing: `TracingMiddleware` taps `POST /query` and appends each finished record to `traces.jsonl` (gitignored, 7-day retention, survives a restart). Read back at `GET /trace` (all) or `GET /trace/{n}` (one). |
+| `trace_recorder.py` | Session-history replay (`SessionStore`) + query tracing: `TracingMiddleware` taps `POST /query` and appends each finished record to `traces.jsonl` (gitignored, 7-day retention, survives a restart). Read back at `GET /trace` (all) or `GET /trace/{n}` (one); these routes exist only with `RAG_TRACE_ROUTE=1` (no auth; `serve.sh` binds `0.0.0.0`, so also set `HOST=127.0.0.1`). |
 | `serve.sh` | Activates the `sentri-backend` env and launches uvicorn (mirrors `scripts/*.sh`). |
 | `serve_ngrok.sh` | Same as `serve.sh`, but also exposes the API over an ngrok tunnel and prints the public https URL. Optional — needs `ngrok` with an authtoken configured. |
 | `simulate_remote.sh` | `serve_ngrok.sh` + `remote_client.py`: a simulated third-party device queries the **public** ngrok URL, prints each streamed event, checks the stream, then tears everything down. |

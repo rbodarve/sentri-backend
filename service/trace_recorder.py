@@ -9,7 +9,8 @@ done / error) into a bounded in-memory ring, and appends each finished record to
 than `_MAX_AGE_DAYS` (7) are dropped from disk on startup and never served, so a
 trace lives at most a week regardless of how many times the process restarts.
 
-Read it back at GET /trace (all records) or GET /trace/{n} (one record).
+Read it back at GET /trace (all records) or GET /trace/{n} (one record); app.py
+adds these routes only with RAG_TRACE_ROUTE=1 (they have no auth).
 """
 from __future__ import annotations
 
