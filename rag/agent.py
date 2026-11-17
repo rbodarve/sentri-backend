@@ -9,7 +9,8 @@ Composes three behaviors on top of the deterministic pipeline, without replacing
                   "aggregate" (a corpus-wide total/average amount, computed in Decimal) |
                   "filter" (a corpus-wide "amount above / below X", compared in Decimal) |
                   "calc" (arithmetic over one contract's figures; out of scope -> withheld) |
-                  "compare" (a corpus-wide "above / below X" no manifest route parses -> withheld).
+                  "compare" (an "above / below X" over contracts no manifest route parses, whatever
+                  ids are named -> withheld).
   fan-out      -- a multi-contract question asking one intent of several contracts -- an
                   explicit id list, a distributive "each/all projects", or a corpus-wide sweep
                   ("... across the documents in the database") -- is split, by rule, into one
@@ -215,21 +216,23 @@ def is_filter_question(question: str) -> bool:
 
 
 def is_compare_question(question: str) -> bool:
-    """An amount or duration 'above / below X' over the contracts, with no contract id (Phase J).
-    Checked after rank / filter / aggregate: a threshold they do not parse (a bid amount, days, a
-    bare figure) is withheld, never compared by the LLM. A count ("more than 2 bidders") is not."""
-    return bool(not CONTRACT_ID_RE.search(question) and _RANK_SCOPE_RE.search(question)
-                and has_unit_threshold(question))
+    """An amount or duration 'above / below X' over contracts or projects (Phase J). classify()
+    checks it after rank / filter / aggregate and calc, whatever ids the question names: a
+    threshold they do not parse (a bid amount, days, a bare figure) is withheld, never compared by
+    the LLM. A count ("more than 2 bidders") is not. Not in is_corpus_wide: a pinned follow-up
+    keeps its pin, and a one-contract calc keeps its route."""
+    return bool(_RANK_SCOPE_RE.search(question) and has_unit_threshold(question))
 
 
 def is_corpus_wide(question: str) -> bool:
     """Every corpus-wide route cue, text-only. classify() takes a corpus-wide route only when this
     matches, and rag.subject never pins a session contract onto it -- one list, so a new route
-    cannot be added to one and missed in the other."""
+    cannot be added to one and missed in the other. Not the compare guard (is_compare_question):
+    it fires over any scope, pinned or not."""
     return bool(_LIST_CORPUS_RE.search(question) or _EACH_RE.search(question)
                 or _ANALYTICAL_RE.search(question) or _CORPUS_RE.search(question)
                 or is_rank_question(question) or is_aggregate_question(question)
-                or is_filter_question(question) or is_compare_question(question))
+                or is_filter_question(question))
 
 
 # Calculation cue (E3): arithmetic over ONE contract's figures. Positive cues only: "total" alone is
@@ -302,6 +305,8 @@ def calc_scope(question: str) -> CalcScope:
         word = multi.group(0).lower()
         name = "average" if word.startswith("average") else "per" if word == "per" else "percentage"
         return CalcScope("", f"multi-step calculation ({name})", calc, facts)
+    if has_threshold(calc):  # no calc step reads a threshold: a sum would silently drop it
+        return CalcScope("", "a threshold condition in the calculation", calc, facts)
     sub = _CALC_SUB_RE.search(calc)
     if _CALC_ADD_RE.search(calc) and sub:
         return CalcScope("", "more than one calculation in one question", calc, facts)
@@ -444,42 +449,50 @@ class AgenticRag:
         "enumerate","rank","aggregate","filter","calc","compare"}."""
         explicit = list(dict.fromkeys(m.upper() for m in CONTRACT_ID_RE.findall(question)))
         resolved = self._rag.resolve_contract_ids(question)  # resolve once, reuse (was up to 3x)
-        # A corpus-wide route needs its cue in is_corpus_wide (shared with rag.subject's pin rule).
-        if is_corpus_wide(question):
-            if not explicit and not resolved:
-                # "The total of the contracts above X": the threshold selects the summed amounts
-                # (see answer()). Before filter, which would only list them; not a rank question,
-                # so "the highest total amount of the contracts above X" ranks the subset.
-                if (contract_threshold(question) and is_aggregate_question(question)
-                        and not is_rank_question(question)):
-                    return "aggregate", sorted(self._known)
-                # Corpus-wide ranking ("which contract has the highest amount"): every contract's
-                # value is needed and the comparison must not be the LLM's, so it is answered by
-                # sorting the manifest (see answer()). Precedes enumerate so "list the contracts by
-                # amount" ranks. A parsed threshold ranks only the contracts it selects ("the lowest
-                # amount among the contracts above X"); so before filter, which would only list them.
-                # A threshold that does not parse ("... with a bid amount above X") falls through:
-                # ranking every contract would drop it. Here, not in is_rank_question: the aggregate
-                # rule above and rag.subject's no-pin rule still need the rank cue. A threshold is
-                # an amount, so a duration ranking with one falls through too.
-                if is_rank_question(question) and (not has_threshold(question)
-                                                   or (contract_threshold(question)
-                                                       and not ranks_duration(question))):
-                    return "rank", sorted(self._known)
-                # Corpus-wide amount filter ("which contracts have an amount above X"): each amount
-                # is compared in Decimal from the manifest (see answer()). Before enumerate: a
-                # threshold is the stronger cue, so "list the contracts above X" filters, never lists all.
-                if is_filter_question(question):
-                    return "filter", sorted(self._known)
-                # Corpus-wide total/average: every amount is an operand, so it is summed in Decimal
-                # from the manifest (see answer()), never by the LLM through a fan-out combine.
-                # After rank, so "the highest total amount" ranks.
-                if is_aggregate_question(question):
-                    return "aggregate", sorted(self._known)
-                # A threshold none of the three parsed: comparing is computing, and no LLM computes.
-                # Before enumerate and fan-out, which would hand the comparison to the LLM.
-                if is_compare_question(question):
-                    return "compare", []
+        # A corpus-wide route needs its cue in is_corpus_wide (shared with rag.subject's pin rule);
+        # compare is the one exception: a guard over any scope, not a corpus-wide route.
+        corpus = is_corpus_wide(question)
+        if corpus and not explicit and not resolved:
+            # "The total of the contracts above X": the threshold selects the summed amounts
+            # (see answer()). Before filter, which would only list them; not a rank question,
+            # so "the highest total amount of the contracts above X" ranks the subset.
+            if (contract_threshold(question) and is_aggregate_question(question)
+                    and not is_rank_question(question)):
+                return "aggregate", sorted(self._known)
+            # Corpus-wide ranking ("which contract has the highest amount"): every contract's
+            # value is needed and the comparison must not be the LLM's, so it is answered by
+            # sorting the manifest (see answer()). Precedes enumerate so "list the contracts by
+            # amount" ranks. A parsed threshold ranks only the contracts it selects ("the lowest
+            # amount among the contracts above X"); so before filter, which would only list them.
+            # A threshold that does not parse ("... with a bid amount above X") falls through:
+            # ranking every contract would drop it. Here, not in is_rank_question: the aggregate
+            # rule above and rag.subject's no-pin rule still need the rank cue. A threshold is
+            # an amount, so a duration ranking with one falls through too.
+            if is_rank_question(question) and (not has_threshold(question)
+                                               or (contract_threshold(question)
+                                                   and not ranks_duration(question))):
+                return "rank", sorted(self._known)
+            # Corpus-wide amount filter ("which contracts have an amount above X"): each amount
+            # is compared in Decimal from the manifest (see answer()). Before enumerate: a
+            # threshold is the stronger cue, so "list the contracts above X" filters, never lists all.
+            if is_filter_question(question):
+                return "filter", sorted(self._known)
+            # Corpus-wide total/average: every amount is an operand, so it is summed in Decimal
+            # from the manifest (see answer()), never by the LLM through a fan-out combine.
+            # After rank, so "the highest total amount" ranks.
+            if is_aggregate_question(question):
+                return "aggregate", sorted(self._known)
+        ids = explicit or sorted(resolved)
+        # Arithmetic over one contract's figures: computed in Decimal, never by the LLM (see answer()).
+        # Needs no corpus-wide cue, so it never competes with the corpus routes below. A threshold
+        # in the calc part is withheld by calc_scope, never dropped.
+        if not corpus and len(set(ids)) == 1 and is_calc_question(question):
+            return "calc", ids
+        # The general guard (Phase J6): a threshold no route above parsed reaches no LLM route,
+        # whatever ids are named, resolved or pinned. Comparing is computing, and no LLM computes.
+        if is_compare_question(question):
+            return "compare", []
+        if corpus:
             # Corpus-wide enumeration: a "list the projects/contracts/locations" question with no
             # explicit id and no resolvable location -- its complete answer IS the manifest, so
             # answer by deterministic enumeration (see answer()), not lossy/nondeterministic
@@ -501,10 +514,6 @@ class AgenticRag:
                 # location-scoped "all projects in X" doesn't fan out over the whole corpus.
                 scope = sorted(resolved) if resolved else sorted(self._known)
                 return ("simple" if len(scope) <= 1 else "fanout"), scope
-        ids = explicit or sorted(resolved)
-        # Arithmetic over one contract's figures: computed in Decimal, never by the LLM (see answer()).
-        if len(set(ids)) == 1 and is_calc_question(question):
-            return "calc", ids
         if len(set(ids)) <= 1:
             return "simple", ids
         m = _MULTI_ID_RE.search(question)
@@ -798,6 +807,9 @@ def _self_check() -> None:
         assert not is_calc_question(q), f"a lookup has a calc cue: {q!r}"
     scope = calc_scope("What is the total cost of 24CC0265, and which items are listed in Part A?")
     assert not scope.op and "no calculation" in scope.reason, f"CR5: 0 calc clauses: {scope}"
+    # J6 CR1: no calc step reads a threshold, so a sum under one would silently drop it.
+    scope = calc_scope("What is the combined amount of the projects in Leyte over 200 days?")
+    assert not scope.op and "threshold" in scope.reason, f"J6 CR1: threshold dropped: {scope}"
     print(f"OK: calc_scope pins ({len(rows)} E1 dev rows, {len(expected)} kinds)")
     # Both pin sets run and print before one assert: a failing calc pin never hides a guard pin.
     calc_results, guard_results = _calc_pins(rows), _guard_pins()

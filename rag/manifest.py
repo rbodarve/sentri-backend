@@ -302,7 +302,7 @@ _DURATION_NEXT_RE = re.compile(
     r"\s*(?:(?:calendar|working)[ -]?days?|days?|weeks?|months?|years?|CDs?)\b", re.I)
 # Stricter than _CLAUSE_END_RE: a bare figure before "and" / "or" / a comma can be a count or a
 # year ("more than 2 and fewer than 5 bidders", "under 2024, and who won").
-_SENTENCE_END_RE = re.compile(r"\s*(?:[?.!]|$)")
+_FIGURE_ENDS_RE = re.compile(r"\s*(?:[?.!]|$)")
 
 
 def has_unit_threshold(question: str) -> bool:
@@ -311,7 +311,7 @@ def has_unit_threshold(question: str) -> bool:
     figure ends the sentence ("contracts above 300?"). A count ("more than 2 bidders") or a year
     ("under 2024 funding") is not."""
     return any(m["peso"] or m["scale"] or m["pesos"] or _DURATION_NEXT_RE.match(question, m.end())
-               or _SENTENCE_END_RE.match(question, m.end()) for m in _THRESHOLD_RE.finditer(question))
+               or _FIGURE_ENDS_RE.match(question, m.end()) for m in _THRESHOLD_RE.finditer(question))
 
 
 def parse_threshold(question: str, after: re.Pattern | None = None,

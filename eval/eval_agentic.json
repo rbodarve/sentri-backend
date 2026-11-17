@@ -814,5 +814,48 @@
     "expect": "withhold",
     "withhold_reason": ["comparison across contracts"],
     "note": "Phase J5 review r3: a duration in working days; withheld, no model compares."
+  },
+  {
+    "query": "Which projects in Bulacan are over 300 days?",
+    "kind": "compare",
+    "expect": "withhold",
+    "withhold_reason": ["comparison across contracts"],
+    "note": "Phase J6 review r4: a location scope; the general guard withholds, no model compares."
+  },
+  {
+    "query": "Which contracts other than 24CM0001 are over 300 days?",
+    "kind": "compare",
+    "expect": "withhold",
+    "withhold_reason": ["comparison across contracts"],
+    "note": "Phase J6 review r5: a named id does not lift the guard."
+  },
+  {
+    "query": "Which of contracts 24A00153, 24BG0272 and 24CC0265 are above 90 million?",
+    "kind": "compare",
+    "expect": "withhold",
+    "withhold_reason": ["comparison across contracts"],
+    "note": "Phase J6 follow-up a1: listed ids (was semantic); withheld, no model compares."
+  },
+  {
+    "query": "Are contracts 24A00153 and 24CC0265 above 90 million?",
+    "kind": "compare",
+    "expect": "withhold",
+    "withhold_reason": ["comparison across contracts"],
+    "note": "Phase J6 follow-up a1: listed ids (was fanout); withheld, no model compares."
+  },
+  {
+    "query": "Were any of its projects' bids above 5 million pesos?",
+    "kind": "compare",
+    "expect": "withhold",
+    "withhold_reason": ["comparison across contracts"],
+    "session": "24CM0001",
+    "pinned": ["24CM0001"],
+    "note": "Phase J6 review r6: the follow-up keeps its pin, and the guard still withholds (decided: no exemption)."
+  },
+  {
+    "query": "What is the combined bid amount of the bidders above 5 million pesos for the projects in Bulacan?",
+    "kind": "calc",
+    "expect": "route",
+    "note": "Phase J6 review r7: one location-resolved contract with a calc cue routes calc; the threshold does not block it."
   }
 ]
