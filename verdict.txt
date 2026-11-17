@@ -123,7 +123,9 @@ STEPS TO MAKE IT SCALABLE (IN DEPENDENCY ORDER)
    above X)", "longest / rank by duration", "total / average
    amount (of the contracts above X)" and "amount above / below X": code sorts, sums or compares the
    manifest amounts in Decimal, no prompt -- at scale they become an
-   ORDER BY / SUM / AVG / WHERE over the table. This is consistent with the current arithmetic rule (2026-09-26): no
+   ORDER BY / SUM / AVG / WHERE over the table. A corpus-wide amount or
+   duration threshold none of them parse routes `compare` and is withheld
+   (2026-11-17): at scale it needs a typed column, not an LLM comparison. This is consistent with the current arithmetic rule (2026-09-26): no
    LLM ever computes -- a calc-cued question routes `calc`, which cites
    guarded operands and states no total (it stops wrong sums; it does not
    compute sums; through the service it answered 1 of 7 sums, 0 wrong); an

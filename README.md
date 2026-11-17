@@ -98,6 +98,7 @@ flowchart LR
     Q([question]) --> A[agent: router]
     A -->|simple / fan-out / semantic| G[generate: filter → rerank<br/>→ neighbours → LLM]
     A -->|enumerate / rank / aggregate / filter / analytical| M
+    A -->|compare: threshold no route parses| W
     I --> G
     G --> V{verify}
     V -->|grounded| OUT([cited answer])
@@ -114,7 +115,7 @@ flowchart LR
 | Rerank | [`rag/rerank.py`](rag/rerank.py) | CPU cross-encoder [BAAI/bge-reranker-base](https://huggingface.co/BAAI/bge-reranker-base). It takes 40 candidates, labels each with its document type and contract, and keeps the top 10. |
 | Generate | [`rag/generate.py`](rag/generate.py) | Retrieval filtered to the contract, reranked, neighbour-expanded, and trimmed to fit a single `num_ctx` call. The answer cites its sources. |
 | Verify | [`rag/verify.py`](rag/verify.py) | Deterministic grounding check against the manifest: flags invented contract ids and mis-bound locations, contractors or people. |
-| Agent | [`rag/agent.py`](rag/agent.py) | Routes each question (`simple`, `fanout`, `semantic`, `enumerate`, `rank`, `aggregate`, `filter` or `analytical`) and fans corpus-wide questions out per contract. `rank` ("which contract has the highest amount", optionally "among the contracts above X", or "the longest duration") sorts the manifest amounts or durations in code, `aggregate` ("the total / average amount of the contracts", optionally "above X") sums them in code, and `filter` ("which / how many contracts have an amount above 100 million") compares each with the threshold in code; no LLM compares or adds numbers. Failed answers retry through a verifier-driven ladder: widen k, then withhold. |
+| Agent | [`rag/agent.py`](rag/agent.py) | Routes each question (`simple`, `fanout`, `semantic`, `enumerate`, `rank`, `aggregate`, `filter`, `analytical`, `calc` or `compare`) and fans corpus-wide questions out per contract. `rank` ("which contract has the highest amount", optionally "among the contracts above X", or "the longest duration") sorts the manifest amounts or durations in code, `aggregate` ("the total / average amount of the contracts", optionally "above X") sums them in code, and `filter` ("which / how many contracts have an amount above 100 million") compares each with the threshold in code; no LLM compares or adds numbers. A corpus-wide amount or duration threshold that none of these parse ("bids above 50 million", "longer than 300 days") routes `compare` and is withheld with the reason. Failed answers retry through a verifier-driven ladder: widen k, then withhold. |
 | Subject | [`rag/subject.py`](rag/subject.py) | Carries a conversation's contract into follow-up questions ("who signed *it*?"). |
 
 A calc-cued question about one contract ("the total / combined / difference of ...") routes `calc`:
@@ -156,7 +157,7 @@ Every model and retrieval knob is an environment variable read in [`rag/config.p
 | Suite | Command | Ground truth | Latest result |
 |---|---|---|---|
 | Retrieval recall (the gate) | `make eval` | [`eval/eval_retrieval.json`](eval/eval_retrieval.json), 40 questions | hit rate **1.000** (single, broad and complex) |
-| Agent, answer level | `make eval-agentic` | [`eval/eval_agentic.json`](eval/eval_agentic.json), 89 questions incl. 2 withhold traps, 8 rank, 13 aggregate and 18 filter questions, 40 look-alikes and 1 accepted fall-through (routing only) | **89/89** |
+| Agent, answer level | `make eval-agentic` | [`eval/eval_agentic.json`](eval/eval_agentic.json), 126 questions incl. 2 withhold traps, rank / aggregate / filter / calc questions, 25 `compare` withholds and their look-alikes (routing only) | **121/122** (2026-11-17; the 4 rows added after it are route-checked) |
 | Full question set through the streaming service | local harness | 441 questions from the local, untracked `docs/queries.txt` | **415/441 = 94.1%** (2026-10-05) |
 
 The one failing agent row is a known model miss. In the 24CM0001 notice to proceed the contractor

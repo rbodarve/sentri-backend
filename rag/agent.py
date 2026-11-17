@@ -8,7 +8,8 @@ Composes three behaviors on top of the deterministic pipeline, without replacing
                   corpus-wide "highest / rank by amount", the manifest amounts sorted in Decimal) |
                   "aggregate" (a corpus-wide total/average amount, computed in Decimal) |
                   "filter" (a corpus-wide "amount above / below X", compared in Decimal) |
-                  "calc" (arithmetic over one contract's figures; out of scope -> withheld).
+                  "calc" (arithmetic over one contract's figures; out of scope -> withheld) |
+                  "compare" (a corpus-wide "above / below X" no manifest route parses -> withheld).
   fan-out      -- a multi-contract question asking one intent of several contracts -- an
                   explicit id list, a distributive "each/all projects", or a corpus-wide sweep
                   ("... across the documents in the database") -- is split, by rule, into one
@@ -52,7 +53,8 @@ from rag.config import AGENT_MAX_ATTEMPTS, AGENT_WIDE_TOP_N
 from rag.enrich import CONTRACT_ID_RE
 from rag.generate import RagAnswerer
 from rag.manifest import (format_aggregate, format_enumeration, format_filter, format_ranking,
-                          has_threshold, parse_threshold, threshold_ends_clause)
+                          has_threshold, has_unit_threshold, parse_threshold,
+                          threshold_ends_clause)
 from rag.rerank import get_reranker
 from rag.verify import Report, ungrounded_figures
 
@@ -212,6 +214,14 @@ def is_filter_question(question: str) -> bool:
                 and contract_threshold(question))
 
 
+def is_compare_question(question: str) -> bool:
+    """An amount or duration 'above / below X' over the contracts, with no contract id (Phase J).
+    Checked after rank / filter / aggregate: a threshold they do not parse (a bid amount, days, a
+    bare figure) is withheld, never compared by the LLM. A count ("more than 2 bidders") is not."""
+    return bool(not CONTRACT_ID_RE.search(question) and _RANK_SCOPE_RE.search(question)
+                and has_unit_threshold(question))
+
+
 def is_corpus_wide(question: str) -> bool:
     """Every corpus-wide route cue, text-only. classify() takes a corpus-wide route only when this
     matches, and rag.subject never pins a session contract onto it -- one list, so a new route
@@ -219,7 +229,7 @@ def is_corpus_wide(question: str) -> bool:
     return bool(_LIST_CORPUS_RE.search(question) or _EACH_RE.search(question)
                 or _ANALYTICAL_RE.search(question) or _CORPUS_RE.search(question)
                 or is_rank_question(question) or is_aggregate_question(question)
-                or is_filter_question(question))
+                or is_filter_question(question) or is_compare_question(question))
 
 
 # Calculation cue (E3): arithmetic over ONE contract's figures. Positive cues only: "total" alone is
@@ -431,7 +441,7 @@ class AgenticRag:
     # -- routing -------------------------------------------------------------------------
     def classify(self, question: str) -> tuple[str, list[str]]:
         """(kind, ordered contract ids). kind in {"simple","fanout","semantic","analytical",
-        "enumerate","rank","aggregate","filter","calc"}."""
+        "enumerate","rank","aggregate","filter","calc","compare"}."""
         explicit = list(dict.fromkeys(m.upper() for m in CONTRACT_ID_RE.findall(question)))
         resolved = self._rag.resolve_contract_ids(question)  # resolve once, reuse (was up to 3x)
         # A corpus-wide route needs its cue in is_corpus_wide (shared with rag.subject's pin rule).
@@ -466,6 +476,10 @@ class AgenticRag:
                 # After rank, so "the highest total amount" ranks.
                 if is_aggregate_question(question):
                     return "aggregate", sorted(self._known)
+                # A threshold none of the three parsed: comparing is computing, and no LLM computes.
+                # Before enumerate and fan-out, which would hand the comparison to the LLM.
+                if is_compare_question(question):
+                    return "compare", []
             # Corpus-wide enumeration: a "list the projects/contracts/locations" question with no
             # explicit id and no resolvable location -- its complete answer IS the manifest, so
             # answer by deterministic enumeration (see answer()), not lossy/nondeterministic
@@ -649,6 +663,12 @@ class AgenticRag:
                                       field="duration" if ranks_duration(question) else "amount")
             stage("combine", {"strategy": kind, "ok": True})
             return AgentResult(question, kind, text, Report(blocks=[], flags=[]), [])
+
+        if kind == "compare":  # withhold with the reason, never compare
+            stage("combine", {"strategy": kind, "ok": False})
+            return AgentResult(question, kind, "", Report(blocks=[
+                "comparison across contracts withheld: no manifest route parses this threshold, "
+                "and no model compares"], flags=[]), [])
 
         if kind == "calc":
             scope = calc_scope(question)

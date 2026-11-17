@@ -67,14 +67,17 @@ kind, check its unlabelled siblings: a label makes a chunk outrank them.
 
 `agent.py` is the **agentic layer** over `generate.py` (it does not replace it): a
 deterministic router classifies each question `simple | fanout | semantic | enumerate | rank |
-aggregate | filter | analytical`. Fan-out splits a contiguous multi-contract question, an "each/all projects"
+aggregate | filter | analytical | calc | compare`. Fan-out splits a contiguous multi-contract question, an "each/all projects"
 question, or a corpus-wide sweep ("... across the documents in the database") into one
 single-contract sub-question each (by rule), and withholds only a part that fails the check.
 `semantic` multi-hop questions are decomposed by the LLM (the only place the LLM drives
 control); `enumerate`/`rank`/`aggregate`/`filter`/`analytical` answer from the manifest (`rank` — a corpus-wide
 "highest / rank by amount", optionally among the contracts above / below X, or "longest / rank by duration" — sorts the manifest amounts or durations in Decimal, and `aggregate` — a corpus-wide
 total/average amount, optionally of the contracts above / below X — sums them in Decimal, and `filter` — a corpus-wide "amount above / below
-X", or "how many contracts are above X" — compares each with the threshold in Decimal, all with no LLM. The manifest
+X", or "how many contracts are above X" — compares each with the threshold in Decimal, all with no LLM. A corpus-wide amount or duration
+threshold none of these parse (a bid amount, days, a bare figure ending its clause; no contract id)
+routes `compare` and is withheld (Phase J), never compared by the LLM; a count ("more than 2
+bidders") is not a threshold. The manifest
 `duration` is read by regex, not the LLM: 3 of 6 contracts state one;
 `python -m rag.manifest --durations` adds it to a built manifest). Every sub-answer runs the
 deterministic route + `Verifier` inside a self-correction ladder (widen k → withhold; a known
