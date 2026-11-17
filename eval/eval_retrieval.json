@@ -878,9 +878,9 @@
     "contract_id": null,
     "intent": "max_duration",
     "anchors": [
-      "240 (two hundred forty)",
+      "240",
       "163 Calendar Days",
-      "Twenty One (321)"
+      "321"
     ],
     "expected_ids": [
       "522f83cf-4a8f-4c48-bb10-610539ef3c46",

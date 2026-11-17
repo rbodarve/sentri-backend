@@ -106,13 +106,15 @@ _ANALYTICAL_RE = re.compile(
 # ("from smallest to largest" -> ascending); a list verb (rank/sort/"order by"/"in ... order")
 # or superlatives of both directions ask for the full order, else the top contract. A bare
 # "order" is not a list verb: "the change order amount" names a document.
-_SUPERLATIVE_RE = re.compile(r"\b(highest|largest|biggest|lowest|smallest)\b", re.I)
-_HIGH_WORDS = ("highest", "largest", "biggest")
+_SUPERLATIVE_RE = re.compile(r"\b(highest|largest|biggest|longest|lowest|smallest|shortest)\b", re.I)
+_HIGH_WORDS = ("highest", "largest", "biggest", "longest")
 _RANK_LIST_RE = re.compile(
     r"\b(?:rank(?:ed|ing)?|sort(?:ed)?|order(?:ed)?\s+by|"
     r"in\s+(?:(?:ascending|descending|increasing|decreasing|reverse)\s+)?order)\b", re.I
 )
 _RANK_FIELD_RE = re.compile(r"\b(?:amounts?|price|cost)\b", re.I)
+# The manifest's regex `duration` field ("the longest construction duration"); amount wins a tie.
+_RANK_DURATION_RE = re.compile(r"\b(?:duration|calendar\s+days|completion\s+time)\b", re.I)
 # ...and it must range over contracts: "which contract", "the contracts", "the corpus". Without
 # this, a per-contract follow-up ("which bidder had the lowest bid amount", "the change order")
 # would rank the whole corpus and lose its session pin.
@@ -123,7 +125,13 @@ def is_rank_question(question: str) -> bool:
     """The corpus-wide ranking cue (order word AND ranked field AND corpus scope), shared with
     rag.subject so a session never pins its contract onto a question the router ranks."""
     return bool((_SUPERLATIVE_RE.search(question) or _RANK_LIST_RE.search(question))
-                and _RANK_FIELD_RE.search(question) and _RANK_SCOPE_RE.search(question))
+                and (_RANK_FIELD_RE.search(question) or _RANK_DURATION_RE.search(question))
+                and _RANK_SCOPE_RE.search(question))
+
+
+def ranks_duration(question: str) -> bool:
+    """A rank question on the manifest `duration` field (amount wins a tie)."""
+    return bool(_RANK_DURATION_RE.search(question) and not _RANK_FIELD_RE.search(question))
 
 # Corpus-wide aggregate cue: a total/average word AND the summed field named AND corpus scope
 # ("the combined total of all the awarded contract amounts", "the total amount of all contracts").
@@ -442,9 +450,11 @@ class AgenticRag:
                 # amount among the contracts above X"); so before filter, which would only list them.
                 # A threshold that does not parse ("... with a bid amount above X") falls through:
                 # ranking every contract would drop it. Here, not in is_rank_question: the aggregate
-                # rule above and rag.subject's no-pin rule still need the rank cue.
+                # rule above and rag.subject's no-pin rule still need the rank cue. A threshold is
+                # an amount, so a duration ranking with one falls through too.
                 if is_rank_question(question) and (not has_threshold(question)
-                                                   or contract_threshold(question)):
+                                                   or (contract_threshold(question)
+                                                       and not ranks_duration(question))):
                     return "rank", sorted(self._known)
                 # Corpus-wide amount filter ("which contracts have an amount above X"): each amount
                 # is compared in Decimal from the manifest (see answer()). Before enumerate: a
@@ -635,7 +645,8 @@ class AgenticRag:
                 both_ends = len(set(highs)) == 2  # "highest and the lowest": show the full order
                 text = format_ranking(self._rag.manifest, descending,
                                       top_only=not (both_ends or _RANK_LIST_RE.search(question)),
-                                      threshold=contract_threshold(question))
+                                      threshold=contract_threshold(question),
+                                      field="duration" if ranks_duration(question) else "amount")
             stage("combine", {"strategy": kind, "ok": True})
             return AgentResult(question, kind, text, Report(blocks=[], flags=[]), [])
 

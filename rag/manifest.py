@@ -35,6 +35,7 @@ import re
 import sys
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
+from typing import Callable, NamedTuple
 
 from rag.config import PERSIST_DIR, get_llm
 
@@ -111,6 +112,27 @@ def _derive_short_name(contract_name: str, location: str) -> str:
     return f"{ptype}{waterway}" + (f", {loc}" if loc else "")
 
 
+# A contract duration is "N calendar days" in a sentence that names completion or the duration
+# before it -- not the Notice of Award's "within ten (10) calendar days" signing window. No LLM:
+# the count is read by regex, so a manifest refresh never drifts the LLM-extracted fields.
+_DAYS_RE = re.compile(r"calendar[\s-]+days?\b", re.I)
+_DURATION_CUE_RE = re.compile(r"\b(?:complet\w*|duration)\b", re.I)
+_SENTENCE_END_RE = re.compile(r"[.;](?:\s|$)")  # not the "." inside "96,489,983.04"
+
+
+def contract_duration(nodes) -> str:
+    """A contract's duration as "N calendar days", from its own OCR chunks; "not stated" when no
+    chunk states one, or when they state different counts (never a guess between them)."""
+    counts: set[int] = set()
+    for node in nodes:
+        for m in _DAYS_RE.finditer(node.text):
+            sentence = _SENTENCE_END_RE.split(node.text[:m.start()])[-1]
+            numbers = re.findall(r"\d+", sentence)
+            if numbers and _DURATION_CUE_RE.search(sentence):
+                counts.add(int(numbers[-1]))  # the last number: "Twenty One (321)" -> 321
+    return f"{counts.pop()} calendar days" if len(counts) == 1 else "not stated"
+
+
 def _parse_extraction(raw: str) -> tuple[dict, bool]:
     """Pull the JSON object out of the LLM reply. Returns (record, parsed_ok): every field falls
     back to 'not stated', and parsed_ok is False when the reply carried no parseable JSON object.
@@ -181,12 +203,19 @@ def build_manifest(nodes=None, persist: bool = True) -> list[dict]:
         if persist:  # persist after each extraction so an interruption keeps completed work
             MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
 
+    _add_durations(manifest, by_contract)
     if persist:
         MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     if parse_failures:
         print(f"manifest: {len(parse_failures)}/{len(by_contract)} extraction(s) failed to parse: "
               f"{', '.join(parse_failures)}", file=sys.stderr)
     return manifest
+
+
+def _add_durations(manifest: list[dict], by_contract: dict[str, list]) -> None:
+    """Set each record's regex `duration` (see contract_duration) -- no LLM call."""
+    for record in manifest:
+        record["duration"] = contract_duration(by_contract[record["contract_id"]])
 
 
 def load_manifest() -> list[dict]:
@@ -211,6 +240,7 @@ def format_manifest_row(r: dict) -> str:
     return (f"Contract {r['contract_id']}: {r['contract_name']} | "
             f"location: {r['location']} | office: {r['implementing_office']} | "
             f"contractor: {r['contractor']} | amount: {r['amount']} | "
+            f"duration: {r.get('duration', 'not stated')} | "
             f"documents: {', '.join(r['doc_types'])}")
 
 
@@ -293,14 +323,22 @@ def parse_threshold(question: str, after: re.Pattern | None = None,
     return op, Decimal(m["num"].replace(",", "")) * scale
 
 
+def parse_duration(text: str | None) -> Decimal | None:
+    """A manifest duration ('321 calendar days', see contract_duration) as a Decimal; None for
+    'not stated'."""
+    m = re.fullmatch(r"(\d+) calendar days", text or "")
+    return Decimal(m.group(1)) if m else None
+
+
 def format_ranking(manifest: list[dict], descending: bool, top_only: bool,
-                   threshold: tuple[str, Decimal] | None = None) -> str:
-    """Deterministic answer to a corpus-wide 'highest / rank by amount' question: the verbatim
-    manifest amounts compared in Decimal -- no LLM orders numbers. A threshold (op, X) from
-    parse_threshold first keeps only the amounts that compare true ("the lowest amount among the
-    contracts above X"). A contract without a parseable amount is named as not ranked, with its
+                   threshold: tuple[str, Decimal] | None = None, field: str = "amount") -> str:
+    """Deterministic answer to a corpus-wide 'highest / rank by amount' (or 'longest duration')
+    question: the manifest values compared in Decimal -- no LLM orders numbers. A threshold (op, X)
+    from parse_threshold first keeps only the amounts that compare true ("the lowest amount among
+    the contracts above X"). A contract without a parseable value is named as not ranked, with its
     verbatim manifest value, never dropped silently."""
-    stated, unstated = _stated_amounts(manifest)
+    words = _RANKED[field]
+    stated, unstated = _stated_amounts(manifest, field)
     cond = ""
     if threshold:
         op, x = threshold
@@ -309,15 +347,15 @@ def format_ranking(manifest: list[dict], descending: bool, top_only: bool,
     ranked = [r for _, r in sorted(stated, key=lambda ar: ar[0], reverse=descending)]
     noun = "contract" if len(ranked) == 1 else "contracts"
     if not ranked:
-        lines = [f"No contract has a stated amount{cond}."]
+        lines = [f"No contract has a stated {field}{cond}."]
     elif top_only:
-        word = "highest" if descending else "lowest"
-        lines = [f"Of the {len(ranked)} {noun} with a stated amount{cond}, the {word} is "
-                 f"{_amount_row(ranked[0])}."]
+        word = words.high if descending else words.low
+        lines = [f"Of the {len(ranked)} {noun} with a stated {field}{cond}, the {word} is "
+                 f"{_amount_row(ranked[0], field)}."]
     else:
-        order = "largest to smallest" if descending else "smallest to largest"
-        lines = [f"The {len(ranked)} {noun} with a stated amount{cond}, {order}:"]
-        lines += [f"{i}. {_amount_row(r)}" for i, r in enumerate(ranked, 1)]
+        order = words.order_high if descending else words.order_low
+        lines = [f"The {len(ranked)} {noun} with a stated {field}{cond}, {order}:"]
+        lines += [f"{i}. {_amount_row(r, field)}" for i, r in enumerate(ranked, 1)]
     if unstated:
         lines.append(f"Not ranked {unstated}")
     return "\n".join(lines)
@@ -369,19 +407,39 @@ def format_filter(manifest: list[dict], op: str, threshold: Decimal) -> str:
     return "\n".join(lines)
 
 
-def _stated_amounts(manifest: list[dict]) -> tuple[list[tuple[Decimal, dict]], str]:
-    """(every (Decimal amount, row) the manifest states, in manifest order; the tail naming each
-    contract without one with its verbatim value, '' if none) -- shared by rank, aggregate, filter."""
-    parsed = [(parse_amount(r.get("amount")), r) for r in manifest]
-    missing = [f"Contract {r['contract_id']} ({r.get('amount') or 'not stated'})"
+class _Ranked(NamedTuple):
+    """One ranked manifest field: its parser, its words, and why a row is not ranked."""
+    parse: Callable[[str | None], Decimal | None]
+    high: str
+    low: str
+    order_high: str
+    order_low: str
+    why: str
+
+
+_RANKED = {
+    "amount": _Ranked(parse_amount, "highest", "lowest", "largest to smallest", "smallest to largest",
+                      "no single peso amount in the manifest"),
+    "duration": _Ranked(parse_duration, "longest", "shortest", "longest to shortest",
+                        "shortest to longest", "no duration in calendar days in the manifest"),
+}
+
+
+def _stated_amounts(manifest: list[dict], field: str = "amount") -> tuple[list[tuple[Decimal, dict]], str]:
+    """(every (Decimal value, row) the manifest states for `field`, in manifest order; the tail
+    naming each contract without one with its verbatim value, '' if none) -- shared by rank,
+    aggregate, filter."""
+    ranked = _RANKED[field]
+    parsed = [(ranked.parse(r.get(field)), r) for r in manifest]
+    missing = [f"Contract {r['contract_id']} ({r.get(field) or 'not stated'})"
                for a, r in parsed if a is None]
-    tail = f"(no single peso amount in the manifest): {', '.join(missing)}." if missing else ""
+    tail = f"({ranked.why}): {', '.join(missing)}." if missing else ""
     return [(a, r) for a, r in parsed if a is not None], tail
 
 
-def _amount_row(r: dict) -> str:
-    """One contract's line in the deterministic amount answers (rank, aggregate, filter)."""
-    return f"Contract {r['contract_id']} — {_display_name(r)} — Amount: {r['amount']}"
+def _amount_row(r: dict, field: str = "amount") -> str:
+    """One contract's line in the deterministic manifest answers (rank, aggregate, filter)."""
+    return f"Contract {r['contract_id']} — {_display_name(r)} — {field.capitalize()}: {r.get(field)}"
 
 
 def _self_check() -> None:
@@ -488,10 +546,46 @@ def _self_check() -> None:
         f"empty threshold subset ranks something or hides an unstated contract: {text!r}"
     print("OK: threshold format_ranking pins")
 
+    from types import SimpleNamespace
+
+    def duration(*texts: str) -> str:
+        return contract_duration([SimpleNamespace(text=t) for t in texts])
+
+    # The 3 corpus wordings (task_215, task_168, task_210, task_284), and the NOA signing window.
+    assert duration("shall be completed within Three\nHundred Twenty One (321) calendar days in") == "321 calendar days"
+    assert duration("shall be completed within 240 (two hundred forty) calendar-days in") == "240 calendar days"
+    assert duration("Project. Completion of the Works is required 163 Calendar Days.\nBidders") == "163 calendar days"
+    assert duration("Contract Cost :</td><td>P 96,489,983.04</td></tr><tr><td>Contract Duration :</td>"
+                    "<td>Three Hundred Twenty One (321) Calendar days</td>") == "321 calendar days"
+    noa = ("(P96,489,983.04).\n\nYou are, therefore, required, within ten (10) calendar days from your "
+           "receipt of this Notice of Award to formally sign the Contract Agreement.")
+    assert duration(noa) == "not stated", "the NOA signing window was read as a duration"
+    assert duration(noa, "Completion of the Works is required 163 Calendar Days.") == "163 calendar days"
+    assert duration("completed within 163 calendar days.", "completed within 240 calendar days.") == "not stated", \
+        "two different counts must not pick one"
+    rows = [{"contract_id": c, "contract_name": "n", "duration": d}
+            for c, d in (("A", "163 calendar days"), ("B", "not stated"), ("C", "321 calendar days"))]
+    assert format_ranking(rows, descending=True, top_only=True, field="duration") == (
+        "Of the 2 contracts with a stated duration, the longest is Contract C — n — Duration: 321 calendar days.\n"
+        "Not ranked (no duration in calendar days in the manifest): Contract B (not stated)."
+    ), "duration ranking"
+    print("OK: contract_duration pins")
+
 
 if __name__ == "__main__":
     if "--check" in sys.argv:
         _self_check()
+        sys.exit()
+    if "--durations" in sys.argv:  # add `duration` to the built manifest; no LLM, no re-extraction
+        from rag.index import build_nodes
+
+        by_contract: dict[str, list] = {}
+        for node in build_nodes():
+            by_contract.setdefault(node.metadata["contract_id"], []).append(node)
+        manifest = load_manifest()
+        _add_durations(manifest, by_contract)
+        MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+        print("\n".join(f"{r['contract_id']}: {r['duration']}" for r in manifest))
         sys.exit()
     manifest = build_manifest()
     print(f"built manifest for {len(manifest)} contracts -> {MANIFEST_PATH}\n")

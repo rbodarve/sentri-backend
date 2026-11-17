@@ -145,7 +145,7 @@ QUESTION_SPECS: list[dict] = [
          anchors=["143,137,226", "140,274,481"],
          query="Rodekom's bid for the Aringay River project was read at 143,137,226 with a 2% discount offered -- does the discounted amount match the awarded contract price?", search_query="Does the bid after the 2% discount match the awarded contract price?"),
     dict(type="complex", intent="max_duration", contract_id=None,
-         anchors=["240 (two hundred forty)", "163 Calendar Days", "Twenty One (321)"],
+         anchors=["240", "163 Calendar Days", "321"],  # bare counts: the manifest duration reads "321 calendar days"
          query="Which contract has the longest construction duration in calendar days?", search_query="Which contract has the longest construction duration in calendar days?"),
     dict(type="complex", intent="rank_amounts", contract_id=None,
          anchors=["69,479,428", "19,109,972", "96,489,983", "93,990,000", "140,274,481"],

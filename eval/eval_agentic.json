@@ -75,6 +75,24 @@
     "anchors": ["24AJ0052", "19,109,972"]
   },
   {
+    "query": "Which contract has the longest construction duration in calendar days?",
+    "kind": "rank",
+    "expect": "answer",
+    "anchors": ["24BG0272", "321 calendar days"]
+  },
+  {
+    "query": "Rank the contracts by contract duration.",
+    "kind": "rank",
+    "expect": "answer",
+    "anchors": ["321 calendar days", "240 calendar days", "163 calendar days"],
+    "ordered": true
+  },
+  {
+    "query": "Which contract has the longest duration among the contracts above 100 million?",
+    "kind": "simple",
+    "expect": "route"
+  },
+  {
     "query": "Which bidder had the lowest bid amount?",
     "kind": "simple",
     "expect": "route"

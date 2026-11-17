@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 from pathlib import Path
 
 from rag.agent import AgenticRag, manifest_router
@@ -100,9 +101,14 @@ def main() -> None:
     agent = AgenticRag()
 
     rows = []
-    for item in dataset:
+    start = time.monotonic()
+    for i, item in enumerate(dataset, 1):
         result = agent.answer(item["query"])
         rows.append((item, result, score(result, item)))
+        # One line per row as it finishes (flushed: a redirected stdout would hold it to the end).
+        print(f"PROGRESS {i}/{len(dataset)} {'PASS' if rows[-1][2] else 'FAIL'} "
+              f"{time.monotonic() - start:.0f}s [{item['kind']}/{item['expect']}] {item['query']}",
+              flush=True)
 
     n = len(rows)
     passed = sum(1 for _, _, ok in rows if ok)

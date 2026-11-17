@@ -72,10 +72,11 @@ question, or a corpus-wide sweep ("... across the documents in the database") in
 single-contract sub-question each (by rule), and withholds only a part that fails the check.
 `semantic` multi-hop questions are decomposed by the LLM (the only place the LLM drives
 control); `enumerate`/`rank`/`aggregate`/`filter`/`analytical` answer from the manifest (`rank` — a corpus-wide
-"highest / rank by amount", optionally among the contracts above / below X — sorts the manifest amounts in Decimal, and `aggregate` — a corpus-wide
+"highest / rank by amount", optionally among the contracts above / below X, or "longest / rank by duration" — sorts the manifest amounts or durations in Decimal, and `aggregate` — a corpus-wide
 total/average amount, optionally of the contracts above / below X — sums them in Decimal, and `filter` — a corpus-wide "amount above / below
-X", or "how many contracts are above X" — compares each with the threshold in Decimal, all with no LLM; duration is not a
-manifest field yet, see PLAN.md Phase B). Every sub-answer runs the
+X", or "how many contracts are above X" — compares each with the threshold in Decimal, all with no LLM. The manifest
+`duration` is read by regex, not the LLM: 3 of 6 contracts state one;
+`python -m rag.manifest --durations` adds it to a built manifest). Every sub-answer runs the
 deterministic route + `Verifier` inside a self-correction ladder (widen k → withhold; a known
 contract id stays filtered on every rung, an id not in the corpus is withheld before retrieval).
 A contract-filtered pass sees only its own manifest row. It reuses `RagAnswerer.answer_once`,
