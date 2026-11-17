@@ -227,8 +227,7 @@ def is_compare_question(question: str) -> bool:
 def is_corpus_wide(question: str) -> bool:
     """Every corpus-wide route cue, text-only. classify() takes a corpus-wide route only when this
     matches, and rag.subject never pins a session contract onto it -- one list, so a new route
-    cannot be added to one and missed in the other. Not the compare guard (is_compare_question):
-    it fires over any scope, pinned or not."""
+    cannot be added to one and missed in the other."""
     return bool(_LIST_CORPUS_RE.search(question) or _EACH_RE.search(question)
                 or _ANALYTICAL_RE.search(question) or _CORPUS_RE.search(question)
                 or is_rank_question(question) or is_aggregate_question(question)
@@ -449,8 +448,7 @@ class AgenticRag:
         "enumerate","rank","aggregate","filter","calc","compare"}."""
         explicit = list(dict.fromkeys(m.upper() for m in CONTRACT_ID_RE.findall(question)))
         resolved = self._rag.resolve_contract_ids(question)  # resolve once, reuse (was up to 3x)
-        # A corpus-wide route needs its cue in is_corpus_wide (shared with rag.subject's pin rule);
-        # compare is the one exception: a guard over any scope, not a corpus-wide route.
+        # A corpus-wide route needs its cue in is_corpus_wide (shared with rag.subject's pin rule).
         corpus = is_corpus_wide(question)
         if corpus and not explicit and not resolved:
             # "The total of the contracts above X": the threshold selects the summed amounts
@@ -484,12 +482,9 @@ class AgenticRag:
                 return "aggregate", sorted(self._known)
         ids = explicit or sorted(resolved)
         # Arithmetic over one contract's figures: computed in Decimal, never by the LLM (see answer()).
-        # Needs no corpus-wide cue, so it never competes with the corpus routes below. A threshold
-        # in the calc part is withheld by calc_scope, never dropped.
-        if not corpus and len(set(ids)) == 1 and is_calc_question(question):
+        if len(set(ids)) == 1 and is_calc_question(question):
             return "calc", ids
-        # The general guard (Phase J6): a threshold no route above parsed reaches no LLM route,
-        # whatever ids are named, resolved or pinned. Comparing is computing, and no LLM computes.
+        # The general guard (Phase J6; see is_compare_question).
         if is_compare_question(question):
             return "compare", []
         if corpus:
@@ -807,7 +802,6 @@ def _self_check() -> None:
         assert not is_calc_question(q), f"a lookup has a calc cue: {q!r}"
     scope = calc_scope("What is the total cost of 24CC0265, and which items are listed in Part A?")
     assert not scope.op and "no calculation" in scope.reason, f"CR5: 0 calc clauses: {scope}"
-    # J6 CR1: no calc step reads a threshold, so a sum under one would silently drop it.
     scope = calc_scope("What is the combined amount of the projects in Leyte over 200 days?")
     assert not scope.op and "threshold" in scope.reason, f"J6 CR1: threshold dropped: {scope}"
     print(f"OK: calc_scope pins ({len(rows)} E1 dev rows, {len(expected)} kinds)")
