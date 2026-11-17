@@ -216,12 +216,12 @@ def is_filter_question(question: str) -> bool:
 
 
 def is_compare_question(question: str) -> bool:
-    """An amount or duration 'above / below X' over contracts or projects (Phase J). classify()
+    """An amount or duration 'above / below X' (Phase J), with or without a scope word. classify()
     checks it after rank / filter / aggregate and calc, whatever ids the question names: a
     threshold they do not parse (a bid amount, days, a bare figure) is withheld, never compared by
     the LLM. A count ("more than 2 bidders") is not. Not in is_corpus_wide: a pinned follow-up
     keeps its pin, and a one-contract calc keeps its route."""
-    return bool(_RANK_SCOPE_RE.search(question) and has_unit_threshold(question))
+    return has_unit_threshold(question)
 
 
 def is_corpus_wide(question: str) -> bool:
@@ -671,7 +671,7 @@ class AgenticRag:
         if kind == "compare":  # withhold with the reason, never compare
             stage("combine", {"strategy": kind, "ok": False})
             return AgentResult(question, kind, "", Report(blocks=[
-                "comparison across contracts withheld: no manifest route parses this threshold, "
+                "comparison withheld: no manifest route parses this threshold, "
                 "and no model compares"], flags=[]), [])
 
         if kind == "calc":

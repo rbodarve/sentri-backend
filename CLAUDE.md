@@ -75,8 +75,8 @@ control); `enumerate`/`rank`/`aggregate`/`filter`/`analytical` answer from the m
 "highest / rank by amount", optionally among the contracts above / below X, or "longest / rank by duration" — sorts the manifest amounts or durations in Decimal, and `aggregate` — a corpus-wide
 total/average amount, optionally of the contracts above / below X — sums them in Decimal, and `filter` — a corpus-wide "amount above / below
 X", or "how many contracts are above X" — compares each with the threshold in Decimal, all with no LLM. An amount or duration threshold
-over contracts / projects that none of these parse (a bid amount, days / months, a bare figure ending
-the sentence) routes `compare` and is withheld (Phase J), never compared by the LLM — whatever ids
+that none of these parse (a bid amount, days / months, a bare figure ending the sentence; with or
+without "contracts / projects", J7) routes `compare` and is withheld (Phase J), never compared by the LLM — whatever ids
 are named, resolved or pinned; only a one-contract `calc` precedes it. A count ("more than 2
 bidders") or a year is not a threshold. The manifest
 `duration` is read by regex, not the LLM: 3 of 6 contracts state one;
