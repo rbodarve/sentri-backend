@@ -82,8 +82,10 @@ def get_llm():
             # output is just the concise answer. Harmless for other models (never emitted).
             # It also echoes an invented "...\nQuestion: ...\nAnswer:" prompt and answers again
             # (stream-sim #392: 50-104 s, a 120 s timeout in R11); stop at the echo.
+            # It also echoes its context preamble "I only have access to the following
+            # context..." after the answer (stream-sim R12 #242); stop there too.
             additional_kwargs={"stop": ["<|fim_middle|>", "<|fim_prefix|>",
                                         "<|fim_suffix|>", "<|endoftext|>", "\nQuestion:",
-                                        "\nquestion:"]},
+                                        "\nquestion:", "\nI only have access"]},
         )
     raise ValueError(f"Unknown RAG_GEN_PROVIDER={GEN_PROVIDER!r}; expected 'ollama'")

@@ -83,12 +83,13 @@ always empty (no knowledge-graph store here).
 `parts`: `[{question, contract_id, answer, ok, blocks, flags, citations, evidence}]` — one entry
 per sub-question; `answer` is `""` when that part's `ok` is false (a withheld sub-answer never goes on
 the wire — `blocks`/`flags` say why); `evidence` carries the same `{name, page, score, chunk_id, bbox}` shape as
-`sources` but scoped to that sub-question only. Empty array for `analytical` queries (no sub-questions).
+`sources` but scoped to that sub-question only. Empty array for the manifest routes (`enumerate`,
+`rank`, `aggregate`, `filter`, `analytical`) and a `compare` withhold (no sub-questions).
 `done`: `{confidence, uncertain, tokens, cost_usd, files, compose_backend, compose_model, response_text, notice}`.
 
 A fan-out answer (one sub-question per contract) withholds only the parts that fail the check: the
 verified parts are streamed, a failed part appears as `- <contract>: answer withheld (it failed the
-grounding check)` with its reason in `parts[].blocks`/`flags`, and `done.uncertain` is `true` only when
+grounding check)` (a compound `calc` answer shows the part's reason there instead) with its reason in `parts[].blocks`/`flags`, and `done.uncertain` is `true` only when
 every part failed (`rag/agent.py`).
 
 ### Parity with the external API (honest stand-ins)
@@ -124,7 +125,9 @@ restart) and records only **verified** answers, so a withheld turn never becomes
 
 This pipeline **verifies before it displays**: `AgenticRag` withholds any answer
 that fails the manifest grounding check (invented contract id, or a mis-bound
-location/contractor). Streaming raw generation live would put text on the wire
+location/contractor) or the numeric grounding guard (a figure >= 1,000 that no
+source holds), and it withholds a `calc` it cannot pin and every `compare`.
+Streaming raw generation live would put text on the wire
 that the verifier might then withhold. So `run_stream` runs the full
 route → decompose → verify loop, emits progress as `stage` events, and only
 replays the **verified** answer as `token` events. A withheld answer streams no

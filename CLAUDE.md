@@ -29,7 +29,8 @@ are workspace-specific additions on top of it; keep such additions here, not in 
 Use `make` (details in [scripts/README.md](scripts/README.md)):
 
 - `make setup` — create the conda env + install pinned deps (one-time).
-- `make check` — stage 1–3 self-checks (loader, enrich, relationships) + the model-free router
+- `make check` — stage 1–3 self-checks (loader, enrich, relationships), `rag.verify`, the
+  manifest / agent `--check` pins (amounts, duration, calc, numeric guard, resolver) + the model-free router
   gate (`python -m rag.evaluate_agentic --routes`; skipped until `make build` creates the manifest).
 - `make coverage` — model-free field-coverage report over the built manifest (the analytical
   route's data ceiling).
@@ -114,7 +115,9 @@ Data & artifacts:
 Models are **config-driven** in [rag/config.py](rag/config.py) via `RAG_*` env vars — swap
 embedding/reranker/LLM for better hardware without touching pipeline code. Defaults:
 `BAAI/bge-small-en-v1.5` embed, `BAAI/bge-reranker-base` rerank, `granite4.1:3b` gen
-(temp 0.0, `num_ctx` 4096 — capped deliberately to keep the KV cache on a 4GB GPU).
+(temp 0.0, `num_ctx` 4096 — capped deliberately to keep the KV cache on a 4GB GPU). `get_llm()`
+stops granite at its FIM sentinels and at echoed `\nQuestion:` / `\nI only have access` lines
+(it runs on past the answer into an invented prompt; PLAN.md K).
 
 ## Conventions
 
@@ -128,10 +131,12 @@ embedding/reranker/LLM for better hardware without touching pipeline code. Defau
   only if the agent correctly withholds. It needs Ollama and is separate from the recall gate.
 - **Full question set, through the service.** `eval/runs/stream_sim.py` replays all 441
   `docs/queries.txt` questions as SSE client streams against a running `service/` (PART 1 as real
-  sessions) and `eval/runs/judge_stream.py` scores them: 407/441 = 92.3% (R10, 2026-10-06;
-  single-run noise ~±7); 408/441 with the 2026-10-08 judge, which scores a withhold like a decline
-  (PLAN.md Phase H; only #68 moves). The calc route removed R9's 5 wrong model sums and lost 4 correct ones;
-  R10 predates 168191b, so it stated no total (R9: 415/441). ~4 h per run on two servers.
+  sessions) and `eval/runs/judge_stream.py` scores them (a withhold scores like a decline, PLAN.md
+  Phase H): 417/441 = 94.6% (R11 at 987ef8d, 2026-11-17, and R12 through the ngrok URL at 132aa10,
+  2026-11-18; single-run noise ~±7). R10 (2026-10-06, before 168191b) was 408/441. R12's 24
+  misses: 12 simple (a neighbouring fact or a wrong decline), 9 corpus-wide fanout sweeps that
+  miss one item, 2 calc, 1 open-ended date sweep. ~4 h per run on two servers, ~5 h on one
+  through ngrok.
 - **Verify gate:** `.claude/verify.sh` (a Stop hook) validates `database/` OCR integrity on
   every turn. It must exit 0. It only checks JSON structure — it never re-OCRs.
   `.claude/` is gitignored, so this gate is local-only: a fresh clone has no verify.sh or hook.

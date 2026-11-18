@@ -7,7 +7,7 @@ available as `make <target>`.
 | Command | Make | What it does |
 |---|---|---|
 | `bash scripts/setup.sh` | `make setup` | Create conda env `sentri-backend`, install pinned deps (CPU-only torch, zero VRAM) |
-| `bash scripts/check.sh` | `make check` | Run stage 1-3 self-checks (loader, enrich, relationships) + the model-free router gate (skipped without a built manifest) |
+| `bash scripts/check.sh` | `make check` | Run stage 1-3 self-checks (loader, enrich, relationships), the verify / manifest / agent pin self-checks + the model-free router gate (skipped without a built manifest) |
 | `bash scripts/coverage.sh` | `make coverage` | Model-free field-coverage report over the built manifest (the analytical route's data ceiling) |
 | `bash scripts/build.sh` | `make build` | Build the retrieval eval set + embed and persist the vector index, then extract the corpus manifest (manifest step needs Ollama) |
 | `bash scripts/evaluate.sh [mode]` | `make eval [MODE=...]` | Measure recall; `mode` = `baseline` \| `filtered` \| `rerank` (default `rerank`) |

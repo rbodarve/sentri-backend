@@ -4,7 +4,7 @@ SCALABILITY VERDICT — what happens if the database grows to 100,000
 Verdict: it does not scale to 100k. The root cause is a single architectural
 invariant, not a bug.
 
-Why it works today: the corpus is 6 contracts, 38 files, 401 chunks, a 3.6MB
+Why it works today: the corpus is 6 contracts, 38 files, 407 chunks, a 3.6MB
 index. Every layer of the pipeline is built on the assumption "the whole corpus
 is small enough to enumerate exhaustively — in RAM, in a linear scan, and
 inside one LLM context." At this size that assumption is not a flaw; it's what
@@ -19,26 +19,26 @@ ROOT CAUSE, TRACED THROUGH EACH LAYER
 -------------------------------------
 
 1. The vector store is an in-memory brute-force scan — the hard blocker.
-   rag/index.py:127 uses LlamaIndex's default SimpleVectorStore: a Python dict
+   rag/index.py:134 uses LlamaIndex's default SimpleVectorStore: a Python dict
    of embeddings persisted as one JSON blob (index_store/default__vector_store.json).
    Three compounding failures at scale:
-   - Storage: 3.6MB for 401 chunks ≈ 9KB/chunk of JSON-encoded floats → ~9GB
+   - Storage: 3.6MB for 407 chunks ≈ 9KB/chunk of JSON-encoded floats → ~9GB
      single JSON file at 1M chunks, parsed whole into RAM on every load_index()
      (multiply several× for Python object overhead — it won't fit).
    - Query: SimpleVectorStore.query computes similarity as a dense dot-product
      over EVERY embedding — O(N) per query. The contract_id MetadataFilter in
-     rag/generate.py:105-121 doesn't help: SimpleVectorStore applies filters by
+     rag/generate.py:108-120 doesn't help: SimpleVectorStore applies filters by
      iterating all nodes in Python first. There is no index structure at all.
-   - Build: build_index() (rag/index.py:127-132) re-embeds the entire corpus
+   - Build: build_index() (rag/index.py:130-136) re-embeds the entire corpus
      from scratch every `make build`. CPU bge-small at ~1M chunks is many hours
      to days, repaid in full for every single added document — there is no
      incremental path.
 
 2. The manifest is injected into every prompt — the correctness blocker.
-   rag/generate.py:173-180 builds the COMPLETE contract list and answer_once
-   (rag/generate.py:327) puts it into every unfiltered query's context ("it is
+   rag/generate.py:176-183 builds the COMPLETE contract list and answer_once
+   (rag/generate.py:343) puts it into every unfiltered query's context ("it is
    always present"). Since 2026-09-28 a contract-FILTERED pass injects only its
-   own contract's row (rag/generate.py:333, _record_node) -- that half of step 3
+   own contract's row (rag/generate.py:336, _record_node) -- that half of step 3
    below is done, and it already fixed a real bug at today's size (other
    contracts' places leaking into single-contract answers). Unfiltered questions
    and the analytical route (rag/agent.py) still read the whole table.
@@ -49,17 +49,18 @@ ROOT CAUSE, TRACED THROUGH EACH LAYER
    manifest can't fit any context window, local or handoff.
 
 3. Manifest build is one sequential LLM call per contract.
-   rag/manifest.py:164-170 loops sorted(by_contract) calling llm.complete()
+   rag/manifest.py:188-194 loops sorted(by_contract) calling llm.complete()
    once each on local Ollama. At seconds per call, 16k contracts ≈ days;
-   100k contracts ≈ weeks — and `make build` reruns it in full. It also runs
-   AFTER the (now days-long) embed, so any Ollama hiccup discards everything.
+   100k contracts ≈ weeks — and `make build` reruns it in full. It runs
+   AFTER the (now days-long) embed; an interrupted manifest resumes from its
+   partial manifest.json (rag/manifest.py:176-183), but the embed does not.
 
 4. Query-time routing degrades in both speed and behavior.
-   resolve_contract_ids (rag/generate.py:123-137) runs one regex search over
+   resolve_contract_ids (rag/generate.py:126-139) runs one regex search over
    the question PER distinctive token in the entire corpus — O(corpus
    vocabulary) per query; at 16k contracts that's hundreds of thousands of
    regex calls per question. Worse, the resolution rule "exactly one contract
-   owns this token" (rag/generate.py:139-150) collapses at scale: with 16k
+   owns this token" (rag/generate.py:142-150) collapses at scale: with 16k
    Philippine infrastructure contracts, virtually every location token is
    shared, so the filter almost never engages, retrieval goes unfiltered over
    1M chunks with only 40 rerank candidates — and recall, the project's "pass"
@@ -67,15 +68,15 @@ ROOT CAUSE, TRACED THROUGH EACH LAYER
    the search space to one contract (~67 chunks).
 
 5. Startup and the verify gate are full-corpus scans.
-   _build_person_names (rag/generate.py:51-67) iterates the entire docstore
+   _build_person_names (rag/generate.py:54-70) iterates the entire docstore
    into RAM on every RagAnswerer() construction; the verify-gate script re-parses
    every database/*.json on every turn — minutes per turn at 100k files.
 
 6. Corpus-wide questions fan out once per contract (added 2026-09-28).
    "... across the documents in the database" is routed to one filtered
-   sub-question per known contract (rag/agent.py:185-187, _CORPUS_RE), and a
+   sub-question per known contract (rag/agent.py:503, _CORPUS_RE), and a
    distributive "each/all projects" question already did the same
-   (rag/agent.py:192). That is what made those ~45 questions answerable at 6
+   (rag/agent.py:506, _EACH_RE). That is what made those ~45 questions answerable at 6
    contracts (one unfiltered pass sees ~10 of ~400 chunks), but it costs one
    full retrieve+generate per contract: ~4 min per question today, ~16k LLM
    calls -- days -- per question at 100k files. It is the right shape (the
@@ -127,8 +128,9 @@ STEPS TO MAKE IT SCALABLE (IN DEPENDENCY ORDER)
    duration threshold none of them parse routes `compare` and is withheld
    (2026-11-17): at scale it needs a typed column, not an LLM comparison. This is consistent with the current arithmetic rule (2026-09-26): no
    LLM ever computes -- a calc-cued question routes `calc`, which cites
-   guarded operands and states no total (it stops wrong sums; it does not
-   compute sums; through the service it answered 1 of 7 sums, 0 wrong); an
+   guarded operands; when the operand set is pinned, rag/calc.py states the
+   total in Decimal, else it states no total (R12 through the service: 8 of
+   10 calc rows correct, 7 state a total, 0 wrong sums); an
    un-cued phrasing still reaches the model, and a numeric grounding guard
    withholds any model-written figure >= 1,000 that no cited source holds
    (sealed: 0 of 11 leaked, bound < ~27%; figures < 1,000 and amounts in words

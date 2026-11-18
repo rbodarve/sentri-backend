@@ -157,8 +157,8 @@ Every model and retrieval knob is an environment variable read in [`rag/config.p
 | Suite | Command | Ground truth | Latest result |
 |---|---|---|---|
 | Retrieval recall (the gate) | `make eval` | [`eval/eval_retrieval.json`](eval/eval_retrieval.json), 40 questions | hit rate **1.000** (single, broad and complex) |
-| Agent, answer level | `make eval-agentic` | [`eval/eval_agentic.json`](eval/eval_agentic.json), 126 questions incl. 2 withhold traps, rank / aggregate / filter / calc questions, 25 `compare` withholds and their look-alikes (routing only) | **121/122** (2026-11-17; the 4 rows added after it are route-checked) |
-| Full question set through the streaming service | local harness | 441 questions from the local, untracked `docs/queries.txt` | **415/441 = 94.1%** (2026-10-05) |
+| Agent, answer level | `make eval-agentic` | [`eval/eval_agentic.json`](eval/eval_agentic.json), 132 questions incl. 2 withhold traps, rank / aggregate / filter / calc questions, 32 `compare` rows and their look-alikes (routing only) | **131/132** (2026-11-18) |
+| Full question set through the streaming service | local harness | 441 questions from the local, untracked `docs/queries.txt` | **417/441 = 94.6%** (2026-11-18, through the ngrok URL) |
 
 The one failing agent row is a known model miss. In the 24CM0001 notice to proceed the contractor
 appears only as the addressee, and the 3B model does not call it the contractor.
@@ -169,9 +169,9 @@ checked against the stream contract. The harness and per-question root-cause not
 local, git-excluded `eval/runs/` folder; the analysis is in the local, untracked `docs/ANALYSIS.txt`.
 The remaining misses are:
 
-- sums the model would have to compute (6);
-- questions where the 3B model answers a neighbouring fact instead of declining, or declines a fact it has in context (11);
-- list questions spanning the whole database that miss one item (10);
+- questions where the 3B model answers a neighbouring fact instead of declining, or declines a fact it has in context (12);
+- list questions spanning the whole database that miss one item (9);
+- calculation questions that are withheld or miss the total (2);
 - one open-ended "every date in the database" question (1).
 
 ## Streaming API
