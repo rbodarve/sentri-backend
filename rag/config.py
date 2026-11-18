@@ -80,7 +80,10 @@ def get_llm():
             temperature=GEN_TEMPERATURE,
             # granite emits fill-in-middle sentinels then fails to stop; halt on them so the
             # output is just the concise answer. Harmless for other models (never emitted).
+            # It also echoes an invented "...\nQuestion: ...\nAnswer:" prompt and answers again
+            # (stream-sim #392: 50-104 s, a 120 s timeout in R11); stop at the echo.
             additional_kwargs={"stop": ["<|fim_middle|>", "<|fim_prefix|>",
-                                        "<|fim_suffix|>", "<|endoftext|>"]},
+                                        "<|fim_suffix|>", "<|endoftext|>", "\nQuestion:",
+                                        "\nquestion:"]},
         )
     raise ValueError(f"Unknown RAG_GEN_PROVIDER={GEN_PROVIDER!r}; expected 'ollama'")
